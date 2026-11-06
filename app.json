@@ -1,0 +1,54 @@
+{
+  "expo": {
+    "name": "Sanuk",
+    "slug": "sanuk",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "sanuk",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#F3F6FA",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.sanuk.thai"
+    },
+    "android": {
+      "package": "app.sanuk.thai",
+      "adaptiveIcon": {
+        "backgroundColor": "#FFE2B8",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "output": "single",
+      "favicon": "./assets/images/favicon.png",
+      "name": "Sanuk · Thai, curva a curva",
+      "backgroundColor": "#F3F6FA",
+      "themeColor": "#FFA41B"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#F7E9DF",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 180
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Sanuk usa el micrófono para que grabes tu voz y la compares con la pronunciación thai."
+        }
+      ],
+      "expo-font"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}
