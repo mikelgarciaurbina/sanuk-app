@@ -1,6 +1,7 @@
 // Lógica de «Paga justo»: qué se vende, a qué precio y cómo se dice. Los precios se eligen para que se
 // digan solo con números thai que quien aprende ya conoce (y, si la lección enseña números, que los usen).
 import { MARKET_ITEMS } from '@/content/drills';
+import { knownForms } from '@/content';
 import type { Word } from '@/content/types';
 import { pick, shuffle } from '@/lib/random';
 import { personalize, personalizeRom, thaiNumber, thaiNumberRom, type Gender } from '@/lib/thai';
@@ -105,6 +106,8 @@ export type Knowledge = {
   fresh: Set<string>;
   words: Word[];
   focus: Word[];
+  /** todo el thai ya presentado: la vendedora solo dice lo que se entiende */
+  said: Set<string>;
   /** sabe pedir rebaja (ลด) · sabe preguntar el precio (เท่าไหร่) · sabe «caro» (แพง) */
   canHaggle: boolean;
   canAsk: boolean;
@@ -114,20 +117,25 @@ export type Knowledge = {
 };
 
 export function knowledge(words: Word[], focus: Word[]): Knowledge {
-  const all = new Set([...words, ...focus].map((w) => w.th));
-  const nums = [...all].filter((t) => NUMBER_WORDS.has(t));
+  const said = knownForms([...words, ...focus]);
+  const nums = [...said].filter((t) => NUMBER_WORDS.has(t));
   const fresh = new Set(focus.map((w) => w.th).filter((t) => NUMBER_WORDS.has(t)));
   return {
     known: nums.length >= 4 ? new Set(nums) : null,
     fresh,
     words,
     focus,
-    canHaggle: all.has('ลด'),
-    canAsk: all.has('เท่าไหร่'),
-    saysCaro: all.has('แพง'),
+    said,
+    canHaggle: ['ลด', 'ได้', 'ไหม'].every((t) => said.has(t)),
+    canAsk: ['อันนี้', 'เท่าไหร่'].every((t) => said.has(t)),
+    saysCaro: ['แพง', 'มาก'].every((t) => said.has(t)),
     teachesChange: focus.some((w) => w.th === 'ทอน'),
   };
 }
+
+/** Números thai presentados que hacen falta para jugar al mercado en la feria. */
+export const MIN_MARKET_NUMBERS = 4;
+export const marketNumbers = (said: Set<string>) => [...said].filter((t) => NUMBER_WORDS.has(t)).length;
 
 const sayable = (n: number, k: Knowledge) => !k.known || numberParts(n).every((p) => k.known!.has(p));
 
@@ -273,19 +281,41 @@ export function goodsEs(good: Good, qty: number): string {
   return `${qty} ${plural(good.es)}`;
 }
 
-/** La vendedora dice qué es y cuánto cuesta: «มะม่วงสองลูก ห้าสิบบาทจ้ะ». */
-export function quoteLine(good: Good, qty: number, price: number): Line {
+/** La partícula de la vendedora: จ้ะ («cielo») cuando ya se ha presentado; si no, el ค่ะ de siempre. */
+const vendorP = (k: Knowledge) => (k.said.has('จ้ะ') ? { th: 'จ้ะ', rom: 'jâ', es: ', cielo' } : { th: 'ค่ะ', rom: 'khâ', es: '' });
+
+/**
+ * La vendedora dice qué es y cuánto cuesta: «มะม่วงสองลูก ห้าสิบบาทจ้ะ». Solo nombra lo que ya se ha presentado:
+ * sin la palabra de la fruta o del clasificador, se queda en el precio («ห้าสิบค่ะ»), y la imagen dice el resto.
+ */
+export function quoteLine(good: Good, qty: number, price: number, k: Knowledge): Line {
+  const p = vendorP(k);
+  const named = k.said.has(good.th);
+  const counted = named && k.said.has(good.clf) && sayable(qty, k);
+  const baht = k.said.has('บาท');
+  const what = named ? `${good.th}${counted ? `${thaiNumber(qty)}${good.clf}` : ''} ` : '';
+  const whatRom = named ? `${good.rom}${counted ? ` ${thaiNumberRom(qty)} ${CLF_ROM[good.clf] ?? ''}` : ''}, ` : '';
   return {
-    th: `${good.th}${thaiNumber(qty)}${good.clf} ${thaiNumber(price)}บาทจ้ะ`,
-    rom: `${good.rom} ${thaiNumberRom(qty)} ${CLF_ROM[good.clf] ?? ''}, ${thaiNumberRom(price)} bàat jâ`,
-    es: `${goodsEs(good, qty)}: ${price} baht, cielo.`,
+    th: `${what}${thaiNumber(price)}${baht ? 'บาท' : ''}${p.th}`,
+    rom: `${whatRom}${thaiNumberRom(price)}${baht ? ' bàat' : ''} ${p.rom}`,
+    es: `${goodsEs(good, qty)}: ${price} baht${p.es}.`,
   };
 }
 
-export const priceLine = (price: number): Line => ({ th: `${thaiNumber(price)}บาทจ้ะ`, rom: `${thaiNumberRom(price)} bàat jâ`, es: `${price} baht, cielo.` });
+export function priceLine(price: number, k: Knowledge): Line {
+  const p = vendorP(k);
+  const baht = k.said.has('บาท');
+  return { th: `${thaiNumber(price)}${baht ? 'บาท' : ''}${p.th}`, rom: `${thaiNumberRom(price)}${baht ? ' bàat' : ''} ${p.rom}`, es: `${price} baht${p.es}.` };
+}
 
-export const THANKS: Line = { th: 'ขอบคุณจ้ะ', rom: 'khɔ̀ɔp-khun jâ', es: 'Gracias, cielo.' };
-export const SORRY: Line = { th: 'ขอโทษจ้ะ', rom: 'khɔ̌ɔ-thôot jâ', es: '¡Uy, perdona, cielo!' };
+export const thanksLine = (k: Knowledge): Line => {
+  const p = vendorP(k);
+  return { th: `ขอบคุณ${p.th}`, rom: `khɔ̀ɔp-khun ${p.rom}`, es: `Gracias${p.es}.` };
+};
+export const sorryLine = (k: Knowledge): Line => {
+  const p = vendorP(k);
+  return { th: `ขอโทษ${p.th}`, rom: `khɔ̌ɔ-thôot ${p.rom}`, es: `¡Uy, perdona${p.es}!` };
+};
 
 /** Lo que dice quien aprende (con su partícula). */
 export function askLine(g: Gender): Line {

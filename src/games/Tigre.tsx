@@ -12,7 +12,8 @@ import { color, font, tones, type ToneId } from '@/brand/tokens';
 import { Icon, ToneGlyph } from '@/components/icons';
 import { Noi } from '@/components/Noi';
 import { Rom, Th } from '@/components/ui';
-import { MINIMAL_SETS, type MiniWord } from '@/content/drills';
+import { knownForms } from '@/content';
+import { minimalSetsFor, type MiniWord } from '@/content/drills';
 import { fx } from '@/lib/audio';
 import { shuffle } from '@/lib/random';
 import { toneOfSyllable } from '@/lib/thai';
@@ -25,7 +26,7 @@ import { AudioOrb, Badge, CardSkin, Fuse, LannaBack, Medallion, NextButton, SKIN
 import { useTimers, useVoice } from './tonos/voz';
 import type { GameProps } from './types';
 
-type MSet = (typeof MINIMAL_SETS)[number];
+type MSet = ReturnType<typeof minimalSetsFor>[number];
 type Round = { set: MSet; items: MiniWord[]; target: number; level: number; retry?: boolean };
 type Phase = 'deal' | 'play' | 'done' | 'out';
 type Face = 'back' | 'front' | 'contour';
@@ -40,13 +41,16 @@ const LEVELS = [
 const toneOf = (w: MiniWord): ToneId => toneOfSyllable(w.rom);
 
 function plan(mode: GameProps['mode'], known: Set<string>, focusTh: Set<string>, rounds: number): Round[] {
+  // solo pares con palabras ya presentadas (y, de cada trío, las que se conocen)
+  const sets = minimalSetsFor(known);
+  if (!sets.length) return [];
   const used = new Set<MSet>();
   const out: Round[] = [];
   for (let i = 0; i < rounds; i++) {
     const level = mode === 'feria' ? (i < rounds * 0.35 ? 0 : i < rounds * 0.7 ? 1 : 2) : 0;
     const sizes = mode === 'feria' ? LEVELS[level].sizes : [2, 3];
-    const fresh = MINIMAL_SETS.filter((s) => !used.has(s));
-    const pool = fresh.length ? fresh : MINIMAL_SETS;
+    const fresh = sets.filter((s) => !used.has(s));
+    const pool = fresh.length ? fresh : sets;
     // tamaño del nivel, y mejor si sale alguna palabra de la lección o ya aprendida
     const best = shuffle(pool)
       .map((s) => ({
@@ -77,7 +81,7 @@ export default function Tigre({ mode, words, focus, rounds, onAnswer, onDone }: 
   const compact = winH < 760;
 
   const [queue, setQueue] = useState(() =>
-    plan(mode, new Set([...focus, ...words].map((w) => w.th)), new Set(focus.map((w) => w.th)), rounds ?? (feria ? 10 : 3)),
+    plan(mode, knownForms([...focus, ...words]), new Set(focus.map((w) => w.th)), rounds ?? (feria ? 10 : 3)),
   );
   const [i, setI] = useState(0);
   const [phase, setPhase] = useState<Phase>('deal');

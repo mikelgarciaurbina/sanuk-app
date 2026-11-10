@@ -106,6 +106,7 @@ export const WORDS_A: Word[] = [
   { id: 'nguang', th: 'งวง', rom: 'nguang', es: 'trompa', emoji: '🐘', cat: 'cuerpo' },
   { id: 'saai', th: 'ซ้าย', rom: 'sáai', es: 'izquierda', emoji: '⬅️', cat: 'lugar' },
   { id: 'khwaa', th: 'ขวา', rom: 'khwǎa', es: 'derecha', emoji: '➡️', cat: 'lugar' },
+  { id: 'tae_tocar', th: 'แตะ', rom: 'tɛ̀', es: 'tocar (con la mano)', emoji: '👆', cat: 'verbo', note: 'แตะหู = toca la oreja. Es la palabra de «Noi dice».' },
   { id: 'yai_big', th: 'ใหญ่', rom: 'yài', es: 'grande', emoji: '🏔️', cat: 'adjetivo' },
   { id: 'lek', th: 'เล็ก', rom: 'lék', es: 'pequeño', emoji: '🐜', cat: 'adjetivo' },
   { id: 'suay', th: 'สวย', rom: 'sǔay', es: 'bonito, guapa', emoji: '🌸', cat: 'adjetivo' },
@@ -334,9 +335,9 @@ export const STOPS_A: Stop[] = [
     lessons: [
       { id: 'p3l1', title: 'Animales', goal: 'Los vecinos de Noi en el santuario.', words: ['chang', 'maa_dog', 'maeo', 'maa_horse', 'suea', 'wua', 'ling', 'tua', 'yai_big'], sentences: ['a20'], extra: { kind: 'tonos' } },
       { id: 'p3l2', title: 'Colores', goal: 'De qué color es todo.', words: ['sii_color', 'daeng', 'khiao', 'lueang', 'khaao', 'dam', 'faa', 'chomphuu'], sentences: ['a23'] },
-      { id: 'p3l3', title: 'El cuerpo', goal: 'Cabeza, orejas, trompa… y derecha e izquierda.', words: ['hua', 'huu', 'taa', 'jamuuk', 'paak', 'mue', 'khaa', 'nguang', 'saai', 'khwaa'], sentences: ['a24'], extra: { kind: 'cuerpo' } },
+      { id: 'p3l3', title: 'El cuerpo', goal: 'Cabeza, orejas, trompa… y derecha e izquierda.', words: ['hua', 'huu', 'taa', 'jamuuk', 'paak', 'mue', 'khaa', 'nguang', 'saai', 'khwaa', 'tae_tocar'], sentences: ['a24'], extra: { kind: 'cuerpo' } },
       { id: 'p3l4', title: '¿Cómo es?', goal: 'Describe: grande, pequeño, bonito, adorable.', words: ['yai_big', 'lek', 'suay', 'naarak', 'keng', 'pen', 'tua', 'nii_this'], sentences: ['a21', 'a22', 'a54'] },
-      { id: 'p3l5', title: 'Noi dice', goal: 'Juega con Noi usando todo lo aprendido.', words: ['chang', 'huu', 'nguang', 'saai', 'khwaa', 'naarak', 'yai_big'], extra: { kind: 'cuerpo' } },
+      { id: 'p3l5', title: 'Noi dice', goal: 'Juega con Noi: น้อยบอกว่า… = «Noi dice…».', words: ['bok', 'chang', 'huu', 'nguang', 'saai', 'khwaa', 'naarak', 'yai_big'], extra: { kind: 'cuerpo' } },
     ],
   },
   {

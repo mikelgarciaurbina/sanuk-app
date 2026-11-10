@@ -7,9 +7,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { color } from '@/brand/tokens';
 import { Art } from '@/components/icons';
 import { LessonDone } from '@/components/LessonDone';
-import { Hud, Txt } from '@/components/ui';
+import { Noi } from '@/components/Noi';
+import { Btn, Hud, Txt } from '@/components/ui';
 import { WordIntro } from '@/components/WordIntro';
-import { curvesFor, dueWords, lessonById, letterProgress, stopDone } from '@/content';
+import { canReview, curvesFor, dueWords, lessonById, letterProgress, stopDone } from '@/content';
 import { GameFrame } from '@/games/fx';
 import { GAME_BG, GAME_COMPONENTS, GAME_DARK } from '@/games/registry';
 import type { GameResult } from '@/games/types';
@@ -26,7 +27,8 @@ export default function Leccion() {
   const insets = useSafeAreaInsets();
   const lesson = id === 'repaso' ? undefined : lessonById(id);
 
-  // la lección se construye una vez con el progreso de entrada
+  // la lección se construye una vez con el progreso de entrada; el repaso, solo si hay con qué jugar
+  const [reviewOpen] = useState(() => !!lesson || canReview(p));
   const [built] = useState(() => (lesson ? buildLesson(lesson, p) : buildReview(dueWords(p), p)));
   const [letterBefore] = useState(() => letterProgress(p).pct);
   const [i, setI] = useState(0);
@@ -74,6 +76,16 @@ export default function Leccion() {
 
   if (done) {
     return <LessonDone result={total} seconds={elapsed} letterBefore={letterBefore} lessonId={lesson?.id} />;
+  }
+  if (!reviewOpen) {
+    return (
+      <View style={[styles.closed, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }]}>
+        <Noi pose="piensa" size={140} />
+        <Txt v="h2" style={{ textAlign: 'center' }}>Aún no hay nada que repasar</Txt>
+        <Txt v="body" style={{ textAlign: 'center' }}>El repaso usa solo palabras que ya has visto en el camino. Aprende unas pocas más y vuelve.</Txt>
+        <Btn label="Volver" onPress={close} style={{ alignSelf: 'stretch' }} />
+      </View>
+    );
   }
   if (!step) return null;
 
@@ -139,5 +151,6 @@ export default function Leccion() {
 }
 
 const styles = StyleSheet.create({
+  closed: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14, paddingHorizontal: 28, backgroundColor: color.niebla },
   bananas: { flexDirection: 'row', alignItems: 'center', gap: 4, height: 34, paddingHorizontal: 10, borderRadius: 999, backgroundColor: '#FFFFFF', borderWidth: 2, borderColor: color.niebla3 },
 });

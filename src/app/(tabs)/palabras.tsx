@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { color, font, shadow } from '@/brand/tokens';
 import { Btn, Rom, Th, Txt } from '@/components/ui';
-import { STOPS, dueWords, wordsOf } from '@/content';
+import { MIN_REVIEW_WORDS, STOPS, canReview, dueWords, introducedIds, wordsOf } from '@/content';
 import type { Word } from '@/content/types';
 import { fx, say } from '@/lib/audio';
 import { useStore, type WordStat } from '@/lib/store';
@@ -16,7 +16,10 @@ export default function Palabras() {
   const insets = useSafeAreaInsets();
   const [stop, setStop] = useState<string>('todas');
   const due = dueWords(p);
-  const learned = Object.keys(p.words).length;
+  const learned = introducedIds(p).size;
+  const open = canReview(p);
+  // con muy pocas palabras presentadas, los juegos del repaso no tendrían opciones que dar
+  const few = learned < MIN_REVIEW_WORDS;
 
   const words = useMemo(() => {
     const stops = stop === 'todas' ? STOPS : STOPS.filter((s) => s.id === stop);
@@ -48,10 +51,12 @@ export default function Palabras() {
             </View>
             <View style={[styles.review, { marginHorizontal: 20 }]}>
               <View style={{ flex: 1, gap: 2 }}>
-                <Txt v="h3">{due.length ? `${due.length} palabras piden repaso` : 'Todo al día'}</Txt>
-                <Txt v="small">{due.length ? 'Cinco minutos y vuelven a florecer.' : 'Vuelve mañana: el repaso espaciado hace el resto.'}</Txt>
+                <Txt v="h3">{few ? 'El repaso se abre pronto' : due.length ? `${due.length} ${due.length === 1 ? 'palabra pide' : 'palabras piden'} repaso` : 'Todo al día'}</Txt>
+                <Txt v="small">
+                  {few ? 'Aprende unas palabras más en el camino y aquí podrás repasarlas.' : due.length ? 'Cinco minutos y vuelven a florecer.' : 'Vuelve mañana: el repaso espaciado hace el resto.'}
+                </Txt>
               </View>
-              <Btn label="Repasar" v={due.length ? 'primary' : 'off'} disabled={!due.length} onPress={() => router.push('/leccion/repaso')} style={{ width: 120 }} height={48} />
+              <Btn label="Repasar" v={open ? 'primary' : 'off'} disabled={!open} onPress={() => router.push('/leccion/repaso')} style={{ width: 120 }} height={48} />
             </View>
             <FlatList
               horizontal

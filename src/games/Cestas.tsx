@@ -13,7 +13,8 @@ import type { NoiPose } from '@/brand/noi-art';
 import { color, font } from '@/brand/tokens';
 import { Noi } from '@/components/Noi';
 import { Btn, Rom, SpeakBtn, Th } from '@/components/ui';
-import { CLASSIFIERS, CLASSIFIER_ITEMS } from '@/content/drills';
+import { knownForms } from '@/content';
+import { CLASSIFIERS, classifierItemsFor } from '@/content/drills';
 import type { Word } from '@/content/types';
 import { fx, say } from '@/lib/audio';
 import { randInt, shuffle } from '@/lib/random';
@@ -67,14 +68,16 @@ function plural(es: string): string {
 }
 const NUM_ES = ['', 'un', 'dos', 'tres', 'cuatro', 'cinco'];
 
+/** Cosas para contar: solo las presentadas, y solo con clasificadores presentados. */
 function collect(words: Word[], focus: Word[]): Thing[] {
+  const known = knownForms([...words, ...focus]);
   const map = new Map<string, Thing>();
-  for (const it of CLASSIFIER_ITEMS) {
-    map.set(it.th, { th: it.th, rom: it.rom, es: it.es, emoji: it.emoji ?? '📦', clf: it.clf, alts: [], id: WORD_BY_TH.get(it.th)?.id, learned: false });
+  for (const it of classifierItemsFor(known)) {
+    map.set(it.th, { th: it.th, rom: it.rom, es: it.es, emoji: it.emoji ?? '📦', clf: it.clf, alts: [], id: WORD_BY_TH.get(it.th)?.id, learned: true });
   }
   const learned = new Set([...words, ...focus].map((w) => w.id));
   for (const w of [...focus, ...words]) {
-    if (!w.clf || !w.emoji || !CLF_BY[w.clf] || w.clf === w.th) continue;
+    if (!w.clf || !w.emoji || !CLF_BY[w.clf] || w.clf === w.th || !known.has(w.clf)) continue;
     const have = map.get(w.th);
     if (have) {
       if (have.clf !== w.clf && !have.alts.includes(w.clf)) have.alts.push(w.clf);

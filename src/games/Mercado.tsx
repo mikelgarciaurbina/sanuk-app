@@ -13,7 +13,7 @@ import { Backdrop } from './Backdrop';
 import { Glow, Pop, Press3D, centerOf, tapPoint, useJuice, type Point } from './fx';
 import { ComboBadge, useScore } from './kit';
 import { GoodsDisplay } from './mercado/goods';
-import { SORRY, THANKS, askLine, breakdown, haggleLine, knowledge, makePlan, makeRound, priceLine, quoteLine, type Line, type Round } from './mercado/logic';
+import { askLine, breakdown, haggleLine, knowledge, makePlan, makeRound, priceLine, quoteLine, sorryLine, thanksLine, type Line, type Round } from './mercado/logic';
 import { WalletPiece } from './mercado/money';
 import { Awning, Bubble, Counter, MeBubble, PriceTag, SpeedBar, TrayBase, WalletBase } from './mercado/stall';
 import { StackBadge, TrayPiece, arrange, pile, type TrayItem } from './mercado/tray';
@@ -113,7 +113,7 @@ export default function Mercado({ mode, words, focus, rounds, gender, onAnswer, 
   };
 
   const quote = (nr: Round) => {
-    const l = quoteLine(nr.good, nr.qty, nr.price);
+    const l = quoteLine(nr.good, nr.qty, nr.price, k);
     setLine(l);
     setLineKey((x) => x + 1);
     speak(l.th);
@@ -235,7 +235,7 @@ export default function Mercado({ mode, words, focus, rounds, gender, onAnswer, 
     if (ok) {
       if (!opts.quiet) {
         setMood(stars === 3 ? 'love' : 'happy');
-        later(() => speak(THANKS.th), 450);
+        later(() => speak(thanksLine(k).th), 450);
       }
       setJump((x) => x + 1);
       if (r.kind !== 'cambio') setLeaving(true);
@@ -280,7 +280,7 @@ export default function Mercado({ mode, words, focus, rounds, gender, onAnswer, 
       setJump((x) => x + 1);
     }, 1500);
     later(() => {
-      const pl = priceLine(r.deal!);
+      const pl = priceLine(r.deal!, k);
       setLine(pl);
       setLineKey((x) => x + 1);
       speak(pl.th);
@@ -377,20 +377,20 @@ export default function Mercado({ mode, words, focus, rounds, gender, onAnswer, 
     if (truth === 'falta')
       later(() => {
         setMood('oops');
-        speak(SORRY.th);
+        speak(sorryLine(k).th);
         dropChange(right - r.change!, 0);
       }, 650);
     else if (truth === 'sobra')
       later(() => {
         setMood('love');
         setJump((x) => x + 1);
-        speak(THANKS.th);
+        speak(thanksLine(k).th);
         centerOf(vendorRef, (p) => juice.burst(p, 'corazones', 14, 110));
       }, 650);
     else
       later(() => {
         setMood('happy');
-        speak(THANKS.th);
+        speak(thanksLine(k).th);
       }, 650);
     finishRound(ok, combo, { note, quiet: true });
   };
@@ -480,7 +480,7 @@ export default function Mercado({ mode, words, focus, rounds, gender, onAnswer, 
                   <PriceTag
                     key={`t${i}`}
                     price={r.price}
-                    deal={haggled && line && r.deal !== undefined && line.th !== quoteLine(r.good, r.qty, r.price).th ? r.deal : undefined}
+                    deal={haggled && line && r.deal !== undefined && line.th !== quoteLine(r.good, r.qty, r.price, k).th ? r.deal : undefined}
                     show={r.kind === 'cambio' && r.show === 'num' ? 'num' : r.show}
                     revealed={revealed}
                     onReveal={r.show === 'oculto' && phase === 'play' ? reveal : undefined}
@@ -656,7 +656,7 @@ export default function Mercado({ mode, words, focus, rounds, gender, onAnswer, 
         <Receipt
           ok={outcome.ok}
           stars={outcome.stars}
-          line={quoteLine(r.good, r.qty, r.price)}
+          line={quoteLine(r.good, r.qty, r.price, k)}
           price={r.kind === 'regateo' && haggled && r.deal !== undefined ? r.deal : r.price}
           note={outcome.note}
           feria={feria}

@@ -1,4 +1,5 @@
-import { LESSONS, WORDS, playPool, sentencesOf, wordsOf, type LessonRef } from '@/content';
+import { LESSONS, WORDS, introducedIds, knownForms, sentencesOf, wordsOf, type LessonRef } from '@/content';
+import { bodyCommandsFor, minimalSetsFor } from '@/content/drills';
 import type { GameId, Sentence, Word } from '@/content/types';
 import { shuffle } from '@/lib/random';
 import { syllables } from '@/lib/thai';
@@ -18,7 +19,7 @@ export type BuiltLesson = {
   firstCurve?: boolean;
 };
 
-type ProgressLike = Parameters<typeof playPool>[0] & { words: Record<string, { s: number; intro?: boolean }> };
+type ProgressLike = Parameters<typeof introducedIds>[0] & { words: Record<string, { s: number; intro?: boolean }> };
 
 /** Juegos de práctica que rotan entre lecciones para que nunca sea lo mismo. */
 const ROTATION: { game: GameId; rounds: number }[][] = [
@@ -29,17 +30,7 @@ const ROTATION: { game: GameId; rounds: number }[][] = [
   [{ game: 'farolillos', rounds: 1 }],
 ];
 
-/**
- * Palabras ya presentadas: las que tienen ficha vista, las de lecciones terminadas y las de las paradas
- * que quien aprende se saltó al empezar (se dan por sabidas). Haber respondido una palabra en un juego
- * no cuenta: su ficha tiene que salir cuando toque.
- */
-export function introducedIds(p: ProgressLike): Set<string> {
-  const ids = new Set<string>();
-  for (const [id, st] of Object.entries(p.words)) if (st.intro) ids.add(id);
-  for (const l of LESSONS) if (p.completed[l.id] || l.stop.n < p.profile.startStop) for (const id of l.words) ids.add(id);
-  return ids;
-}
+export { introducedIds };
 
 /** Construye la secuencia de pasos (tarjetas y minijuegos) de una lección: ~4 minutos. */
 export function buildLesson(lesson: LessonRef, p: ProgressLike): BuiltLesson {
@@ -84,8 +75,13 @@ export function buildLesson(lesson: LessonRef, p: ProgressLike): BuiltLesson {
   if (x?.kind === 'cuento') steps.push({ kind: 'game', game: 'cuentos', rounds: 1 });
   if (x?.kind === 'numeros') steps.push({ kind: 'game', game: 'mercado', rounds: 2 });
   if (x?.kind === 'clasificadores') steps.push({ kind: 'game', game: 'cestas', rounds: 5 });
-  if (x?.kind === 'cuerpo') steps.push({ kind: 'game', game: 'noidice', rounds: 5 });
-  if (x?.kind === 'tonos') steps.push({ kind: 'game', game: 'tonos', rounds: 4 }, { kind: 'game', game: 'tigre', rounds: 2 });
+  // los ejercicios con vocabulario propio solo entran si lo ya presentado da para jugar
+  const forms = knownForms(words);
+  if (x?.kind === 'cuerpo' && bodyCommandsFor(forms).length >= 2) steps.push({ kind: 'game', game: 'noidice', rounds: 5 });
+  if (x?.kind === 'tonos') {
+    steps.push({ kind: 'game', game: 'tonos', rounds: 4 });
+    if (minimalSetsFor(forms).length) steps.push({ kind: 'game', game: 'tigre', rounds: 2 });
+  }
   if (x?.kind === 'letras') {
     if (x.set === 'silabas' || x.set === 'vocales') steps.push({ kind: 'game', game: 'silabas', rounds: 3 });
     if (x.set !== 'silabas') steps.push({ kind: 'game', game: 'cueva', rounds: 4 });

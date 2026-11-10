@@ -13,7 +13,8 @@ import { color, font, tones, type ToneId } from '@/brand/tokens';
 import { Icon, ToneGlyph } from '@/components/icons';
 import { Noi } from '@/components/Noi';
 import { Rom, Th } from '@/components/ui';
-import { TONE_BANK, type MiniWord } from '@/content/drills';
+import { knownForms } from '@/content';
+import { TONE_BANK, toneBankFor, type MiniWord } from '@/content/drills';
 import { CONSONANTS } from '@/content/letters';
 import type { Word } from '@/content/types';
 import { fx } from '@/lib/audio';
@@ -82,7 +83,8 @@ function plan(mode: GameProps['mode'], words: Word[], focus: Word[], rounds: num
   const seen = new Set<string>();
   const uniq = (list: Item[]) => list.filter((it) => !seen.has(it.th) && (seen.add(it.th), true));
   const F = uniq(shuffle(focus.filter(mono).map((w) => toItem(w, w.id))));
-  const R = uniq(shuffle([...words.filter(mono).map((w) => toItem(w, w.id)), ...TONE_BANK.map((w) => toItem(w))]));
+  // sílabas de práctica: las palabras de una sílaba ya presentadas y, del banco, solo las que se conocen
+  const R = uniq(shuffle([...words.filter(mono).map((w) => toItem(w, w.id)), ...toneBankFor(knownForms([...words, ...focus])).map((w) => toItem(w))]));
   const takeFrom = (list: Item[], ok: (it: Item) => boolean) => {
     const k = list.findIndex(ok);
     return k >= 0 ? list.splice(k, 1)[0] : undefined;

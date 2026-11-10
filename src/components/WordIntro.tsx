@@ -20,7 +20,7 @@ export function WordIntro({ word, example, gender, n, total, writing = true, onN
   }, [word.th]);
   const ex = example ? joinThai(example.th.map((t) => personalize(t, gender))) : null;
   const oneSyllable = syllables(word.rom).length === 1;
-  const glyphs = writing ? spell(word.th) : null;
+  const glyphs = writing ? spell(word.th, word.rom) : null;
   const letterNote = writing ? firstLetterNote(word.th) : null;
   return (
     <View style={{ flex: 1 }}>

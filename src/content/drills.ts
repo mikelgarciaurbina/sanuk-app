@@ -143,3 +143,42 @@ export const BAHT: { v: number; kind: 'note' | 'coin'; color: string }[] = [
   { v: 2, kind: 'coin', color: '#E3C27A' },
   { v: 1, kind: 'coin', color: '#CFD6DE' },
 ];
+
+// ——— Solo lo ya presentado ———
+// Los ejercicios traen su propio vocabulario, pero nunca se adelantan al camino: `known` son las formas thai
+// de las palabras con ficha (ver `knownForms`). Lo que aún no se ha presentado se queda fuera.
+
+type MinimalSet = (typeof MINIMAL_SETS)[number];
+const shortEs = (es: string) => es.split(/[;,(]/)[0].trim();
+
+/** «¿Tigre o camisa?» con las palabras que quedan cuando un trío pierde alguna. */
+function titleOf(items: MiniWord[]) {
+  const names = items.map((w) => shortEs(w.es));
+  const first = names[0].charAt(0).toUpperCase() + names[0].slice(1);
+  return `¿${[first, ...names.slice(1, -1)].join(', ')} o ${names[names.length - 1]}?`;
+}
+
+/** Pares mínimos con al menos dos palabras presentadas, y solo esas. */
+export function minimalSetsFor(known: Set<string>): MinimalSet[] {
+  return MINIMAL_SETS.flatMap((s) => {
+    const items = s.items.filter((w) => known.has(w.th));
+    if (items.length < 2) return [];
+    // si falta alguna, el título y el chiste (que la nombran) se rehacen
+    return [items.length === s.items.length ? s : { title: titleOf(items), items }];
+  });
+}
+
+/** Sílabas de «Trompa de tonos» que ya se conocen. */
+export const toneBankFor = (known: Set<string>) => TONE_BANK.filter((w) => known.has(w.th));
+
+/** Cosas para las cestas: la cosa y su clasificador, ambos presentados. */
+export const classifierItemsFor = (known: Set<string>) => CLASSIFIER_ITEMS.filter((it) => known.has(it.th) && known.has(it.clf));
+
+/** Palabras de una orden de «Noi dice»: แตะหูซ้าย → แตะ, หู, ซ้าย. */
+export function bodyWordsOf(c: (typeof BODY_COMMANDS)[number]): string[] {
+  const side = c.th.match(/(ซ้าย|ขวา)$/)?.[0];
+  return ['แตะ', c.th.replace(/^แตะ/, '').replace(/(ซ้าย|ขวา)$/, ''), ...(side ? [side] : [])];
+}
+
+/** Órdenes de «Noi dice» que se entienden enteras. */
+export const bodyCommandsFor = (known: Set<string>) => BODY_COMMANDS.filter((c) => bodyWordsOf(c).every((w) => known.has(w)));

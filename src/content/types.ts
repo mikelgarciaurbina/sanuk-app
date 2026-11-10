@@ -38,7 +38,8 @@ export type GameId =
 
 export type LessonExtra =
   | { kind: 'dialogo'; id: string }
-  | { kind: 'cuento'; id: string }
+  /** `shelf`: en la feria, los cuentos que ya se pueden leer (los de lecciones hechas) */
+  | { kind: 'cuento'; id: string; shelf?: string[] }
   | { kind: 'letras'; set: string }
   | { kind: 'tonos' }
   | { kind: 'numeros' }

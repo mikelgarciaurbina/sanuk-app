@@ -50,16 +50,18 @@ function buildQuestions(story: Story, gender: Gender, nVocab: number, prefer: Se
 
 // ——— La estantería (feria) ———
 
-function Shelf({ suggested, onPick }: { suggested?: string; onPick: (s: Story) => void }) {
+function Shelf({ suggested, shelf, onPick }: { suggested?: string; shelf?: string[]; onPick: (s: Story) => void }) {
+  // solo los cuentos ya leídos en el camino: los demás llegan con sus lecciones
+  const open = shelf ? STORIES.filter((s) => shelf.includes(s.id)) : STORIES;
   const rows: Story[][] = [];
-  STORIES.forEach((s, k) => {
+  open.forEach((s, k) => {
     if (k % 3 === 0) rows.push([]);
     rows[rows.length - 1].push(s);
   });
   return (
     <View style={styles.shelfWrap}>
       <View style={styles.readHeadPlain}>
-        <GameTitle title="La estantería de Yai" sub="Elige un cuento y léelo con ella." />
+        <GameTitle title="La estantería de Yai" sub={open.length < STORIES.length ? 'Los cuentos que ya has leído en el camino. Llegarán más.' : 'Elige un cuento y léelo con ella.'} />
       </View>
       <View style={{ gap: 4, marginTop: 10 }}>
         {rows.map((row, r) => (
@@ -761,7 +763,7 @@ export default function Cuentos({ mode, extra, gender, focus, onAnswer, onDone }
   return (
     <View style={styles.root}>
       <Backdrop scene="casa" />
-      {stage === 'shelf' ? <Shelf suggested={extra?.kind === 'cuento' ? extra.id : undefined} onPick={pick} /> : null}
+      {stage === 'shelf' ? <Shelf suggested={extra?.kind === 'cuento' ? extra.id : undefined} shelf={extra?.kind === 'cuento' ? extra.shelf : undefined} onPick={pick} /> : null}
       {stage === 'read' && story ? (
         <Reader
           story={story}

@@ -83,30 +83,40 @@ export function stopDone(p: ProgressLike, stop: Stop, justDone?: string): boolea
   return stop.lessons.every((l) => l.id === justDone || !!p.completed[l.id]);
 }
 
-/** Palabras ya vistas (para los juegos de la feria y el repaso). */
-export function learnedWords(p: ProgressLike): Word[] {
-  return Object.keys(p.words)
-    .map((id) => WORDS[id])
-    .filter(Boolean);
+type IntroLike = { completed: Record<string, unknown>; words: Record<string, { intro?: boolean }>; profile: { startStop: number } };
+
+/**
+ * Palabras ya presentadas: las que tienen ficha vista, las de lecciones terminadas y las de las paradas
+ * que quien aprende se saltó al empezar (se dan por sabidas). Haber respondido una palabra en un juego
+ * no cuenta: su ficha tiene que salir cuando toque.
+ */
+export function introducedIds(p: IntroLike): Set<string> {
+  const ids = new Set<string>();
+  for (const [id, st] of Object.entries(p.words)) if (st.intro) ids.add(id);
+  for (const l of LESSONS) if (p.completed[l.id] || l.stop.n < p.profile.startStop) for (const id of l.words) ids.add(id);
+  return ids;
 }
 
-/** Conjunto de palabras para jugar: las aprendidas o, si aún son pocas, las del principio del camino. */
-export function playPool(p: ProgressLike, min = 12): Word[] {
-  const learned = learnedWords(p);
-  if (learned.length >= min) return learned;
-  const extra = LESSONS.slice(0, 6).flatMap((l) => wordsOf(l.words));
-  const seen = new Set(learned.map((w) => w.id));
-  return [...learned, ...extra.filter((w) => !seen.has(w.id) && (seen.add(w.id), true))];
-}
+/** Formas thai sueltas de una palabra («ช้าๆ» → ช้า, «ค่ะ/ครับ» → ค่ะ, ครับ). */
+export const formsOf = (w: { th: string }) => w.th.split(/[\s…/()ๆ]+/).filter(Boolean);
+/** Todas las formas thai de unas palabras: lo que un juego puede decir o enseñar sin adelantarse. */
+export const knownForms = (words: { th: string }[]) => new Set(words.flatMap(formsOf));
 
-/** Palabras que tocan repaso (repetición espaciada). */
-export function dueWords(p: { words: Record<string, { s: number; due: number }> }, now = Date.now()): Word[] {
+/** Palabras presentadas que hacen falta para abrir el repaso (si no, los juegos no tienen opciones). */
+export const MIN_REVIEW_WORDS = 4;
+
+/** Palabras que tocan repaso (repetición espaciada): solo las que ya tienen ficha. */
+export function dueWords(p: IntroLike & { words: Record<string, { s: number; due: number; intro?: boolean }> }, now = Date.now()): Word[] {
+  const intro = introducedIds(p);
   return Object.entries(p.words)
-    .filter(([, st]) => st.due <= now)
+    .filter(([id, st]) => st.due <= now && intro.has(id))
     .sort((a, b) => a[1].s - b[1].s)
     .map(([id]) => WORDS[id])
     .filter(Boolean);
 }
+
+/** ¿Se puede repasar? Hace falta algo pendiente y bastantes palabras presentadas. */
+export const canReview = (p: Parameters<typeof dueWords>[0], now = Date.now()) => introducedIds(p).size >= MIN_REVIEW_WORDS && dueWords(p, now).length > 0;
 
 /** Cuánto de la carta de Yai se lee ya. */
 export function letterProgress(p: { words: Record<string, unknown> }) {

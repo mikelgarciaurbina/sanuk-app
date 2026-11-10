@@ -3,7 +3,7 @@
 // aguda en cada acierto seguido y aparece la palabra con su traducción. Su izquierda es tu derecha. Si le tocas la
 // trompa sin que te lo pida, estornuda. Feria: el giro de «Simón dice»: si no empieza por น้อยบอกว่า, ¡no se toca!;
 // órdenes dobles (แตะหู แล้วแตะตา), rondas cada vez más rápidas, combos que multiplican y bonus por rapidez.
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useId, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, useWindowDimensions, type GestureResponderEvent } from 'react-native';
 import Animated, { Easing, FadeIn, FadeInDown, useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 import Svg, { Circle, Defs, Ellipse, LinearGradient, Path, RadialGradient, Stop } from 'react-native-svg';
@@ -12,7 +12,8 @@ import type { NoiPose } from '@/brand/noi-art';
 import { color, font } from '@/brand/tokens';
 import { Noi } from '@/components/Noi';
 import { Rom, Th } from '@/components/ui';
-import { BODY_COMMANDS, NOI_ZONES, type NoiTarget } from '@/content/drills';
+import { knownForms } from '@/content';
+import { BODY_COMMANDS, NOI_ZONES, bodyCommandsFor, type NoiTarget } from '@/content/drills';
 import { fx, say } from '@/lib/audio';
 import { shuffle } from '@/lib/random';
 
@@ -75,12 +76,20 @@ const zoneWord = (z: NoiTarget) => {
   return c ? partOf(c) : '';
 };
 
-function makeRounds(mode: GameProps['mode'], n: number): Round[] {
+/**
+ * Rondas con las órdenes que ya se entienden enteras (แตะ + la parte del cuerpo). «น้อยบอกว่า» solo se dice
+ * cuando บอก ya se ha presentado; las trampas de la familia, con quien ya se conoce, y las dobles, con แล้ว.
+ */
+function makeRounds(mode: GameProps['mode'], n: number, known: Set<string>): Round[] {
+  const cmds = bodyCommandsFor(known);
+  if (cmds.length < 2) return [];
+  const says = known.has('บอก') && known.has('ว่า');
+  const others = OTHERS.filter((o) => known.has(o.th.replace('บอกว่า', '')));
   const deck: Cmd[] = [];
-  while (deck.length < n * 2 + 2) deck.push(...shuffle(BODY_COMMANDS).filter((c) => c.target !== deck[deck.length - 1]?.target));
+  while (deck.length < n * 2 + 2) deck.push(...shuffle(cmds).filter((c) => c.target !== deck[deck.length - 1]?.target));
   let d = 0;
   const take = () => deck[d++];
-  if (mode === 'leccion') return Array.from({ length: n }, (_, i) => ({ key: `r${i}`, cmds: [take()], kind: 'normal', level: 1, who: NOI_SAYS }));
+  if (mode === 'leccion' || !says) return Array.from({ length: n }, (_, i) => ({ key: `r${i}`, cmds: [take()], kind: 'normal', level: 1, who: says ? NOI_SAYS : null }));
   const level = (i: number) => (i < Math.round(n * 0.27) ? 1 : i < Math.round(n * 0.54) ? 2 : i < Math.round(n * 0.8) ? 3 : 4);
   const levels = Array.from({ length: n }, (_, i) => level(i));
   const kinds: Kind[] = levels.map(() => 'normal');
@@ -88,16 +97,15 @@ function makeRounds(mode: GameProps['mode'], n: number): Round[] {
   // trampas desde el nivel 2 (nunca la primera de su nivel) y órdenes dobles desde el 3
   for (const lv of [2, 3, 4]) {
     const xs = at(lv).filter((i) => levels[i - 1] === lv);
-    const tricks = lv === 2 ? 1 : 1;
-    xs.slice(0, tricks).forEach((i) => (kinds[i] = 'trick'));
-    if (lv >= 3) {
+    xs.slice(0, 1).forEach((i) => (kinds[i] = 'trick'));
+    if (lv >= 3 && known.has('แล้ว')) {
       const free = xs.filter((i) => kinds[i] === 'normal');
       if (free.length) kinds[free[0]] = 'double';
     }
   }
   return levels.map((lv, i) => {
     const first = take();
-    if (kinds[i] === 'trick') return { key: `r${i}`, cmds: [first], kind: 'trick', level: lv, who: Math.random() < 0.5 ? null : OTHERS[Math.floor(Math.random() * OTHERS.length)] };
+    if (kinds[i] === 'trick') return { key: `r${i}`, cmds: [first], kind: 'trick', level: lv, who: !others.length || Math.random() < 0.5 ? null : others[Math.floor(Math.random() * others.length)] };
     if (kinds[i] !== 'double') return { key: `r${i}`, cmds: [first], kind: kinds[i], level: lv, who: NOI_SAYS };
     let second = take();
     if (second.target === first.target) second = take();
@@ -117,13 +125,27 @@ const left = (c: Clock) => clamp(1 - (Date.now() - c.start) / c.ms, 0, 1);
 type Phase = 'intro' | 'play' | 'wait';
 type Flash = { key: number; zone: NoiTarget; ok: boolean };
 
-export default function NoiDice({ mode, rounds: nRounds, onAnswer, onDone }: GameProps) {
+/** Juego · Noi dice. Sin órdenes que ya se entiendan no hay partida (nunca se adelantan palabras). */
+export default function NoiDice(props: GameProps) {
+  const { mode, rounds: n, words, focus, onDone } = props;
+  const [rounds] = useState(() => makeRounds(mode, n ?? (mode === 'feria' ? 15 : 5), knownForms([...words, ...focus])));
+  const bail = useEffectEvent(() => onDone({ correct: 0, total: 0, bananas: 0 }));
+  useEffect(() => {
+    if (!rounds.length) bail();
+  }, [rounds]);
+  return rounds.length ? <NoiDiceGame {...props} plan={rounds} /> : null;
+}
+
+function NoiDiceGame({ mode, plan, onAnswer, onDone }: GameProps & { plan: Round[] }) {
   const feria = mode === 'feria';
   const score = useScore(mode);
   const juice = useJuice();
   const later = useLater();
   const { width, height } = useWindowDimensions();
-  const [rounds] = useState(() => makeRounds(mode, nRounds ?? (feria ? 15 : 5)));
+  const rounds = plan;
+  // al tocar una parte que aún no se ha enseñado (el sombrero, la barriga…) solo se dice en español
+  const [inPlay] = useState(() => new Set(plan.flatMap((r) => r.cmds.map((c) => c.target))));
+  const named = (z: NoiTarget) => (inPlay.has(z) ? `${zoneWord(z)} · ${LABEL[z]}` : LABEL[z]);
   const [i, setI] = useState(0);
   const [step, setStep] = useState(0);
   const [phase, setPhase] = useState<Phase>(feria ? 'intro' : 'play');
@@ -241,7 +263,7 @@ export default function NoiDice({ mode, rounds: nRounds, onAnswer, onDone }: Gam
     flashZone(z, true);
     juice.burst(at, 'corazones', 14, 110);
     juice.ring(at, '#FF8FB1', 80);
-    juice.float({ x: at.x, y: at.y - 8 }, `${zoneWord(z)} · ${LABEL[z]}`, color.mohom, 22);
+    juice.float({ x: at.x, y: at.y - 8 }, named(z), color.mohom, 22);
     setJump((j) => j + 1);
     setPose('celebra');
     if (combo && combo % 3 === 0) later(() => say(GIGGLE), 350);
@@ -273,12 +295,11 @@ export default function NoiDice({ mode, rounds: nRounds, onAnswer, onDone }: Gam
     g.tried = true;
     flashZone(z, false);
     juice.shake(5);
-    const w = zoneWord(z);
     if (z === 'trunk') {
       juice.burst(at, 'gotas', 16, 120);
       juice.float({ x: at.x, y: at.y - 10 }, '¡ฮัดชิ่ว! ¡Achís!', color.cieloHondo, 24);
       fx.boom();
-    } else juice.float({ x: at.x, y: at.y - 8 }, `${w} · ${LABEL[z]}`, color.lacaHondo, 20);
+    } else juice.float({ x: at.x, y: at.y - 8 }, named(z), color.lacaHondo, 20);
     setPose('ups');
     later(() => setPose((p) => (p === 'ups' ? 'feliz' : p)), 900);
     setMissed(true);
