@@ -10,6 +10,7 @@ import { LessonDone } from '@/components/LessonDone';
 import { Hud, Txt } from '@/components/ui';
 import { WordIntro } from '@/components/WordIntro';
 import { curvesFor, dueWords, lessonById, letterProgress, stopDone } from '@/content';
+import { GameFrame } from '@/games/fx';
 import { GAME_BG, GAME_COMPONENTS, GAME_DARK } from '@/games/registry';
 import type { GameResult } from '@/games/types';
 import { fx, stopSpeech } from '@/lib/audio';
@@ -29,6 +30,7 @@ export default function Leccion() {
   const [letterBefore] = useState(() => letterProgress(p).pct);
   const [i, setI] = useState(0);
   const [done, setDone] = useState(false);
+  const [hudH, setHudH] = useState(0);
   const [total, setTotal] = useState<GameResult>({ correct: 0, total: 0, bananas: 0 });
   const [started] = useState(Date.now);
   const [elapsed, setElapsed] = useState(0);
@@ -80,18 +82,21 @@ export default function Leccion() {
 
   return (
     <View style={{ flex: 1, backgroundColor: bg }}>
-      <Hud
-        onClose={close}
-        dark={dark}
-        progress={i / steps.length}
-        right={
-          <View style={styles.bananas}>
-            <Art name="platano" size={20} />
-            <Txt v="bodyStrong" style={{ fontSize: 14 }}>{total.bananas}</Txt>
-          </View>
-        }
-      />
-      <Animated.View key={i} entering={FadeInRight.springify().damping(18)} style={{ flex: 1 }}>
+      <View style={{ zIndex: 10 }} onLayout={(e) => setHudH(e.nativeEvent.layout.height)}>
+        <Hud
+          onClose={close}
+          dark={dark}
+          progress={i / steps.length}
+          right={
+            <View style={styles.bananas}>
+              <Art name="platano" size={20} />
+              <Txt v="bodyStrong" style={{ fontSize: 14 }}>{total.bananas}</Txt>
+            </View>
+          }
+        />
+      </View>
+      <GameFrame.Provider value={{ top: hudH, bottom: insets.bottom }}>
+      <Animated.View key={i} entering={FadeInRight.springify().damping(18)} style={{ flex: 1, zIndex: 1, overflow: 'visible' }}>
         {step.kind === 'intro' ? (
           <WordIntro
             word={step.word}
@@ -124,6 +129,7 @@ export default function Leccion() {
           />
         ) : null}
       </Animated.View>
+      </GameFrame.Provider>
       <View style={{ height: insets.bottom }} />
     </View>
   );

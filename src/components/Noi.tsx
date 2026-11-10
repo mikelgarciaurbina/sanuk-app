@@ -103,7 +103,7 @@ export function Noi({ pose = 'feliz', size = 160, jump = 0, onPress, still, styl
 
   useEffect(() => {
     if (!jump) return;
-    hop.value = withSequence(withTiming(-22, { duration: 180, easing: Easing.out(Easing.quad) }), withSpring(0, { damping: 9, stiffness: 180 }));
+    hop.set(withSequence(withTiming(-22, { duration: 180, easing: Easing.out(Easing.quad) }), withSpring(0, { damping: 9, stiffness: 180 })));
   }, [jump, hop]);
 
   const px = (v: number) => v * k;
@@ -164,10 +164,10 @@ export function Noi({ pose = 'feliz', size = 160, jump = 0, onPress, still, styl
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? 'Noi, la elefanta. Tócala'}
       onPressIn={() => {
-        squish.value = withTiming(0.93, { duration: 90 });
+        squish.set(withTiming(0.93, { duration: 90 }));
       }}
       onPressOut={() => {
-        squish.value = withSpring(1, { damping: 7, stiffness: 220 });
+        squish.set(withSpring(1, { damping: 7, stiffness: 220 }));
       }}
       onPress={onPress}>
       {body}

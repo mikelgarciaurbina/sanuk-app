@@ -1,353 +1,476 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
-import Animated, {
-  Easing,
-  FadeOut,
-  cancelAnimation,
-  useAnimatedStyle,
-  useReducedMotion,
-  useSharedValue,
-  withDelay,
-  withRepeat,
-  withSequence,
-  withTiming,
-} from 'react-native-reanimated';
-import Svg, { Ellipse, Path } from 'react-native-svg';
+// Juego 3 · Monzón: cae la lluvia sobre el arrozal y cada gota lleva una palabra thai. Toca la que te piden
+// antes de que se hunda en el agua: revienta en gotitas, suena y el arrozal crece y verdea. En la feria hay
+// paraguas como vidas, niveles con relámpago (más rápido, más gotas, avisos solo de oído) y gotas doradas.
+import { useEffect, useEffectEvent, useRef, useState, type ComponentRef } from 'react';
+import { StyleSheet, Text, View, type GestureResponderEvent } from 'react-native';
+import Animated, { ZoomIn } from 'react-native-reanimated';
+import Svg, { Circle, Defs, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
 
-import { Art } from '@/components/icons';
-import { Th, Txt } from '@/components/ui';
+import { color, font } from '@/brand/tokens';
+import { Icon } from '@/components/icons';
+import { Noi } from '@/components/Noi';
+import { Rom, Th } from '@/components/ui';
 import type { Word } from '@/content/types';
-import { fx } from '@/lib/audio';
-import { rand, shuffle } from '@/lib/random';
+import { fx, say } from '@/lib/audio';
+import { pick, rand } from '@/lib/random';
 
+import { Backdrop } from './Backdrop';
+import { Countdown, Pop, Press3D, tapPoint, useJuice } from './fx';
 import { ComboBadge, useScore } from './kit';
+import { Arcoiris, Arrozal, FIELD_H, Paraguas, Rayo } from './monzon/Escena';
+import { DROP_H, DROP_W, Gota, type DropState } from './monzon/Gota';
+import { LevelChip, MultChip, ScoreChip, clash, distinct, multFor, pickWords, useLater } from './palabras/common';
 import type { GameProps } from './types';
 
-const DROP_W = 78;
-const DROP_H = 94;
-const FIELD_H = 104;
-const SKY = '#5C7399';
+const LIVES = 3;
+const PER_LEVEL = 6;
 
-type Drop = { id: number; word: Word; x: number; dur: number; t: number; bad?: boolean };
-type Splash = { id: number; x: number; y: number };
+type Drop = { id: number; word: Word; x: number; dur: number; golden: boolean; state: DropState };
+type Prompt = { word: Word; audio: boolean; n: number };
+type Feedback = { n: number; kind: 'ok' | 'bad' | 'missed'; word: Word; tapped?: Word };
 
-function TearDrop({ tint = '#CFE6FF' }: { tint?: string }) {
-  return (
-    <Svg width={DROP_W} height={DROP_H} viewBox="0 0 78 94" style={StyleSheet.absoluteFill}>
-      <Path d="M39 3 C39 3 8 40 8 62 C8 80 22 91 39 91 C56 91 70 80 70 62 C70 40 39 3 39 3 Z" fill={tint} stroke="#FFFFFF" strokeWidth={3} />
-      <Path d="M22 58 C22 66 27 74 34 77" stroke="#FFFFFF" strokeWidth={4} strokeLinecap="round" fill="none" opacity={0.7} />
-    </Svg>
-  );
-}
+/** Duración de la caída: lenta en la lección, cada vez más rápida en la feria. */
+/** Azar fuera del render (solo se usa en manejadores y temporizadores). */
+const chance = (p: number) => Math.random() < p;
+const lane0 = (n: number) => Math.floor(Math.random() * n);
 
-function FallingDrop({
-  drop,
-  fall,
-  onTap,
-  onLand,
-}: {
-  drop: Drop;
-  fall: number;
-  onTap: (d: Drop, y: number) => void;
-  onLand: (d: Drop) => void;
-}) {
-  const y = useSharedValue(-DROP_H);
-  const shake = useSharedValue(0);
-  useEffect(() => {
-    y.value = withTiming(fall, { duration: drop.dur, easing: Easing.linear });
-    const t = setTimeout(() => onLand(drop), drop.dur);
-    return () => {
-      clearTimeout(t);
-      cancelAnimation(y);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  useEffect(() => {
-    if (drop.bad) {
-      cancelAnimation(y);
-      shake.value = withSequence(withTiming(-8, { duration: 50 }), withTiming(8, { duration: 60 }), withTiming(-6, { duration: 60 }), withTiming(0, { duration: 60 }));
-    }
-  }, [drop.bad, shake, y]);
-  const style = useAnimatedStyle(() => ({ transform: [{ translateX: shake.value }, { translateY: y.value }] }));
-  return (
-    <Animated.View exiting={FadeOut.duration(160)} style={[{ position: 'absolute', left: drop.x, top: 0, width: DROP_W, height: DROP_H }, style]}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`Gota: ${drop.word.th}`}
-        disabled={drop.bad}
-        onPress={() => onTap(drop, y.value)}
-        style={{ width: DROP_W, height: DROP_H, alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 22, opacity: drop.bad ? 0.5 : 1 }}>
-        <TearDrop tint={drop.bad ? '#F4B7B7' : undefined} />
-        <Th size={22} bold numberOfLines={1} style={{ lineHeight: 30 }}>
-          {drop.word.th}
-        </Th>
-      </Pressable>
-    </Animated.View>
-  );
-}
-
-function SplashRings({ x, y }: { x: number; y: number }) {
-  const t = useSharedValue(0);
-  useEffect(() => {
-    t.value = withTiming(1, { duration: 700, easing: Easing.out(Easing.quad) });
-  }, [t]);
-  const r1 = useAnimatedStyle(() => ({ opacity: 1 - t.value, transform: [{ scale: 0.3 + t.value * 1.4 }] }));
-  const r2 = useAnimatedStyle(() => ({ opacity: 1 - t.value, transform: [{ scale: 0.3 + t.value * 2 }] }));
-  const plus = useAnimatedStyle(() => ({ opacity: 1 - t.value * t.value, transform: [{ translateY: -60 * t.value }] }));
-  return (
-    <View pointerEvents="none" style={{ position: 'absolute', left: x + DROP_W / 2 - 40, top: y + DROP_H - 40, width: 80, height: 80, alignItems: 'center', justifyContent: 'center' }}>
-      <Animated.View style={[{ position: 'absolute', width: 80, height: 80, borderRadius: 40, borderWidth: 3, borderColor: '#FFFFFF' }, r1]} />
-      <Animated.View style={[{ position: 'absolute', width: 80, height: 80, borderRadius: 40, borderWidth: 2, borderColor: '#BFE3FF' }, r2]} />
-      <Animated.View style={plus}>
-        <Txt v="num" style={{ color: '#FFFFFF' }}>+10</Txt>
-      </Animated.View>
-    </View>
-  );
-}
-
-function Streak({ x, delay, h }: { x: number; delay: number; h: number }) {
-  const t = useSharedValue(0);
-  useEffect(() => {
-    t.value = withDelay(delay, withRepeat(withTiming(1, { duration: 900, easing: Easing.linear }), -1, false));
-  }, [t, delay]);
-  const s = useAnimatedStyle(() => ({ transform: [{ translateY: t.value * (h + 40) - 30 }] }));
-  return <Animated.View style={[{ position: 'absolute', left: x, top: 0, width: 2, height: 22, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.28)' }, s]} />;
-}
-
-function Rain({ w, h }: { w: number; h: number }) {
-  const reduced = useReducedMotion();
-  const streaks = useMemo(() => Array.from({ length: 16 }, (_, i) => ({ x: rand(0, w), delay: rand(0, 900), i })), [w]);
-  if (reduced) return null;
-  return (
-    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      {streaks.map((s) => (
-        <Streak key={s.i} x={s.x} delay={s.delay} h={h} />
-      ))}
-    </View>
-  );
-}
-
-function Terraces({ w, grow }: { w: number; grow: number }) {
-  const g = Math.min(1, grow);
-  return (
-    <Svg width={w} height={FIELD_H} viewBox={`0 0 ${w} ${FIELD_H}`} style={{ position: 'absolute', left: 0, bottom: 0 }} pointerEvents="none">
-      <Path d={`M0 30 Q${w * 0.3} 6 ${w * 0.6} 22 T${w} 14 V${FIELD_H} H0 Z`} fill="#4F8B6B" />
-      <Path d={`M0 56 Q${w * 0.35} 36 ${w * 0.7} 50 T${w} 42 V${FIELD_H} H0 Z`} fill={g > 0.5 ? '#6FA587' : '#7FA392'} />
-      <Path d={`M0 80 Q${w * 0.4} 66 ${w * 0.75} 78 T${w} 70 V${FIELD_H} H0 Z`} fill={g > 0.2 ? '#8CC58F' : '#9CBFB3'} />
-      {Array.from({ length: Math.round(2 + g * 10) }, (_, i) => (
-        <Ellipse key={i} cx={20 + ((i * 53) % Math.max(60, w - 40))} cy={70 + ((i * 17) % 22)} rx={5} ry={9} fill="#2DBE78" />
-      ))}
-    </Svg>
-  );
-}
-
-function buildPrompts(words: Word[], focus: Word[], n: number): Word[] {
-  const seen = new Set<string>();
-  const list: Word[] = [];
-  for (const w of [...shuffle(focus), ...shuffle(words)]) {
-    if (seen.has(w.es) || seen.has(w.th)) continue;
-    seen.add(w.es);
-    seen.add(w.th);
-    list.push(w);
-    if (list.length >= n) break;
-  }
-  return list;
-}
+const durFor = (feria: boolean, level: number) => (feria ? Math.max(2500, 7200 - (level - 1) * 650) : 8400);
 
 /** Juego 3 · Monzón: toca la gota con la palabra que te piden antes de que riegue el arrozal. */
 export default function Monzon({ mode, words, focus, rounds = 8, onAnswer, onDone }: GameProps) {
   const feria = mode === 'feria';
   const score = useScore(mode);
-  const [size, setSize] = useState({ w: 360, h: 560 });
-  const [drops, setDropsState] = useState<Drop[]>([]);
-  const [splashes, setSplashes] = useState<Splash[]>([]);
-  const [lives, setLives] = useState(3);
+  const juice = useJuice();
+  const later = useLater();
+  const fieldRef = useRef<ComponentRef<typeof View>>(null);
+
+  const [pool] = useState(() => distinct([...focus, ...words]));
+  const [list] = useState(() => (feria ? [] : pickWords(rounds, { focus, pool })));
+  const total = feria ? rounds : list.length;
+  const [first] = useState<Prompt | null>(() => (feria || !list.length ? null : { word: list[0], audio: false, n: 0 }));
+  const [prompt, setPrompt] = useState<Prompt | null>(first);
+  const [drops, setDrops] = useState<Drop[]>([]);
+  const [phase, setPhase] = useState<'count' | 'play' | 'end'>(feria ? 'count' : 'play');
+  const [lives, setLives] = useState(LIVES);
   const [points, setPoints] = useState(0);
-  const [n, setN] = useState(0);
-  const [prompt, setPrompt] = useState<Word | null>(null);
+  const [level, setLevel] = useState(1);
+  const [hits, setHits] = useState(0);
+  const [bolt, setBolt] = useState(0);
+  const [fb, setFb] = useState<Feedback | null>(null);
+  const [jump, setJump] = useState(0);
+  const [rainbow, setRainbow] = useState(false);
+  const [field, setField] = useState({ w: 0, h: 0 });
 
-  const dropsRef = useRef<Drop[]>([]);
-  const g = useRef({ id: 0, n: 0, lives: 3, done: false, points: 0, size: { w: 360, h: 560 }, prompt: null as Word | null });
-  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
-  const prompts = useMemo(() => (feria ? [] : buildPrompts(words, focus, rounds)), [feria, words, focus, rounds]);
-  const pool = useMemo(() => {
-    const seen = new Set<string>();
-    return words.filter((w) => !seen.has(w.es) && (seen.add(w.es), true));
-  }, [words]);
+  const g = useRef({
+    id: 0,
+    n: 0,
+    hits: 0,
+    lives: LIVES,
+    level: 1,
+    points: 0,
+    ended: false,
+    done: false,
+    prompt: first,
+    drops: [] as Drop[],
+    lanes: [] as number[],
+    sinceTarget: 0,
+    goldenNext: false,
+    retry: [] as Word[],
+    recent: [] as string[],
+    fb: 0,
+    w: 0,
+    h: 0,
+    ox: 0,
+    oy: 0,
+  });
 
-  const setDrops = (fn: (d: Drop[]) => Drop[]) => {
-    dropsRef.current = fn(dropsRef.current);
-    setDropsState(dropsRef.current);
-  };
-  const later = (fn: () => void, ms: number) => {
-    timers.current.push(setTimeout(fn, ms));
-  };
-
-  const durFor = (k: number) => (feria ? Math.max(2800, 6800 - k * 170) : 7600);
-  const speed = feria ? (6800 / durFor(n)).toFixed(1).replace('.', ',') : null;
-
-  const spawn = (word: Word) => {
-    const s = g.current;
-    const lane = Math.floor(rand(0, Math.max(1, (s.size.w - DROP_W) / (DROP_W * 0.7))));
-    const x = Math.min(s.size.w - DROP_W - 6, 6 + lane * DROP_W * 0.7 + rand(0, 10));
-    // evita encimar gotas recién nacidas
-    const clash = dropsRef.current.some((d) => Math.abs(d.x - x) < DROP_W * 0.7 && Date.now() - d.t < 1400);
-    const drop: Drop = { id: ++s.id, word, x: clash ? (x + DROP_W * 1.4) % (s.size.w - DROP_W) : x, dur: durFor(s.n) * rand(0.92, 1.08), t: Date.now() };
-    setDrops((d) => [...d, drop]);
-  };
-
-  const nextPrompt = () => {
-    const s = g.current;
-    if (s.done) return;
-    let word: Word | undefined;
-    if (feria) word = pool[Math.floor(Math.random() * pool.length)];
-    else {
-      if (s.n >= prompts.length) {
-        s.done = true;
-        later(() => onDone(score.result(s.points)), 500);
-        return;
-      }
-      word = prompts[s.n];
-    }
-    if (!word) return;
-    s.prompt = word;
-    setPrompt(word);
-    setN(s.n);
-    if (!dropsRef.current.some((d) => d.word.es === word!.es && !d.bad)) spawn(word);
-  };
-
-  const finish = () => {
-    const s = g.current;
-    if (s.done) return;
-    s.done = true;
-    later(() => onDone(score.result(s.points)), 600);
-  };
-
+  const tooFew = pool.length < 2;
+  const bail = useEffectEvent(() => onDone(score.result(0)));
   useEffect(() => {
-    if (pool.length === 0) return;
-    nextPrompt();
-    let alive = true;
-    const loop = () => {
-      if (!alive || g.current.done) return;
-      const s = g.current;
-      const target = s.prompt;
-      const others = pool.filter((w) => w.es !== target?.es);
-      const pickTarget = target && Math.random() < 0.3;
-      const w = pickTarget ? target! : others[Math.floor(Math.random() * others.length)] ?? target;
-      if (w) spawn(w);
-      const gap = feria ? Math.max(650, 1500 - s.n * 40) : 1800;
-      timers.current.push(setTimeout(loop, gap));
-    };
-    timers.current.push(setTimeout(loop, 900));
-    const list = timers.current;
-    return () => {
-      alive = false;
-      list.forEach(clearTimeout);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pool]);
+    if (!tooFew) return;
+    const t = setTimeout(() => bail(), 400);
+    return () => clearTimeout(t);
+  }, [tooFew]);
+
+  const fallTo = Math.max(0, field.h - FIELD_H * 0.42 - DROP_H * 0.62);
+
+  // ——— gotas ———
+
+  const putDrops = (fn: (l: Drop[]) => Drop[]) => {
+    const s = g.current;
+    s.drops = fn(s.drops);
+    setDrops(s.drops);
+  };
+  const setDropState = (id: number, state: DropState) => putDrops((l) => l.map((d) => (d.id === id ? { ...d, state } : d)));
+  const removeDrop = (id: number) => putDrops((l) => l.filter((d) => d.id !== id));
+
+  const tell = (kind: Feedback['kind'], word: Word, tapped?: Word) => {
+    g.current.fb += 1;
+    setFb({ n: g.current.fb, kind, word, tapped });
+  };
+
+  // ——— finales ———
+
+  const endGame = (why: 'paraguas' | 'arcoiris') => {
+    const s = g.current;
+    if (s.ended) return;
+    s.ended = true;
+    setPhase('end');
+    putDrops((l) => l.map((d) => (d.state === 'fall' ? { ...d, state: 'pop' } : d)));
+    if (why === 'paraguas') {
+      fx.bell();
+      juice.banner('¡Sin paraguas!', `${s.points} puntos · nivel ${s.level}`, color.cieloHondo);
+    } else {
+      setRainbow(true);
+      fx.fanfare();
+      juice.flash('#FFF6D6');
+      juice.banner('¡Arcoíris!', feria ? `${s.points} puntos` : 'El arrozal ya está verde', color.arrozal);
+      setJump((j) => j + 1);
+    }
+    later(() => {
+      if (s.done) return;
+      s.done = true;
+      onDone(score.result(s.points));
+    }, 2600);
+  };
 
   const loseLife = () => {
     const s = g.current;
     s.lives -= 1;
     setLives(s.lives);
-    if (feria && s.lives <= 0) finish();
+    juice.shake(10);
+    if (s.lives <= 0) endGame('paraguas');
   };
 
-  const advance = () => {
+  // ——— avisos ———
+
+  const showPrompt = (p: Prompt) => {
+    g.current.prompt = p;
+    g.current.sinceTarget = 2;
+    setPrompt(p);
+    if (p.audio) later(() => say(p.word.th), 350);
+  };
+
+  const nextPrompt = () => {
     const s = g.current;
+    if (s.ended) return;
     s.n += 1;
-    nextPrompt();
+    if (s.n >= total) {
+      // ya no hay gota buena: las que quedan caen sin contar
+      s.prompt = null;
+      later(() => endGame('arcoiris'), 500);
+      return;
+    }
+    let word: Word | undefined;
+    if (!feria) word = list[s.n];
+    else {
+      const last = s.prompt?.word.id;
+      s.retry = s.retry.filter((w) => w.id !== last);
+      const retry = s.retry.length && chance(0.5) ? s.retry.shift() : undefined;
+      const fresh = pool.filter((w) => !s.recent.includes(w.id));
+      word = retry ?? (fresh.length ? pick(fresh) : pool[0]);
+      s.recent = [word.id, ...s.recent].slice(0, Math.min(5, pool.length - 1));
+    }
+    if (!word) return;
+    showPrompt({ word, audio: feria && s.level >= 3 && chance(0.3), n: s.n });
   };
 
-  const tap = (d: Drop, y: number) => {
+  const start = () => {
     const s = g.current;
-    if (s.done || !s.prompt) return;
-    if (d.word.es === s.prompt.es) {
-      score.hit(true);
+    setPhase('play');
+    if (!pool.length) return;
+    const word = pick(pool);
+    s.recent = [word.id];
+    showPrompt({ word, audio: false, n: 0 });
+  };
+
+  const levelUp = () => {
+    const s = g.current;
+    s.level += 1;
+    setLevel(s.level);
+    setBolt((b) => b + 1);
+    fx.boom();
+    juice.flash('#EEF4FF');
+    juice.banner(`¡Nivel ${s.level}!`, s.level === 3 ? 'Más rápido… ¡y a veces solo se oye!' : '¡Más rápido!', color.cieloHondo);
+    later(() => fx.levelup(), 260);
+  };
+
+  // ——— caer y tocar ———
+
+  const land = (id: number) => {
+    const s = g.current;
+    const d = s.drops.find((x) => x.id === id);
+    if (!d) return;
+    removeDrop(id);
+    if (d.state !== 'fall' || s.ended) return;
+    juice.burst({ x: s.ox + d.x + DROP_W / 2, y: s.oy + fallTo + DROP_H * 0.85 }, 'gotas', 7, 60);
+    if (!s.prompt || d.word.id !== s.prompt.word.id) return;
+    // se ha escapado la gota buena
+    score.hit(false);
+    onAnswer(false, d.word.id);
+    if (!s.retry.some((w) => w.id === d.word.id)) s.retry.push(d.word);
+    tell('missed', d.word);
+    say(d.word.th);
+    if (feria) {
+      loseLife();
+      if (s.lives > 0) nextPrompt();
+    }
+    // en la lección la gota vuelve a caer hasta que la toques
+  };
+
+  const spawn = (word: Word) => {
+    const s = g.current;
+    const lanes = Math.max(2, Math.floor((s.w - 8) / (DROP_W * 0.82)));
+    let lane = lane0(lanes);
+    for (let k = 0; k < 5 && s.lanes.includes(lane); k++) lane = lane0(lanes);
+    s.lanes = [lane, ...s.lanes].slice(0, Math.min(2, lanes - 1));
+    const step = (s.w - DROP_W - 8) / Math.max(1, lanes - 1);
+    const x = Math.max(4, Math.min(s.w - DROP_W - 4, 4 + lane * step + rand(-6, 6)));
+    const golden = !!s.prompt && word.id === s.prompt.word.id && s.goldenNext;
+    const dur = durFor(feria, s.level) * rand(0.92, 1.08);
+    s.id += 1;
+    const d: Drop = { id: s.id, word, x, dur, golden, state: 'fall' };
+    putDrops((l) => [...l, d]);
+    later(() => land(d.id), dur);
+  };
+
+  const spawnTick = useEffectEvent((): number => {
+    const s = g.current;
+    if (s.ended || !s.prompt || s.w === 0) return 400;
+    const falling = s.drops.filter((d) => d.state === 'fall');
+    const max = feria ? Math.min(6, 3 + Math.floor((s.level - 1) / 2)) : 3;
+    const gap = feria ? Math.max(620, 1500 - (s.level - 1) * 140) : 1900;
+    if (falling.length >= max) return 300;
+    const target = s.prompt.word;
+    const targetFalling = falling.some((d) => d.word.id === target.id);
+    if (!targetFalling && (s.sinceTarget >= 2 || chance(0.5))) {
+      s.sinceTarget = 0;
+      spawn(target);
+      return gap;
+    }
+    const others = pool.filter((w) => w.id !== target.id && !clash(w, target) && !falling.some((d) => d.word.id === w.id || clash(d.word, w)));
+    if (!others.length) return 300;
+    s.sinceTarget += 1;
+    spawn(pick(others));
+    return gap;
+  });
+  useEffect(() => {
+    if (phase !== 'play') return;
+    let t: ReturnType<typeof setTimeout>;
+    const loop = () => {
+      t = setTimeout(loop, spawnTick());
+    };
+    t = setTimeout(loop, 450);
+    return () => clearTimeout(t);
+  }, [phase]);
+
+  const tap = (d: Drop, e: GestureResponderEvent) => {
+    const s = g.current;
+    if (s.ended || d.state !== 'fall' || !s.prompt) return;
+    const at = tapPoint(e);
+    const target = s.prompt.word;
+    if (d.word.id === target.id) {
+      const combo = score.hit(true);
       onAnswer(true, d.word.id);
-      fx.pop();
-      s.points += 10;
+      say(d.word.th);
+      fx.plip();
+      const gain = 10 * multFor(combo) * (d.golden ? 3 : 1);
+      s.points += gain;
+      s.hits += 1;
       setPoints(s.points);
-      setDrops((l) => l.filter((x) => x.id !== d.id));
-      const sp = { id: d.id, x: d.x, y: Math.min(y, s.size.h - FIELD_H - DROP_H) };
-      setSplashes((l) => [...l, sp]);
-      later(() => setSplashes((l) => l.filter((x) => x.id !== sp.id)), 800);
-      advance();
-    } else {
-      score.hit(false);
-      onAnswer(false, s.prompt.id);
-      setDrops((l) => l.map((x) => (x.id === d.id ? { ...x, bad: true } : x)));
-      later(() => setDrops((l) => l.filter((x) => x.id !== d.id)), 450);
-      if (feria) loseLife();
-    }
-  };
-
-  const land = (d: Drop) => {
-    const s = g.current;
-    if (s.done) return;
-    setDrops((l) => l.filter((x) => x.id !== d.id));
-    if (s.prompt && d.word.es === s.prompt.es && !d.bad) {
-      score.hit(false);
-      onAnswer(false, d.word.id);
-      if (feria) {
-        loseLife();
-        if (s.lives > 0) advance();
-      } else {
-        // en la lección la gota vuelve a caer, más despacio, hasta que la toques
-        spawn(d.word);
+      setHits(s.hits);
+      setDropState(d.id, 'pop');
+      later(() => removeDrop(d.id), 240);
+      juice.burst(at, 'gotas', 16, 150);
+      juice.ring(at, '#DDF0FF', 104);
+      juice.float(at, `+${gain}`, '#0F3F9E', 30);
+      tell('ok', d.word);
+      setJump((j) => j + 1);
+      if (d.golden) {
+        s.goldenNext = false;
+        fx.sparkle();
+        juice.burst(at, 'monedas', 12, 130);
+        if (feria && s.lives < LIVES) {
+          s.lives += 1;
+          setLives(s.lives);
+          juice.banner('¡Paraguas extra!', 'la gota dorada te protege', color.buatong);
+        }
+      } else if (combo > 0 && combo % 5 === 0) {
+        s.goldenNext = true;
+        juice.banner(`¡Racha ×${combo}!`, 'la próxima gota buena será dorada', color.buatong);
       }
+      if (feria && s.hits % PER_LEVEL === 0) levelUp();
+      nextPrompt();
+      return;
     }
+    score.hit(false);
+    onAnswer(false, target.id);
+    if (!s.retry.some((w) => w.id === target.id)) s.retry.push(target);
+    setDropState(d.id, 'bad');
+    later(() => removeDrop(d.id), 560);
+    juice.shake(6);
+    tell('bad', target, d.word);
+    if (feria) loseLife();
   };
 
-  const onLayout = (e: LayoutChangeEvent) => {
-    const { width, height } = e.nativeEvent.layout;
-    g.current.size = { w: width, h: height };
-    setSize({ w: width, h: height });
+  const onField = (w: number, h: number) => {
+    const s = g.current;
+    s.w = w;
+    s.h = h;
+    setField({ w, h });
+    fieldRef.current?.measureInWindow((x, y) => {
+      s.ox = x;
+      s.oy = y;
+    });
   };
 
-  const fall = size.h - FIELD_H - DROP_H + 30;
+  const grow = Math.min(1, hits / Math.max(1, feria ? 30 : total));
 
   return (
-    <View style={{ flex: 1, backgroundColor: SKY }} onLayout={onLayout}>
-      <Rain w={size.w} h={size.h} />
-      <Terraces w={size.w} grow={feria ? points / 300 : n / Math.max(1, prompts.length)} />
-      {drops.map((d) => (
-        <FallingDrop key={d.id} drop={d} fall={fall} onTap={tap} onLand={land} />
-      ))}
-      {splashes.map((s) => (
-        <SplashRings key={s.id} x={s.x} y={s.y} />
-      ))}
-      <View pointerEvents="box-none" style={{ position: 'absolute', left: 16, right: 16, top: 8, gap: 10 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <View style={{ flexDirection: 'row', gap: 4, minWidth: 100 }}>
-            {feria
-              ? [0, 1, 2].map((i) => (
-                  <View key={i} style={{ opacity: i < lives ? 1 : 0.22 }}>
-                    <Art name="paraguas" size={30} />
-                  </View>
-                ))
-              : (
-                <Txt v="num" style={{ color: '#FFFFFF' }}>
-                  {Math.min(n + 1, prompts.length)} / {prompts.length}
-                </Txt>
-              )}
+    <View style={{ flex: 1 }}>
+      <Backdrop scene="lluvia" />
+      <Animated.View style={[{ flex: 1 }, juice.shakeStyle]}>
+        <View style={styles.hud}>
+          {feria ? (
+            <View style={{ flexDirection: 'row', gap: 2 }}>
+              {Array.from({ length: LIVES }, (_, i) => (
+                <Paraguas key={i} lost={i >= lives} />
+              ))}
+            </View>
+          ) : (
+            <Pop trigger={hits} style={styles.prog}>
+              <Text style={styles.progText}>
+                {Math.min(hits, total)}
+                <Text style={{ fontSize: 14, color: '#DCE6F5' }}> / {total}</Text>
+              </Text>
+            </Pop>
+          )}
+          <View style={styles.hudMid}>
+            <ComboBadge combo={score.combo} />
+            <MultChip mult={multFor(score.combo)} />
           </View>
-          <ComboBadge combo={score.combo} />
-          <Txt v="num" style={{ color: '#FFFFFF', minWidth: 100, textAlign: 'right' }}>{points}</Txt>
+          {feria ? <LevelChip level={level} /> : null}
+          <ScoreChip value={points} />
         </View>
-        <View style={{ backgroundColor: '#FFFFFF', borderRadius: 18, paddingVertical: 12, paddingHorizontal: 16, alignItems: 'center' }}>
-          <Txt v="h2">
-            Toca: «{prompt?.es ?? '…'}»
-          </Txt>
+
+        <Cartel prompt={prompt} fb={fb} />
+
+        <View ref={fieldRef} style={{ flex: 1, overflow: 'hidden' }} onLayout={(e) => onField(e.nativeEvent.layout.width, e.nativeEvent.layout.height)}>
+          {field.w > 0 ? <Arcoiris width={field.w} show={rainbow} /> : null}
+          {field.w > 0 ? <Arrozal width={field.w} grow={rainbow ? 1 : grow} ripe={rainbow} /> : null}
+          {drops.map((d) => (
+            <Gota key={d.id} word={d.word} x={d.x} fallTo={fallTo} dur={d.dur} state={d.state} golden={d.golden} onPress={(e) => tap(d, e)} />
+          ))}
+          <View pointerEvents="none" style={styles.noi}>
+            <Noi pose={phase === 'end' ? 'celebra' : 'feliz'} size={64} jump={jump} />
+          </View>
+          {field.w > 0 ? <Rayo n={bolt} width={field.w} /> : null}
         </View>
-      </View>
-      {feria ? (
-        <View pointerEvents="none" style={{ position: 'absolute', left: 16, right: 16, bottom: 14, flexDirection: 'row', justifyContent: 'space-between' }}>
-          <Txt v="small" style={{ color: '#FFFFFF' }}>Velocidad ×{speed}</Txt>
-          <Txt v="small" style={{ color: '#FFFFFF' }}>Racha {score.combo}</Txt>
-        </View>
-      ) : null}
+      </Animated.View>
+      {phase === 'count' && !tooFew ? <Countdown onDone={start} /> : null}
+      {juice.layer}
     </View>
   );
 }
+
+/** Cartel de madera colgado bajo las nubes con lo que hay que buscar (o un altavoz si es de oído). */
+function Cartel({ prompt, fb }: { prompt: Prompt | null; fb: Feedback | null }) {
+  const w = prompt?.word;
+  return (
+    <View style={styles.cartelWrap}>
+      <View style={{ height: 12, marginBottom: -3 }}>
+        <View style={[styles.rope, { left: '16%' }]} />
+        <View style={[styles.rope, { right: '16%' }]} />
+      </View>
+      <Pop trigger={prompt?.n ?? -1} scale={1.08} style={styles.cartel}>
+        <Svg width="100%" height="100%" style={StyleSheet.absoluteFill} preserveAspectRatio="none" viewBox="0 0 300 100">
+          <Defs>
+            <LinearGradient id="mzWood" x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0" stopColor="#E3B27A" />
+              <Stop offset="0.55" stopColor="#C98A4E" />
+              <Stop offset="1" stopColor="#9E6232" />
+            </LinearGradient>
+          </Defs>
+          <Rect x={0} y={0} width={300} height={100} rx={14} fill="url(#mzWood)" />
+          <Path d="M10 30 Q150 24 290 32 M10 62 Q150 70 290 60" stroke="#8A5226" strokeOpacity={0.35} strokeWidth={2} fill="none" />
+          <Rect x={6} y={5} width={288} height={6} rx={3} fill="#FFFFFF" opacity={0.28} />
+          <Circle cx={16} cy={16} r={3.4} fill="#6E4422" />
+          <Circle cx={284} cy={16} r={3.4} fill="#6E4422" />
+        </Svg>
+        {!w ? (
+          <Text style={styles.cartelSmall}>Prepárate…</Text>
+        ) : prompt.audio ? (
+          <Press3D onPress={() => say(w.th)} style={{ alignSelf: 'stretch' }} accessibilityLabel="Escuchar otra vez">
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 4 }}>
+              <View style={styles.speaker}>
+                <Icon name="speaker" size={26} color="#FFFFFF" />
+              </View>
+              <View>
+                <Text style={styles.cartelSmall}>¡Escucha y toca la gota!</Text>
+                <Text style={styles.cartelHint}>toca aquí para oírla otra vez</Text>
+              </View>
+            </View>
+          </Press3D>
+        ) : (
+          <View style={{ alignItems: 'center' }}>
+            <Text style={styles.cartelSmall}>Toca la gota de…</Text>
+            <Text numberOfLines={2} style={[styles.cartelBig, w.es.length > 18 ? { fontSize: 19, lineHeight: 23 } : null]}>
+              {w.emoji ? `${w.emoji} ` : ''}«{w.es}»
+            </Text>
+          </View>
+        )}
+      </Pop>
+      <View style={{ minHeight: 34, alignItems: 'center', marginTop: 4 }}>{fb ? <FeedbackPill key={fb.n} fb={fb} /> : null}</View>
+    </View>
+  );
+}
+
+function FeedbackPill({ fb }: { fb: Feedback }) {
+  const ok = fb.kind === 'ok';
+  return (
+    <Animated.View entering={ZoomIn.springify().damping(14)} style={[styles.pill, { borderColor: ok ? '#2DBE78' : '#FF8A5B' }]}>
+      <Th size={16} bold style={{ lineHeight: 23 }}>
+        {fb.word.th}
+      </Th>
+      <Rom rom={fb.word.rom} size={11.5} />
+      <Text numberOfLines={1} style={[styles.pillText, { color: ok ? color.arrozalHondo : color.lacaHondo }]}>
+        {ok ? `= ${fb.word.es}` : fb.kind === 'missed' ? `= ${fb.word.es} · ¡se escapó!` : `= ${fb.word.es}`}
+      </Text>
+      {fb.tapped ? (
+        <Text numberOfLines={1} style={styles.pillSub}>
+          {fb.tapped.th} es «{fb.tapped.es}»
+        </Text>
+      ) : null}
+    </Animated.View>
+  );
+}
+
+const styles = StyleSheet.create({
+  hud: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44, paddingHorizontal: 14, paddingTop: 4 },
+  hudMid: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  prog: { height: 36, paddingHorizontal: 12, borderRadius: 999, justifyContent: 'center', backgroundColor: 'rgba(20,30,52,0.45)', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.3)' },
+  progText: { fontFamily: font.displayBold, fontSize: 19, color: '#FFFFFF' },
+  cartelWrap: { paddingHorizontal: 22, marginTop: -2 },
+  cartel: {
+    minHeight: 76,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    shadowColor: '#1B2438',
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 6,
+  },
+  cartelSmall: { fontFamily: font.uiHeavy, fontSize: 13, color: '#5A3416', textAlign: 'center' },
+  cartelHint: { fontFamily: font.uiBold, fontSize: 11.5, color: '#7A4A22', textAlign: 'center' },
+  cartelBig: { fontFamily: font.displayBold, fontSize: 25, color: '#3A1F0B', textAlign: 'center' },
+  speaker: { width: 46, height: 46, borderRadius: 23, backgroundColor: color.cielo, alignItems: 'center', justifyContent: 'center', borderBottomWidth: 3, borderColor: color.cieloHondo },
+  pill: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', columnGap: 6, paddingHorizontal: 12, paddingVertical: 3, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.95)', borderWidth: 2, maxWidth: '100%' },
+  pillSub: { width: '100%', textAlign: 'center', fontFamily: font.uiBold, fontSize: 12, color: color.tinta2 },
+  pillText: { fontFamily: font.uiHeavy, fontSize: 13, flexShrink: 1 },
+  noi: { position: 'absolute', left: 6, bottom: 2 },
+  rope: { position: 'absolute', top: -6, width: 3, height: 20, borderRadius: 2, backgroundColor: '#5A3A20' },
+});

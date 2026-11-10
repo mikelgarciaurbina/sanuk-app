@@ -74,5 +74,26 @@ export const GAMES: GameMeta[] = [
 export const gameMeta = (id: GameId) => GAMES.find((g) => g.id === id)!;
 
 /** Fondo de pantalla para los juegos de noche o de lluvia (la cabecera se funde con el juego). */
-export const GAME_BG: Partial<Record<GameId, string>> = { farolillos: color.noche, cueva: '#0E1124', monzon: '#CBD7E5', curvas: '#8FC28A' };
-export const GAME_DARK: Partial<Record<GameId, boolean>> = { farolillos: true, cueva: true };
+export const GAME_BG: Partial<Record<GameId, string>> = {
+  parejas: '#251C47',
+  memoria: '#FFE7B3',
+  monzon: '#44536C',
+  siono: '#4C98FF',
+  oido: '#7FA4DE',
+  tonos: '#FFE7B3',
+  tigre: '#251C47',
+  eco: '#080C2A',
+  puente: '#8EC2FF',
+  hueco: '#FFE7B3',
+  cestas: '#251C47',
+  noidice: '#4C98FF',
+  mercado: '#251C47',
+  cena: '#A8693D',
+  farolillos: '#080C2A',
+  cueva: '#0E1124',
+  traza: '#FFE7B3',
+  silabas: '#4C98FF',
+  cuentos: '#8C5432',
+  curvas: '#7FB8F5',
+};
+export const GAME_DARK: Partial<Record<GameId, boolean>> = { parejas: true, farolillos: true, tigre: true, eco: true, cestas: true, mercado: true, cena: true, cueva: true };

@@ -293,8 +293,13 @@ export function Hud({ onClose, progress, right, dark }: { onClose: () => void; p
   const insets = useSafeAreaInsets();
   return (
     <View style={[styles.hud, { paddingTop: insets.top + 8 }]}>
-      <Pressable accessibilityRole="button" accessibilityLabel="Salir" onPress={onClose} hitSlop={10} style={styles.x}>
-        <Icon name="close" size={24} color={dark ? '#C9D0EE' : color.tinta3} />
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Salir"
+        onPress={onClose}
+        hitSlop={10}
+        style={[styles.x, { backgroundColor: dark ? 'rgba(14,17,36,0.42)' : 'rgba(255,255,255,0.78)' }]}>
+        <Icon name="close" size={22} color={dark ? '#E4E8FA' : color.tinta2} />
       </Pressable>
       {progress !== undefined ? <Bar value={progress} track={dark ? 'rgba(255,255,255,0.18)' : color.niebla3} /> : <View style={{ flex: 1 }} />}
       {right}
@@ -375,7 +380,7 @@ export const styles = StyleSheet.create({
   sticker: { alignItems: 'center', justifyContent: 'center', ...shadow.card },
   tone: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, borderRadius: 999, alignSelf: 'flex-start' },
   hud: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingBottom: 6 },
-  x: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  x: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 20, paddingTop: 20, gap: 14, borderTopLeftRadius: 28, borderTopRightRadius: 28 },
   sheetBadge: { width: 36, height: 36, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
 });

@@ -1,142 +1,55 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, View, useWindowDimensions } from 'react-native';
-import Animated, {
-  FadeOut,
-  ZoomIn,
-  useAnimatedStyle,
-  useFrameCallback,
-  useReducedMotion,
-  useSharedValue,
-  withSequence,
-  withSpring,
-  withTiming,
-} from 'react-native-reanimated';
-import Svg, { Circle, Path, Rect } from 'react-native-svg';
+import { useEffect, useRef, useState } from 'react';
+import { Pressable, StyleSheet, Text, View, useWindowDimensions, type GestureResponderEvent } from 'react-native';
+import Animated, { Easing, FadeIn, cancelAnimation, useAnimatedStyle, useFrameCallback, useSharedValue, withDelay, withSequence, withSpring, withTiming, ZoomIn } from 'react-native-reanimated';
 
-import { color } from '@/brand/tokens';
-import { Noi } from '@/components/Noi';
-import { MistBand } from '@/components/Scenery';
+import { color, font } from '@/brand/tokens';
+import type { NoiPose } from '@/brand/noi-art';
 import { Art, Icon } from '@/components/icons';
-import { Btn, Th, Txt } from '@/components/ui';
-import type { Word } from '@/content/types';
+import { Btn, Rom, Th, Txt } from '@/components/ui';
+import { TOTAL_CURVES } from '@/content';
 import { MINIMAL_SETS } from '@/content/drills';
+import type { Word } from '@/content/types';
 import { fx, say } from '@/lib/audio';
 import { shuffle } from '@/lib/random';
 
+import { Dashes, Ground, Mist, Ranges, Road, RoadsideProps, Sky, Z_FAR, makeGeo, type Geo } from './curvas/road';
+import { RoadSign, type SignState } from './curvas/sign';
+import { Beams, Puff, Speedometer, Truck } from './curvas/truck';
+import { Countdown, Pop, tapPoint, useGameFrame, useJuice } from './fx';
 import { ComboBadge, useScore } from './kit';
 import type { GameProps } from './types';
 
-type Q = { target: Word; options: [Word, Word]; correct: 0 | 1; minimal: boolean };
-type Fb = { side: 0 | 1; ok: boolean };
+/** es: «¿cuál es…?» (español → thai) · oido: solo audio → thai · th: thai → español. */
+type Ask = 'es' | 'oido' | 'th';
+type Q = { target: Word; options: [Word, Word]; correct: 0 | 1; minimal: boolean; ask: Ask; dir: -1 | 1 };
+type Fb = { side: 0 | 1 | -1; ok: boolean };
+type PuffSpec = { id: number; x: number; y: number; dx: number; dy: number; size: number; tint: string };
 
-const SIGN = 124;
-const TRUCK_W = 132;
-const TRUCK_H = 170;
-const KMH_TO_PX = 3.4;
+const KMH = 9;
+const Z_STOP = 2.6;
+const LEVEL_EVERY = 8;
+const LEVEL_TEXT = ['', '', 'Cae la tarde: más deprisa', 'Atardecer en la montaña', 'De noche: ¡luces largas!'];
+/** 1864 → «1.864» (separador de miles español también con cuatro cifras). */
+const fmt = (n: number) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+/** Lo corto de una traducción: «tío/a (hermano menor de mamá)» → «tío/a». */
+const shortEs = (es: string) => es.split(/[;(]/)[0].trim();
 
-/** Tile de carretera que encaja consigo mismo en vertical: dos curvas por tile. */
-function useTile(w: number, tile: number) {
-  return useMemo(() => {
-    const amp = w * 0.14;
-    const roadW = w * 0.46;
-    const cx = (y: number) => w / 2 + amp * Math.sin((4 * Math.PI * y) / tile);
-    // el trazo es muy ancho: hay que prolongar la curva lo bastante para que no se corte en la unión entre tramos
-    const PAD = Math.ceil(roadW) + 24;
-    const pts: [number, number][] = [];
-    for (let y = -PAD; y <= tile + PAD; y += 12) pts.push([cx(y), y]);
-    const d = `M${pts.map(([x, y]) => `${x.toFixed(1)} ${y}`).join(' L')}`;
-    const lenOf = (a: number, b: number) => {
-      let l = 0;
-      for (let k = 1; k < pts.length; k++) {
-        const [x0, y0] = pts[k - 1];
-        const [x1, y1] = pts[k];
-        if (y1 > a && y0 < b) l += Math.hypot(x1 - x0, y1 - y0);
-      }
-      return l;
-    };
-    const full = lenOf(0, tile);
-    const period = full / Math.max(1, Math.round(full / 42));
-    const pre = lenOf(-PAD, 0);
-    let seed = 7;
-    const rnd = () => {
-      seed = (seed * 16807) % 2147483647;
-      return seed / 2147483647;
-    };
-    const bushes: { x: number; y: number; r: number; light: boolean }[] = [];
-    const n = Math.round(tile / 60);
-    for (let k = 0; k < n; k++) {
-      const y = 36 + (k * (tile - 72)) / n + rnd() * 20;
-      const r = 14 + rnd() * 14;
-      const edge = roadW / 2 + 22 + r;
-      bushes.push({ x: Math.max(-6, cx(y) - edge - rnd() * 40), y, r, light: rnd() > 0.5 });
-      bushes.push({ x: Math.min(w + 6, cx(y + 30) + edge + rnd() * 40), y: y + 30, r: r * 0.9, light: rnd() > 0.5 });
-    }
-    const mist = [0.18, 0.52, 0.83].map((f, k) => ({ y: f * tile, x: k % 2 ? w * 0.45 : -w * 0.1 }));
-    return { d, roadW, period, pre, bushes, mist };
-  }, [w, tile]);
-}
-
-function RoadTile({ w, tile }: { w: number; tile: number }) {
-  const t = useTile(w, tile);
-  return (
-    <Svg width={w} height={tile}>
-      <Rect width={w} height={tile} fill="#8FC28A" />
-      {t.bushes.map((b, k) => (
-        <Circle key={k} cx={b.x} cy={b.y} r={b.r} fill={b.light ? '#6FA587' : '#4F8B6B'} />
-      ))}
-      <Path d={t.d} stroke="#EFE8D6" strokeWidth={t.roadW + 12} fill="none" strokeLinejoin="round" />
-      <Path d={t.d} stroke="#6B7380" strokeWidth={t.roadW} fill="none" strokeLinejoin="round" />
-      <Path d={t.d} stroke="#FFFFFF" strokeWidth={4} fill="none" strokeDasharray={`${t.period * 0.45} ${t.period * 0.55}`} strokeDashoffset={-t.pre} />
-      {t.mist.map((m, k) => (
-        <Rect key={k} x={m.x} y={m.y} width={w * 0.65} height={20} rx={10} fill="#FFFFFF" opacity={0.35} />
-      ))}
-    </Svg>
-  );
-}
-
-function Sign({ th, label, state, onPress, left }: { th: string; label: string; state: 'idle' | 'ok' | 'bad' | 'dim'; onPress: () => void; left: boolean }) {
-  const bg = state === 'ok' ? '#2DBE78' : state === 'bad' ? '#D93A3F' : '#FFC83D';
-  const scale = useSharedValue(1);
-  useEffect(() => {
-    scale.value = state === 'ok' ? withSequence(withTiming(1.18, { duration: 120 }), withSpring(1.08, { damping: 8 })) : withSpring(state === 'dim' ? 0.94 : 1);
-  }, [state, scale]);
-  const st = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
-  const size = th.length > 5 ? 17 : th.length > 3 ? 22 : 28;
-  return (
-    <Animated.View entering={ZoomIn.springify().damping(11)} style={[{ position: 'absolute', top: 0, [left ? 'left' : 'right']: 12 }, st]}>
-      <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={{ width: SIGN, height: SIGN, alignItems: 'center', justifyContent: 'center', opacity: state === 'dim' ? 0.7 : 1 }}>
-        <View style={{ width: 4, height: 30, backgroundColor: '#5E6672', position: 'absolute', bottom: -4 }} />
-        <View style={{ width: 86, height: 86, borderRadius: 14, backgroundColor: bg, transform: [{ rotate: '45deg' }], borderWidth: 3, borderColor: color.tinta, alignItems: 'center', justifyContent: 'center' }}>
-          <View style={{ width: 72, height: 72, borderRadius: 9, borderWidth: 2, borderColor: color.tinta, opacity: 0.35 }} />
-        </View>
-        <View style={{ position: 'absolute', maxWidth: 96, alignItems: 'center' }}>
-          <Th size={size} bold numberOfLines={1} style={{ color: state === 'idle' || state === 'dim' ? color.tinta : '#FFFFFF' }}>{th}</Th>
-        </View>
-      </Pressable>
-    </Animated.View>
-  );
-}
-
-/** Juego 16 · 1.864 curvas: la carretera serpentea, tocas la señal correcta y la camioneta toma la curva. */
+/** Juego 16 · 1.864 curvas: la carretera de Mae Hong Son en 3D; toca la señal correcta para tomar cada curva. */
 export default function Curvas({ mode, words, focus, rounds, onAnswer, onDone }: GameProps) {
+  const feria = mode === 'feria';
   const score = useScore(mode);
-  const reduced = useReducedMotion();
-  const dims = useWindowDimensions();
-  const [size, setSize] = useState({ w: dims.width, h: dims.height });
-  const w = size.w;
-  const h = size.h;
-  const horizon = Math.round(h * 0.26);
-  const tile = Math.max(720, Math.ceil(h - horizon) + 40);
-  const goal = mode === 'feria' ? Infinity : rounds ?? 8;
+  const juice = useJuice();
+  const frame = useGameFrame();
+  const goal = feria ? (rounds ?? 60) : (rounds ?? 8);
 
-  const pool = useMemo(() => {
+  const [pool] = useState(() => {
     const m = new Map<string, Word>();
     for (const x of [...focus, ...words]) if (x.th && !m.has(x.th)) m.set(x.th, x);
     return [...m.values()];
-  }, [words, focus]);
-  const byTh = useMemo(() => new Map(pool.map((x) => [x.th, x])), [pool]);
+  });
+  const byTh = new Map(pool.map((x) => [x.th, x]));
   const queue = useRef<Word[]>([]);
-  const state = useRef({ curves: 0, lives: 3, over: false });
+  const met = useRef(new Set<string>());
 
   const makeQ = (): Q | null => {
     if (pool.length < 2) return null;
@@ -149,115 +62,258 @@ export default function Curvas({ mode, words, focus, rounds, onAnswer, onDone }:
     const partners = set ? set.items.map((it) => byTh.get(it.th)).filter((x): x is Word => !!x && x.th !== target.th && x.es !== target.es) : [];
     let other: Word | undefined = partners.length ? shuffle(partners)[0] : undefined;
     const minimal = !!other;
-    if (!other) other = shuffle(pool.filter((x) => x.th !== target.th && x.es !== target.es))[0];
+    if (!other) other = shuffle(pool.filter((x) => x.th !== target.th && shortEs(x.es) !== shortEs(target.es)))[0];
     if (!other) return null;
+    const first = !met.current.has(target.th);
+    met.current.add(target.th);
+    const r = Math.random();
+    // lo nuevo se reconoce primero (thai → español); luego se recuerda; los pares de tono, de oído
+    const ask: Ask = !feria && first ? 'th' : minimal ? (r < 0.6 ? 'oido' : 'es') : r < 0.5 ? 'es' : r < 0.75 ? 'th' : 'oido';
     const correct: 0 | 1 = Math.random() < 0.5 ? 0 : 1;
-    return { target, options: correct === 0 ? [target, other] : [other, target], correct, minimal };
+    return { target, options: correct === 0 ? [target, other] : [other, target], correct, minimal, ask, dir: Math.random() < 0.5 ? -1 : 1 };
   };
 
-  const [q, setQ] = useState<Q | null>(() => makeQ());
+  const [measured, setGeo] = useState<Geo | null>(null);
+  // hasta que llega la medida real (onLayout), la escena se dibuja con el tamaño de la ventana:
+  // así nunca queda un cielo vacío si la medida tarda o no llega
+  const win = useWindowDimensions();
+  const geo = measured ?? makeGeo(win.width, win.height, frame.top);
+  const [phase, setPhase] = useState<'ready' | 'drive' | 'over'>(feria ? 'ready' : 'drive');
+  const [q, setQ] = useState<Q | null>(null);
+  const [qn, setQn] = useState(0);
+  const [fb, setFb] = useState<Fb | null>(null);
   const [curves, setCurves] = useState(0);
   const [lives, setLives] = useState(3);
-  const [fb, setFb] = useState<Fb | null>(null);
-  const [locked, setLocked] = useState(false);
-  const [kmh, setKmh] = useState(40);
-  const [qKey, setQKey] = useState(0);
+  const [kmh, setKmh] = useState(0);
+  const [points, setPoints] = useState(0);
+  const [level, setLevel] = useState(1);
+  const [pose, setPose] = useState<NoiPose>('hola');
+  const [jump, setJump] = useState(0);
+  const [puffs, setPuffs] = useState<PuffSpec[]>([]);
+  const [noWords] = useState(() => pool.length < 2);
+
+  const dist = useSharedValue(0);
+  const speed = useSharedValue(0);
+  const curve = useSharedValue(0);
+  const bgX = useSharedValue(0);
+  const tod = useSharedValue(0);
+  const signZ = useSharedValue(Z_FAR + 2);
+  const steer = useSharedValue(0);
+  const roll = useSharedValue(0);
+  const brake = useSharedValue(0);
+
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
-  useEffect(() => {
-    const all = timers.current;
-    return () => all.forEach(clearTimeout);
-  }, []);
+  const st = useRef({ curves: 0, lives: 3, points: 0, level: 1, base: feria ? 5.8 : 5.5, busy: true, over: false, qid: 0, puff: 0, q: null as Q | null });
+  const self = useRef<{ start: () => void } | null>(null);
+
   const later = (fn: () => void, ms: number) => {
     timers.current.push(setTimeout(fn, ms));
   };
 
-  const offset = useSharedValue(0);
-  const speedPx = useSharedValue(0);
-  const tileSv = useSharedValue(tile);
-  const ampSv = useSharedValue(w * 0.14);
-  const wSv = useSharedValue(w);
-  const steerX = useSharedValue(0);
-  const steerRot = useSharedValue(0);
-  const jit = useSharedValue(0);
-  const truckY = h - 80 - TRUCK_H / 2 - horizon;
-  const truckYSv = useSharedValue(truckY);
-
-  useEffect(() => {
-    tileSv.value = tile;
-    ampSv.value = w * 0.14;
-    wSv.value = w;
-    truckYSv.value = truckY;
-  }, [tile, w, truckY, tileSv, ampSv, wSv, truckYSv]);
-
-  useEffect(() => {
-    speedPx.value = reduced ? 0 : withTiming(kmh * KMH_TO_PX, { duration: 700 });
-  }, [kmh, reduced, speedPx]);
-
   useFrameCallback((f) => {
-    const dt = (f.timeSincePreviousFrame ?? 16) / 1000;
-    offset.value = (offset.value + speedPx.value * dt) % tileSv.value;
+    const dt = Math.min(0.05, (f.timeSincePreviousFrame ?? 16) / 1000);
+    dist.value = dist.value + speed.value * dt;
+    bgX.value = bgX.value - curve.value * speed.value * dt * 90;
   });
 
-  const roadStyle = useAnimatedStyle(() => ({ transform: [{ translateY: offset.value }] }));
-  const sceneStyle = useAnimatedStyle(() => ({ transform: [{ translateX: jit.value }] }));
-  const truckStyle = useAnimatedStyle(() => {
-    const arg = (4 * Math.PI * (truckYSv.value - offset.value)) / tileSv.value;
-    const follow = ampSv.value * Math.sin(arg);
-    const slope = ampSv.value * ((4 * Math.PI) / tileSv.value) * Math.cos(arg);
-    const deg = -Math.atan(slope) * (180 / Math.PI) * 0.35;
-    return { transform: [{ translateX: follow + steerX.value }, { rotate: `${deg + steerRot.value}deg` }] };
-  });
+  const dust = (n: number, tint: string, spread: number) => {
+    if (!geo) return;
+    const tw = Math.min(170, geo.W * 0.44);
+    const list: PuffSpec[] = Array.from({ length: n }, (_, i) => {
+      st.current.puff += 1;
+      const side = i % 2 ? 1 : -1;
+      return { id: st.current.puff, x: geo.W / 2 + side * tw * 0.34, y: geo.H - frame.bottom - 26, dx: side * (20 + Math.random() * spread), dy: -10 - Math.random() * 30, size: 26 + Math.random() * 22, tint };
+    });
+    setPuffs((p) => [...p.slice(-10), ...list]);
+    const ids = new Set(list.map((p) => p.id));
+    later(() => setPuffs((p) => p.filter((x) => !ids.has(x.id))), 900);
+  };
+
+  const setSpeed = (v: number, ms = 700) => {
+    speed.set(withTiming(v, { duration: ms, easing: Easing.inOut(Easing.quad) }));
+    setKmh(Math.round(v * KMH));
+  };
 
   const finish = () => {
-    state.current.over = true;
-    const r = score.result(state.current.curves);
-    onDone({ ...r, score: state.current.curves });
-  };
-
-  const answer = (side: 0 | 1) => {
-    if (locked || !q || state.current.over) return;
-    setLocked(true);
-    const ok = side === q.correct;
-    const lane = w * 0.15;
-    setFb({ side, ok });
-    score.hit(ok);
-    onAnswer(ok, q.target.id);
-    steerX.value = withSpring(side === 0 ? -lane : lane, { damping: 14, stiffness: 120 });
-    steerRot.value = withSpring(side === 0 ? -9 : 9, { damping: 12 });
-    const s = state.current;
-    if (ok) {
-      s.curves += 1;
-      setCurves(s.curves);
-      setKmh(Math.min(120, 40 + s.curves * 4));
-      say(q.target.th);
+    const s = st.current;
+    if (s.over) return;
+    s.over = true;
+    s.busy = true;
+    setPhase('over');
+    setSpeed(0, 1600);
+    brake.set(withTiming(1, { duration: 200 }));
+    curve.set(withTiming(0, { duration: 900 }));
+    if (feria) {
+      fx.fanfare();
+      juice.banner('¡Fin del trayecto!', `${s.curves} curvas · ${s.points} puntos`, color.farol);
     } else {
-      fx.bad();
-      speedPx.value = withSequence(withTiming(30, { duration: 160 }), withTiming(kmh * KMH_TO_PX, { duration: 800 }));
-      steerRot.value = withSequence(withTiming(side === 0 ? -24 : 24, { duration: 110 }), withTiming(side === 0 ? 20 : -20, { duration: 130 }), withTiming(0, { duration: 160 }));
-      jit.value = withSequence(withTiming(-7, { duration: 50 }), withTiming(7, { duration: 60 }), withTiming(-5, { duration: 60 }), withTiming(4, { duration: 60 }), withTiming(0, { duration: 60 }));
-      if (mode === 'feria') {
-        s.lives -= 1;
-        setLives(s.lives);
-      } else queue.current.splice(2, 0, q.target);
+      fx.done();
+      juice.banner('¡Has llegado!', `${s.curves} curvas de la 1095`, color.arrozalVivo);
     }
-    const end = (mode === 'feria' && s.lives <= 0) || (ok && s.curves >= goal);
-    later(() => {
-      steerX.value = withSpring(0, { damping: 14 });
-      steerRot.value = withSpring(0, { damping: 14 });
-    }, ok ? 650 : 800);
-    later(() => {
-      if (end) {
-        finish();
-        return;
-      }
-      setFb(null);
-      setQ(makeQ());
-      setQKey((k) => k + 1);
-      setLocked(false);
-    }, ok ? 1050 : 1250);
+    juice.burst(undefined, 'confeti', 30, 190);
+    setPose('celebra');
+    setJump((j) => j + 1);
+    later(() => onDone(score.result(feria ? s.points : s.curves)), 1900);
   };
 
-  if (!q) {
+  const ask = () => {
+    const s = st.current;
+    if (s.over) return;
+    const nq = makeQ();
+    if (!nq) {
+      finish();
+      return;
+    }
+    s.q = nq;
+    s.qid += 1;
+    const my = s.qid;
+    s.busy = false;
+    setQ(nq);
+    setQn(my);
+    setFb(null);
+    setPose('feliz');
+    const v = s.base + Math.min(2.5, s.curves * 0.04);
+    const approach = feria ? ((Z_FAR - 0.95) / v) * 1000 : 2600;
+    cancelAnimation(signZ);
+    signZ.set(Z_FAR);
+    curve.set(withTiming(nq.dir * (0.05 + Math.min(0.04, s.level * 0.008)), { duration: approach * 0.7, easing: Easing.inOut(Easing.sin) }));
+    if (feria) {
+      setSpeed(v, 500);
+      signZ.set(withTiming(0.95, { duration: approach, easing: Easing.linear }));
+      later(() => {
+        if (st.current.qid === my && !st.current.busy) miss();
+      }, approach - 150);
+    } else {
+      setKmh(Math.round(v * KMH));
+      speed.set(withSequence(withTiming(v, { duration: 300 }), withTiming(0.25, { duration: approach, easing: Easing.out(Easing.cubic) })));
+      signZ.set(withTiming(Z_STOP, { duration: approach, easing: Easing.out(Easing.cubic) }));
+      later(() => {
+        if (st.current.qid === my) setKmh(2);
+      }, approach);
+    }
+    if (nq.ask !== 'es') later(() => say(nq.target.th), 450);
+  };
+
+  const next = (ms: number) =>
+    later(() => {
+      const s = st.current;
+      if (s.over) return;
+      if ((feria && s.lives <= 0) || s.curves >= goal) finish();
+      else ask();
+    }, ms);
+
+  const fail = (cur: Q, side: 0 | 1 | -1, late: boolean) => {
+    const s = st.current;
+    s.busy = true;
+    cancelAnimation(signZ);
+    setFb({ side, ok: false });
+    juice.shake(12);
+    if (late) {
+      score.hit(false);
+      onAnswer(false, cur.target.id);
+      juice.float(undefined, '¡Demasiado tarde!', color.lacaHondo, 26);
+    }
+    const sk = cur.dir;
+    roll.set(withSequence(withTiming(sk * 22, { duration: 110 }), withTiming(-sk * 16, { duration: 150 }), withTiming(sk * 8, { duration: 130 }), withSpring(0, { damping: 9 })));
+    steer.set(withSequence(withTiming(-sk * 46, { duration: 260, easing: Easing.out(Easing.quad) }), withSpring(0, { damping: 11, stiffness: 90 })));
+    brake.set(withSequence(withTiming(1, { duration: 80 }), withDelay(800, withTiming(0, { duration: 300 }))));
+    setSpeed(s.base * 0.35, 300);
+    later(() => setSpeed(s.base, 1200), 700);
+    dust(8, 'rgba(176,150,110,0.85)', 70);
+    setPose('ups');
+    later(() => say(cur.target.th), 350);
+    signZ.set(withDelay(1100, withTiming(0.9, { duration: 500, easing: Easing.in(Easing.quad) })));
+    queue.current.splice(2, 0, cur.target);
+    if (feria) {
+      s.lives -= 1;
+      setLives(s.lives);
+    }
+    next(1900);
+  };
+
+  const miss = () => {
+    const cur = st.current.q;
+    if (!cur || st.current.busy) return;
+    fail(cur, -1, true);
+  };
+
+  const answer = (side: 0 | 1, e?: GestureResponderEvent) => {
+    if (phase !== 'drive' || !q) return;
+    const s = st.current;
+    const cur = s.q;
+    if (!cur || s.busy || s.over) return;
+    s.busy = true;
+    const ok = side === cur.correct;
+    const combo = score.hit(ok);
+    onAnswer(ok, cur.target.id);
+    if (!ok) {
+      fail(cur, side, false);
+      return;
+    }
+    cancelAnimation(signZ);
+    setFb({ side, ok: true });
+    s.curves += 1;
+    setCurves(s.curves);
+    let gain = 0;
+    if (feria) {
+      const early = Math.max(0, Math.min(1, (signZ.value - 2) / (Z_FAR - 2)));
+      gain = Math.round((10 + early * 15) * (1 + Math.min(10, combo - 1) * 0.1));
+      s.points += gain;
+      setPoints(s.points);
+    }
+    const at = e ? tapPoint(e) : undefined;
+    juice.celebrate(at, feria ? `+${gain}` : `Curva ${s.curves}`, 'estrellas');
+    if (cur.ask === 'es') say(cur.target.th);
+    setPose('celebra');
+    setJump((j) => j + 1);
+    // derrape limpio hacia dentro de la curva, polvo y acelerón
+    steer.set(withSequence(withTiming(cur.dir * 34, { duration: 260, easing: Easing.out(Easing.quad) }), withSpring(0, { damping: 12, stiffness: 80 })));
+    roll.set(withSequence(withTiming(cur.dir * 7, { duration: 220 }), withSpring(0, { damping: 9 })));
+    dust(5, 'rgba(214,196,160,0.75)', 40);
+    signZ.set(withTiming(0.9, { duration: 650, easing: Easing.in(Easing.quad) }));
+    later(() => {
+      curve.set(withTiming(0, { duration: 900, easing: Easing.inOut(Easing.sin) }));
+    }, 700);
+    if (feria && s.curves % LEVEL_EVERY === 0) {
+      s.level += 1;
+      s.base += 1.2;
+      setLevel(s.level);
+      tod.set(withTiming(Math.min(3, s.level - 1), { duration: 2600 }));
+      later(() => {
+        fx.levelup();
+        juice.banner(`¡Nivel ${s.level}!`, LEVEL_TEXT[Math.min(4, s.level)] || '¡Más curvas, más deprisa!', color.farol);
+      }, 300);
+    }
+    const boost = s.base + Math.min(2.5, s.curves * 0.04);
+    speed.set(withSequence(withTiming(boost * 1.35, { duration: 220 }), withTiming(boost, { duration: 1100 })));
+    setKmh(Math.round(boost * KMH));
+    next(feria ? 1000 : 1350);
+  };
+
+  const begin = () => {
+    st.current.busy = false;
+    setPhase('drive');
+    setSpeed(st.current.base, 900);
+    later(() => ask(), 500);
+  };
+
+  useEffect(() => {
+    self.current = { start: begin };
+  });
+  useEffect(() => {
+    const all = timers.current;
+    const t = setTimeout(() => {
+      if (!feria) self.current?.start();
+    }, 500);
+    return () => {
+      clearTimeout(t);
+      all.forEach(clearTimeout);
+    };
+  }, [feria]);
+
+  const headlights = useAnimatedStyle(() => ({ opacity: Math.max(0, Math.min(1, tod.value - 1.6)) }));
+
+  if (noWords) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24 }}>
         <Txt v="h2">Aún faltan palabras</Txt>
@@ -266,107 +322,194 @@ export default function Curvas({ mode, words, focus, rounds, onAnswer, onDone }:
     );
   }
 
-  const signState = (side: 0 | 1): 'idle' | 'ok' | 'bad' | 'dim' => {
-    if (!fb) return 'idle';
-    if (side === q.correct) return 'ok';
+  const signState = (side: 0 | 1): SignState => {
+    if (!fb || !q) return 'idle';
+    if (side === q.correct) return fb.ok ? 'ok' : 'hint';
     return fb.side === side ? 'bad' : 'dim';
   };
+  const signText = (w: Word) => (q?.ask === 'th' ? shortEs(w.es) : w.th);
+  const truckW = geo ? Math.min(170, geo.W * 0.44) : 150;
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#8FC28A', overflow: 'hidden' }} onLayout={(e) => setSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
-      <Animated.View style={[{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }, sceneStyle]}>
-        <Svg width={w} height={horizon + 30} viewBox="0 0 390 300" preserveAspectRatio="xMidYMax slice" style={{ position: 'absolute', top: 0 }}>
-          <Rect width={390} height={300} fill="#DCE8F2" />
-          <Path d="M0 210 L70 160 L140 196 L220 140 L300 186 L390 150 L390 300 L0 300 Z" fill="#B9CCDE" />
-          <Path d="M0 270 L90 220 L180 256 L270 214 L390 250 L390 300 L0 300 Z" fill="#7FB487" />
-        </Svg>
-        <View style={{ position: 'absolute', top: horizon, left: 0, right: 0, bottom: 0, overflow: 'hidden' }}>
-          <Animated.View style={[{ position: 'absolute', left: 0, top: 0, width: w, height: tile * 2 }, roadStyle]}>
-            <View style={{ position: 'absolute', top: 0 }}>
-              <RoadTile w={w} tile={tile} />
+    <View style={{ flex: 1 }}>
+      {/* la escena sube por detrás de la cabecera y baja hasta el borde de la pantalla */}
+      <View
+        style={{ position: 'absolute', left: 0, right: 0, top: -frame.top, bottom: -frame.bottom, overflow: 'hidden', backgroundColor: '#7FB8F5' }}
+        onLayout={(e) => {
+          const { width, height } = e.nativeEvent.layout;
+          setGeo((g0) => (g0 && g0.W === width && g0.H === height ? g0 : makeGeo(width, height, frame.top)));
+        }}>
+        <Animated.View style={[StyleSheet.absoluteFill, juice.shakeStyle]}>
+          {geo ? (
+            <View key={`${geo.W}x${geo.H}`} style={StyleSheet.absoluteFill}>
+              <Sky g={geo} tod={tod} />
+              <Ranges g={geo} bgX={bgX} tod={tod} />
+              <Ground g={geo} tod={tod} />
+              <Road g={geo} curve={curve} />
+              <Dashes g={geo} dist={dist} curve={curve} />
+              <RoadsideProps g={geo} dist={dist} curve={curve} />
+              <Mist g={geo} />
+              <View style={{ position: 'absolute', left: 0, right: 0, top: geo.hz, bottom: 0, flexDirection: 'row' }}>
+                <Pressable accessibilityRole="button" accessibilityLabel="Elegir la señal de la izquierda" onPress={(e) => answer(0, e)} style={{ flex: 1 }} />
+                <Pressable accessibilityRole="button" accessibilityLabel="Elegir la señal de la derecha" onPress={(e) => answer(1, e)} style={{ flex: 1 }} />
+              </View>
+              <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, right: 0, top: geo.hz + geo.gh * 0.22, bottom: 0 }, headlights]}>
+                <Beams />
+              </Animated.View>
+              {q
+                ? ([0, 1] as const).map((side) => (
+                    <RoadSign
+                      key={`${qn}-${side}`}
+                      g={geo}
+                      side={side === 0 ? -1 : 1}
+                      z={signZ}
+                      curve={curve}
+                      dir={q.dir}
+                      text={signText(q.options[side])}
+                      latin={q.ask === 'th'}
+                      state={signState(side)}
+                      label={`Señal ${side === 0 ? 'izquierda' : 'derecha'}: ${signText(q.options[side])}`}
+                      onChoose={answer}
+                    />
+                  ))
+                : null}
+              <View pointerEvents="none" style={{ position: 'absolute', left: geo.W / 2 - truckW / 2, top: geo.H - frame.bottom - truckW * (130 / 160) - 10 }}>
+                <Truck width={truckW} curve={curve} steer={steer} roll={roll} dist={dist} speed={speed} brake={brake} pose={pose} jump={jump} />
+              </View>
+              {puffs.map((p) => (
+                <Puff key={p.id} {...p} />
+              ))}
             </View>
-            <View style={{ position: 'absolute', top: -tile }}>
-              <RoadTile w={w} tile={tile} />
-            </View>
-          </Animated.View>
-        </View>
-        <MistBand top={horizon - 8} width={w} height={22} opacity={0.6} />
-
-        <View style={{ position: 'absolute', left: 0, right: 0, top: horizon + 20, bottom: 0, flexDirection: 'row' }}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Girar a la izquierda" onPress={() => answer(0)} style={{ flex: 1 }} />
-          <Pressable accessibilityRole="button" accessibilityLabel="Girar a la derecha" onPress={() => answer(1)} style={{ flex: 1 }} />
-        </View>
-
-        <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: (w - TRUCK_W) / 2, top: h - 80 - TRUCK_H, width: TRUCK_W, height: TRUCK_H }, truckStyle]}>
-          <View style={{ position: 'absolute', left: 26, top: -6 }}>
-            <Noi pose="hola" size={84} still={reduced ?? false} />
-          </View>
-          <View style={{ position: 'absolute', left: 6, top: 56, width: 120, height: 92, borderTopLeftRadius: 18, borderTopRightRadius: 18, borderBottomLeftRadius: 12, borderBottomRightRadius: 12, backgroundColor: '#D9453F', borderBottomWidth: 10, borderBottomColor: '#B2332E' }} />
-          <View style={{ position: 'absolute', left: 0, top: 50, width: 132, height: 12, borderRadius: 6, backgroundColor: '#9E2B27' }} />
-          <View style={{ position: 'absolute', left: 22, top: 88, width: 88, height: 22, borderRadius: 6, backgroundColor: '#F6E8CC', alignItems: 'center', justifyContent: 'center' }}>
-            <Th size={11} bold style={{ color: '#9E2B27', lineHeight: 14 }} numberOfLines={1}>แม่ฮ่องสอน</Th>
-          </View>
-          <View style={{ position: 'absolute', left: 10, top: 140, width: 26, height: 22, borderRadius: 6, backgroundColor: color.tinta }} />
-          <View style={{ position: 'absolute', right: 10, top: 140, width: 26, height: 22, borderRadius: 6, backgroundColor: color.tinta }} />
-          <View style={{ position: 'absolute', left: 14, top: 122, width: 14, height: 10, borderRadius: 4, backgroundColor: '#FFC83D' }} />
-          <View style={{ position: 'absolute', right: 14, top: 122, width: 14, height: 10, borderRadius: 4, backgroundColor: '#FFC83D' }} />
+          ) : null}
         </Animated.View>
+      </View>
 
-        <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }}>
-          <View pointerEvents="box-none" style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingTop: 8 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, height: 38, paddingHorizontal: 10, borderRadius: 999, backgroundColor: '#FFFFFF' }}>
-              <Art name="curva" size={26} />
-              <Txt v="num" style={{ fontSize: 20 }}>{curves}</Txt>
-            </View>
-            <View style={{ flex: 1 }} />
-            {mode === 'feria' ? (
-              <View style={{ flexDirection: 'row', gap: 2 }} accessibilityLabel={`${lives} vidas`}>
-                {[0, 1, 2].map((k) => (
-                  <Icon key={k} name="heart" size={22} color={k < lives ? color.laca : color.niebla4} />
-                ))}
+      {/* Marcador */}
+      <View pointerEvents="box-none" style={styles.hud}>
+        <Pop trigger={curves} style={styles.pill}>
+          <Art name="curva" size={24} />
+          <Text style={styles.pillNum}>{curves}</Text>
+          <Text style={styles.pillSub}>{feria ? `de ${fmt(TOTAL_CURVES)}` : `/ ${goal}`}</Text>
+        </Pop>
+        {feria ? (
+          <View style={[styles.pill, { gap: 1 }]} accessibilityLabel={`${lives} vidas`}>
+            {[0, 1, 2].map((k) => (
+              <Icon key={k} name="heart" size={18} color={k < lives ? color.laca : color.niebla3} />
+            ))}
+          </View>
+        ) : null}
+        <View style={{ flex: 1 }} />
+        {score.combo >= 2 ? (
+          <View style={styles.pill}>
+            <ComboBadge combo={score.combo} />
+          </View>
+        ) : null}
+        {feria ? (
+          <Pop trigger={points} style={styles.pill}>
+            <Text style={styles.pillNum}>{points}</Text>
+          </Pop>
+        ) : null}
+        <Speedometer speed={speed} kmh={kmh} perKmh={KMH} size={64} />
+      </View>
+
+      {/* La pregunta */}
+      {q && phase !== 'over' ? (
+        <Animated.View key={qn} entering={ZoomIn.springify().damping(13)} pointerEvents="box-none" style={styles.askWrap}>
+          <View style={styles.ask}>
+            {fb && !fb.ok ? (
+              <Animated.View entering={FadeIn.duration(160)} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                <Th size={24} bold>{q.target.th}</Th>
+                <View style={{ flexShrink: 1 }}>
+                  <Rom rom={q.target.rom} size={13} />
+                  <Text style={styles.askEs} numberOfLines={1}>= {shortEs(q.target.es)}</Text>
+                </View>
+              </Animated.View>
+            ) : q.ask === 'es' ? (
+              <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, flexShrink: 1 }}>
+                <Text style={styles.askSmall}>¿Cuál es</Text>
+                <Text style={styles.askBig} numberOfLines={1}>«{shortEs(q.target.es)}»?</Text>
+              </View>
+            ) : q.ask === 'th' ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 }}>
+                <Th size={26} bold>{q.target.th}</Th>
+                <View style={{ flexShrink: 1 }}>
+                  <Rom rom={q.target.rom} size={13} />
+                  <Text style={styles.askSmall}>¿Qué significa?</Text>
+                </View>
               </View>
             ) : (
-              <Txt v="small" style={{ color: color.tinta }}>{curves} / {goal}</Txt>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Text style={styles.askBig}>Escucha y elige</Text>
+              </View>
             )}
-            <View style={{ height: 34, paddingHorizontal: 12, borderRadius: 999, backgroundColor: color.tinta, justifyContent: 'center' }}>
-              <Txt v="small" style={{ color: '#FFFFFF' }}>{kmh} km/h</Txt>
-            </View>
-            {score.combo >= 2 ? (
-              <View style={{ backgroundColor: '#FFFFFF', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 }}>
-                <ComboBadge combo={score.combo} />
+            <View style={{ flex: 1 }} />
+            {q.minimal && (!fb || fb.ok) ? (
+              <View style={styles.tone}>
+                <Text style={styles.toneText}>ojo al tono</Text>
               </View>
             ) : null}
-          </View>
-
-          <View style={{ marginHorizontal: 20, marginTop: 12, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 20, backgroundColor: '#FFFFFF', flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <Txt v="small">¿Cuál es…</Txt>
-            <Txt v="h2" style={{ fontSize: 24, flexShrink: 1 }} numberOfLines={1}>«{q.target.es}»?</Txt>
-            {q.minimal ? (
-              <View style={{ marginLeft: 'auto', backgroundColor: color.niebla2, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 }}>
-                <Txt v="small" style={{ fontSize: 12, color: color.tinta2 }}>ojo al tono</Txt>
-              </View>
+            {q.ask !== 'es' || (fb && !fb.ok) ? (
+              <Pressable accessibilityRole="button" accessibilityLabel="Escuchar otra vez" hitSlop={10} onPress={() => say(q.target.th)} style={styles.spk}>
+                <Icon name="speaker" size={18} color="#FFFFFF" />
+              </Pressable>
             ) : null}
           </View>
+        </Animated.View>
+      ) : null}
 
-          <View pointerEvents="box-none" style={{ marginTop: 22, height: SIGN + 10 }}>
-            <Sign key={`l${qKey}`} left th={q.options[0].th} label={`Señal izquierda: ${q.options[0].th}`} state={signState(0)} onPress={() => answer(0)} />
-            <Sign key={`r${qKey}`} left={false} th={q.options[1].th} label={`Señal derecha: ${q.options[1].th}`} state={signState(1)} onPress={() => answer(1)} />
-          </View>
-
-          {fb?.ok ? (
-            <Animated.View key={curves} entering={ZoomIn.springify().damping(9)} exiting={FadeOut} style={{ alignSelf: 'center', marginTop: 40, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#FFFFFF', borderRadius: 999, paddingHorizontal: 16, paddingVertical: 8 }}>
-              <Art name="curva" size={30} />
-              <Txt v="h3">Curva {curves}</Txt>
-            </Animated.View>
-          ) : null}
-        </View>
-
-        <View pointerEvents="none" style={{ position: 'absolute', left: 20, right: 20, bottom: 26, alignItems: 'center' }}>
-          <View style={{ backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 999, paddingHorizontal: 14, height: 34, justifyContent: 'center' }}>
-            <Txt v="small" style={{ color: color.tinta2 }}>Toca la señal correcta para tomar la curva</Txt>
+      {phase === 'ready' ? <Countdown onDone={begin} go="¡Arranca!" /> : null}
+      {!feria && phase === 'drive' && curves === 0 && !fb ? (
+        <View pointerEvents="none" style={styles.tipWrap}>
+          <View style={styles.tip}>
+            <Text style={styles.tipText}>Toca la señal correcta para tomar la curva</Text>
           </View>
         </View>
-      </Animated.View>
+      ) : null}
+      {feria && level > 1 ? (
+        <View pointerEvents="none" style={styles.levelWrap}>
+          <View style={styles.level}>
+            <Text style={styles.levelText}>Nivel {level}</Text>
+          </View>
+        </View>
+      ) : null}
+      {juice.layer}
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  hud: { position: 'absolute', left: 12, right: 12, top: 6, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  pill: { flexDirection: 'row', alignItems: 'center', gap: 4, height: 34, paddingHorizontal: 10, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.94)' },
+  pillNum: { fontFamily: font.displayBold, fontSize: 18, color: color.tinta },
+  pillSub: { fontFamily: font.uiHeavy, fontSize: 11, color: color.tinta3 },
+  askWrap: { position: 'absolute', left: 14, right: 14, top: 76 },
+  ask: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    minHeight: 58,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 22,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 4,
+    borderBottomColor: '#D5DEEA',
+    shadowColor: '#1D2347',
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 6,
+  },
+  askSmall: { fontFamily: font.uiBold, fontSize: 13, color: color.tinta3 },
+  askBig: { fontFamily: font.display, fontSize: 23, color: color.tinta, flexShrink: 1 },
+  askEs: { fontFamily: font.uiHeavy, fontSize: 14, color: color.arrozalHondo },
+  tone: { backgroundColor: color.niebla2, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4 },
+  toneText: { fontFamily: font.uiHeavy, fontSize: 11, color: color.tinta2 },
+  spk: { width: 40, height: 40, borderRadius: 14, backgroundColor: color.cielo, alignItems: 'center', justifyContent: 'center', borderBottomWidth: 3, borderBottomColor: color.cieloHondo },
+  tipWrap: { position: 'absolute', left: 20, right: 20, bottom: 14, alignItems: 'center' },
+  tip: { backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 999, paddingHorizontal: 14, height: 32, justifyContent: 'center' },
+  tipText: { fontFamily: font.uiBold, fontSize: 13, color: color.tinta2 },
+  levelWrap: { position: 'absolute', left: 14, top: 46 },
+  level: { height: 24, paddingHorizontal: 10, borderRadius: 999, backgroundColor: color.farol, justifyContent: 'center' },
+  levelText: { fontFamily: font.uiHeavy, fontSize: 11, color: '#FFFFFF' },
+});

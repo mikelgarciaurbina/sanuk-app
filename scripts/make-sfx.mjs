@@ -140,4 +140,17 @@ wav('stamp', mix([chirp(140, 60, 0.12, 0.7), 0], [noise(0.09, 0.4, 45, 0.25), 0]
 wav('done', mix([gong(1.8, 0.45), 0], [mallet(C5, 0.4, 0.4), 0.15], [mallet(E5, 0.4, 0.4), 0.27], [mallet(G5, 0.4, 0.4), 0.39], [mallet(A5, 0.4, 0.42), 0.51], [mallet(C6, 0.7, 0.45), 0.63]));
 wav('whoosh', noise(0.3, 0.3, 8, 0.12));
 wav('coin', mix([mallet(D6, 0.18, 0.4, 14), 0], [mallet(G5 * 2, 0.3, 0.35, 12), 0.06]));
+
+// Cadena de aciertos: cada acierto seguido sube una nota de la pentatónica (do re mi sol la do re mi),
+// con un brillo de campana una octava arriba que crece con la racha.
+const D5 = note(74), G6 = note(91), A6 = note(93), C7 = note(96);
+[C5, D5, E5, G5, A5, C6, D6, E6].forEach((f, i) => wav(`n${i + 1}`, mix([mallet(f, 0.38, 0.55), 0], [bell(f * 2, 0.55, 0.06 + i * 0.015), 0.012])));
+wav('sparkle', mix([bell(E6, 0.6, 0.16), 0], [bell(G6, 0.55, 0.13), 0.05], [bell(A6, 0.55, 0.11), 0.1], [bell(C7, 0.7, 0.1), 0.15]));
+wav('levelup', mix([mallet(C5, 0.3, 0.45), 0], [mallet(E5, 0.3, 0.45), 0.07], [mallet(G5, 0.3, 0.48), 0.14], [mallet(C6, 0.5, 0.52), 0.21], [bell(C6, 1, 0.22), 0.21], [bell(G6, 0.9, 0.1), 0.3]));
+wav('tick', mallet(note(96), 0.06, 0.32, 40));
+wav('go', mix([gong(1.3, 0.32), 0], [mallet(C6, 0.55, 0.5), 0], [mallet(G5, 0.55, 0.42), 0], [bell(E6, 0.9, 0.14), 0.02]));
+wav('boom', mix([chirp(130, 38, 0.38, 0.75), 0], [noise(0.32, 0.35, 11, 0.08), 0]));
+wav('swish', mix([noise(0.2, 0.32, 16, 0.55), 0], [chirp(500, 1400, 0.16, 0.08), 0]));
+wav('fanfare', mix([mallet(C5, 0.3, 0.42), 0], [mallet(E5, 0.3, 0.42), 0.09], [mallet(G5, 0.3, 0.45), 0.18], [mallet(C6, 0.3, 0.48), 0.27], [mallet(E6, 0.8, 0.5), 0.36], [mallet(C6, 0.8, 0.36), 0.36], [mallet(G5, 0.8, 0.3), 0.36], [bell(C7, 1.2, 0.12), 0.4], [gong(1.4, 0.18), 0.36]));
+wav('plip', mix([chirp(1200, 2400, 0.05, 0.38), 0], [mallet(E6, 0.16, 0.22, 18), 0.015]));
 console.log('sfx →', OUT);

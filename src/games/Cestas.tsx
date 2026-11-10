@@ -1,231 +1,871 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, View } from 'react-native';
-import Animated, { Easing, FadeInDown, useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated';
-import Svg, { Path, Rect } from 'react-native-svg';
+// Juego 12 · Cestas del mercado. En thai las cosas se cuentan con su clasificador: แมว สาม ตัว = «gato tres ‹de
+// animal›». En el puesto del mercado nocturno, la cinta trae bandejas con cosas: tócalas a su cesta o lánzalas con
+// el dedo. La cesta rebota, saltan monedas y suena la frase entera. Las cestas no se mueven del puesto, así que cada
+// vez se va más rápido. Feria: la cinta corre más en cada nivel, se abre una cesta nueva por nivel, bandejas de oro
+// (×3), y lo que se cae o se falla vuelve más tarde. Usa el banco de clasificadores y las palabras aprendidas que
+// tienen clasificador.
+import { useEffect, useId, useRef, useState, type ComponentRef } from 'react';
+import { Pressable, StyleSheet, Text, View, type GestureResponderEvent } from 'react-native';
+import Animated, { Easing, FadeInDown, cancelAnimation, useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming } from 'react-native-reanimated';
+import Svg, { Defs, Ellipse, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
 
-import { color } from '@/brand/tokens';
+import type { NoiPose } from '@/brand/noi-art';
+import { color, font } from '@/brand/tokens';
 import { Noi } from '@/components/Noi';
-import { Rom, Sticker, Th, Txt } from '@/components/ui';
-import { WORDS } from '@/content';
+import { Btn, Rom, SpeakBtn, Th } from '@/components/ui';
 import { CLASSIFIERS, CLASSIFIER_ITEMS } from '@/content/drills';
-import { say } from '@/lib/audio';
-import { shuffle } from '@/lib/random';
+import type { Word } from '@/content/types';
+import { fx, say } from '@/lib/audio';
+import { randInt, shuffle } from '@/lib/random';
 import { thaiNumber, thaiNumberRom } from '@/lib/thai';
 
-import { AnswerSheet, ComboBadge, GameTitle, useScore } from './kit';
+import { Backdrop } from './Backdrop';
+import { Countdown, Glow, Pop, useJuice, type Point } from './fx';
+import { GameHud, WORD_BY_TH, clamp, measureBox, useLater, type Box, type ViewRef } from './frases/shared';
+import { useScore } from './kit';
 import type { GameProps } from './types';
 
-type Item = (typeof CLASSIFIER_ITEMS)[number];
-type Clf = (typeof CLASSIFIERS)[number];
-type Round = { item: Item; n: number; baskets: Clf[] };
+// ——— Clasificadores y cosas ———
 
-const NUM_ES = ['', 'un', 'dos', 'tres', 'cuatro', 'cinco'];
-const FLY = 56;
+type Clf = { clf: string; rom: string; es: string; icons: string; core: boolean };
 
+const ICONS: Record<string, string> = { ตัว: '🐱👕', คน: '🧒👩‍🏫', ใบ: '🍃🍽️', ลูก: '🥭⚽', อัน: '🧸🧽', คัน: '🚗☂️', เล่ม: '📕🔪', หลัง: '🏠🛖' };
+
+/** Los del banco (drills.ts) y algunos más que llevan las palabras del temario. */
+const CLFS: Clf[] = [
+  ...CLASSIFIERS.map((c) => ({ ...c, icons: ICONS[c.clf] ?? '📦', core: true })),
+  { clf: 'แก้ว', rom: 'gɛ̂ɛo', es: 'bebidas en vaso', icons: '☕🥤', core: false },
+  { clf: 'ลำ', rom: 'lam', es: 'barcos y aviones', icons: '⛵✈️', core: false },
+  { clf: 'ดอก', rom: 'dɔ̀ɔk', es: 'flores, incienso, llaves', icons: '🌸🔑', core: false },
+  { clf: 'ต้น', rom: 'tôn', es: 'árboles y plantas', icons: '🌳🌱', core: false },
+  { clf: 'แห่ง', rom: 'hɛ̀ng', es: 'lugares: templos, pueblos', icons: '🛕🌉', core: false },
+  { clf: 'คู่', rom: 'khûu', es: 'pares (zapatos…)', icons: '👟', core: false },
+  { clf: 'ฟอง', rom: 'fɔɔng', es: 'huevos', icons: '🥚', core: false },
+  { clf: 'ผืน', rom: 'phʉ̌ʉn', es: 'telas, esterillas, mantas', icons: '🧣', core: false },
+  { clf: 'บาน', rom: 'baan', es: 'puertas y ventanas', icons: '🚪🪟', core: false },
+  { clf: 'รูป', rom: 'rûup', es: 'monjes y novicios', icons: '🧘', core: false },
+];
+const CLF_BY: Record<string, Clf> = Object.fromEntries(CLFS.map((c) => [c.clf, c]));
+
+type Thing = { th: string; rom: string; es: string; emoji: string; clf: string; alts: string[]; id?: string; learned: boolean };
+type Item = { key: string; thing: Thing; n: number; level: number; gold: boolean; retry: boolean };
+
+const firstEs = (es: string) => es.split(/[;,(]/)[0].trim();
+
+/** Plural español de lo que se cuenta: gato → gatos, pez → peces, camión → camiones, goma de borrar → gomas de borrar. */
 function plural(es: string): string {
-  const [first, ...rest] = es.split(' ');
-  const p = /s$/.test(first) ? first : /[aeiouáéíóú]$/.test(first) ? `${first}s` : `${first}es`;
+  const [f, ...rest] = es.split(' ');
+  const plain = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '');
+  let p: string;
+  if (/[aeiouáéó]$/.test(f)) p = `${f}s`;
+  else if (/[íú]$/.test(f)) p = `${f}es`;
+  else if (/z$/.test(f)) p = `${f.slice(0, -1)}ces`;
+  else if (/[sx]$/.test(f)) p = /[áéíóú][sx]$/.test(f) ? `${f.slice(0, -2)}${plain(f.slice(-2, -1))}${f.slice(-1)}es` : f;
+  else if (/(ng|[kptbgm])$/.test(f)) p = `${f}s`;
+  else p = /[áéíóú][nrlsdj]?$/.test(f.slice(-2)) ? `${f.replace(/([áéíóú])([nrlsdj]?)$/, (_, v: string, c: string) => plain(v) + c)}es` : `${f}es`;
   return [p, ...rest].join(' ');
 }
+const NUM_ES = ['', 'un', 'dos', 'tres', 'cuatro', 'cinco'];
 
-function makeRounds(n: number): Round[] {
-  const items = shuffle(CLASSIFIER_ITEMS);
-  return Array.from({ length: n }, (_, i) => {
-    const item = items[i % items.length];
-    const right = CLASSIFIERS.find((c) => c.clf === item.clf)!;
-    const others = shuffle(CLASSIFIERS.filter((c) => c.clf !== item.clf)).slice(0, 5);
-    return { item, n: 2 + Math.floor(Math.random() * 4), baskets: shuffle([right, ...others]) };
-  });
+function collect(words: Word[], focus: Word[]): Thing[] {
+  const map = new Map<string, Thing>();
+  for (const it of CLASSIFIER_ITEMS) {
+    map.set(it.th, { th: it.th, rom: it.rom, es: it.es, emoji: it.emoji ?? '📦', clf: it.clf, alts: [], id: WORD_BY_TH.get(it.th)?.id, learned: false });
+  }
+  const learned = new Set([...words, ...focus].map((w) => w.id));
+  for (const w of [...focus, ...words]) {
+    if (!w.clf || !w.emoji || !CLF_BY[w.clf] || w.clf === w.th) continue;
+    const have = map.get(w.th);
+    if (have) {
+      if (have.clf !== w.clf && !have.alts.includes(w.clf)) have.alts.push(w.clf);
+      have.learned = true;
+      have.id = w.id;
+      continue;
+    }
+    const es = firstEs(w.es);
+    if (es.length > 18) continue;
+    map.set(w.th, { th: w.th, rom: w.rom, es, emoji: w.emoji, clf: w.clf, alts: [], id: w.id, learned: learned.has(w.id) });
+  }
+  return [...map.values()];
 }
 
-function Basket({ clf, hint, wiggle, state, disabled, onPress, onLayout }: { clf: string; hint: string; wiggle: number; state: 'idle' | 'ok' | 'bad'; disabled: boolean; onPress: () => void; onLayout: (l: { x: number; y: number; width: number; height: number }) => void }) {
-  const rot = useSharedValue(0);
+/** Cestas de cada nivel: empiezan por clasificadores con cosas aprendidas y en cada nivel se abre una más. */
+function basketSets(things: Thing[], first: string[], start: number, levels: number): Clf[][] {
+  const count = (c: string) => things.filter((t) => t.clf === c).length;
+  const order = [...new Set([...first, ...shuffle(CLFS.filter((c) => c.core && count(c.clf) >= 2).map((c) => c.clf)), ...shuffle(CLFS.filter((c) => !c.core && count(c.clf) >= 2).map((c) => c.clf))])].filter((c) => count(c) >= 1);
+  return Array.from({ length: levels }, (_, i) => order.slice(0, Math.min(order.length, start + i)).map((c) => CLF_BY[c]));
+}
+
+function makeGame(mode: GameProps['mode'], words: Word[], focus: Word[], n: number) {
+  const things = collect(words, focus);
+  const focusTh = new Set(focus.map((w) => w.th));
+  const focusClfs = [...new Set(things.filter((t) => focusTh.has(t.th)).map((t) => t.clf))];
+  const learnedClfs = shuffle([...new Set(things.filter((t) => t.learned).map((t) => t.clf))]);
+  const nLevels = mode === 'feria' ? 4 : 1;
+  const sets = basketSets(things, [...focusClfs, ...learnedClfs.slice(0, 1)], mode === 'feria' ? 3 : 4, nLevels);
+  const perLevel = mode === 'feria' ? [Math.ceil(n * 0.28), Math.ceil(n * 0.28), Math.ceil(n * 0.22), n] : [n];
+  const items: Item[] = [];
+  let prev = '';
+  for (let lv = 0; lv < nLevels && items.length < n; lv++) {
+    const set = new Set(sets[lv].map((c) => c.clf));
+    const fresh = lv > 0 ? sets[lv].find((c) => !sets[lv - 1].some((x) => x.clf === c.clf))?.clf : undefined;
+    const pool = things.filter((t) => set.has(t.clf));
+    const want = Math.min(perLevel[lv], n - items.length);
+    const ordered: Thing[] = [];
+    // primero lo nuevo de la lección y la cesta que se acaba de abrir
+    for (const t of shuffle(pool.filter((t) => focusTh.has(t.th) || t.clf === fresh))) if (!ordered.includes(t)) ordered.push(t);
+    for (const t of shuffle(pool.filter((t) => t.learned))) if (!ordered.includes(t)) ordered.push(t);
+    for (const t of shuffle(pool)) if (!ordered.includes(t)) ordered.push(t);
+    if (fresh) {
+      const k = ordered.findIndex((t) => t.clf === fresh);
+      if (k > 0) ordered.unshift(...ordered.splice(k, 1));
+    }
+    const goldAt = mode === 'feria' && lv > 0 ? 1 + Math.floor(Math.random() * Math.max(1, want - 1)) : -1;
+    for (let j = 0, c = 0; j < want && ordered.length; c++) {
+      const t = ordered[c % ordered.length];
+      if (t.th === prev && ordered.length > 1) continue;
+      prev = t.th;
+      const top = mode === 'feria' && lv === 0 ? 3 : 5;
+      items.push({ key: `i${items.length}`, thing: t, n: 2 + Math.floor(Math.random() * (top - 1)), level: lv + 1, gold: j === goldAt, retry: false });
+      j++;
+    }
+  }
+  return { items, sets };
+}
+
+const phraseOf = (it: Item) => `${it.thing.th} ${thaiNumber(it.n)} ${it.thing.clf}`;
+const romOf = (it: Item) => `${it.thing.rom} ${thaiNumberRom(it.n)} ${CLF_BY[it.thing.clf]?.rom ?? ''}`;
+const esOf = (it: Item) => `${NUM_ES[it.n]} ${plural(it.thing.es)}`;
+
+// ——— Juego ———
+
+type Phase = 'intro' | 'play' | 'fly' | 'result';
+type Geo = { beltY: number; xStart: number; xMid: number; xEnd: number; rootX: number; rootY: number; w: number };
+const BELT_MS = [0, 7600, 6200, 5200, 4400];
+type Clock = { start: number; ms: number };
+/** Reloj de la cinta (se lee en manejadores; la cinta animada es solo para verla). */
+const clockFrom = (delay: number, ms: number): Clock => ({ start: Date.now() + delay, ms });
+const left = (c: Clock) => clamp(1 - (Date.now() - c.start) / c.ms, 0, 1);
+const DUMMY: Item = { key: 'vacio', thing: { th: '', rom: '', es: '', emoji: '', clf: 'ตัว', alts: [], learned: false }, n: 2, level: 1, gold: false, retry: false };
+const TRAY_W = 124;
+const TRAY_H = 104;
+
+export default function Cestas({ mode, words, focus, rounds, onAnswer, onDone }: GameProps) {
+  const feria = mode === 'feria';
+  const score = useScore(mode);
+  const juice = useJuice();
+  const later = useLater();
+  const reduced = useReducedMotion();
+  const [setup] = useState(() => makeGame(mode, words, focus, rounds ?? (feria ? 14 : 5)));
+  const [items, setItems] = useState(setup.items);
+  const [i, setI] = useState(0);
+  const [phase, setPhase] = useState<Phase>(feria ? 'intro' : 'play');
+  const [points, setPoints] = useState(0);
+  const [counts, setCounts] = useState<Record<string, number>>({});
+  const [bumps, setBumps] = useState<Record<string, number>>({});
+  const [bad, setBad] = useState<string | null>(null);
+  const [glow, setGlow] = useState<string | null>(null);
+  const [answered, setAnswered] = useState<null | { ok: boolean; clf: string }>(null);
+  const [pose, setPose] = useState<NoiPose>('feliz');
+  const [jump, setJump] = useState(0);
+  const rootRef = useRef<ViewRef>(null);
+  const beltRef = useRef<ViewRef>(null);
+  const basketRefs = useRef<Record<string, ComponentRef<typeof View> | null>>({});
+  const api = useRef({ start: (_: number) => {}, miss: () => {}, next: () => {}, begin: () => {} });
+  const [onCountdown] = useState(() => () => api.current.begin());
+  const game = useRef({
+    points: 0,
+    finished: false,
+    token: 0,
+    geo: null as Geo | null,
+    clock: { start: 0, ms: 1 },
+    drag: { x0: 0, y0: 0, lx: 0, ly: 0, lt: 0, vx: 0, vy: 0, moved: false, active: false },
+    retries: 0,
+    started: -1,
+  });
+
+  const ix = useSharedValue(-400);
+  const iy = useSharedValue(0);
+  const isc = useSharedValue(1);
+  const irot = useSharedValue(0);
+  const iop = useSharedValue(1);
+  const dx = useSharedValue(0);
+  const dy = useSharedValue(0);
+  const stripes = useSharedValue(0);
+
+  const item = items[i] ?? DUMMY;
+  const baskets = items.length ? (setup.sets[item.level - 1] ?? []) : [];
+  const level = item.level;
+
+  const itemStyle = useAnimatedStyle(() => ({
+    opacity: iop.value,
+    transform: [{ translateX: ix.value + dx.value - TRAY_W / 2 }, { translateY: iy.value + dy.value - TRAY_H / 2 }, { rotate: `${irot.value}deg` }, { scale: isc.value }],
+  }));
+  const stripeStyle = useAnimatedStyle(() => ({ transform: [{ translateX: -stripes.value * 28 }] }));
+
   useEffect(() => {
-    if (wiggle > 0) rot.value = withSequence(withTiming(-9, { duration: 70 }), withTiming(9, { duration: 90 }), withTiming(-6, { duration: 80 }), withTiming(5, { duration: 80 }), withTiming(0, { duration: 70 }));
-  }, [wiggle, rot]);
-  const st = useAnimatedStyle(() => ({ transform: [{ rotate: `${rot.value}deg` }] }));
-  const fill = state === 'ok' ? '#9BDDB8' : state === 'bad' ? '#F2A5A8' : '#E2BE7A';
-  const dark = state === 'ok' ? color.arrozal : state === 'bad' ? color.laca : '#C99A4B';
+    if (!feria || reduced) return;
+    stripes.value = withRepeat(withTiming(1, { duration: 520, easing: Easing.linear }), -1, false);
+  }, [feria, reduced, stripes]);
+
+  // sin cosas que contar no hay juego
+  useEffect(() => {
+    const g = game.current;
+    if (!items.length && !g.finished) {
+      g.finished = true;
+      onDone(score.result(0));
+    }
+  });
+
+
+  const measureGeo = async (): Promise<Geo | null> => {
+    const [root, belt] = await Promise.all([measureBox(rootRef), measureBox(beltRef)]);
+    if (!root || !belt || !root.w) return game.current.geo;
+    const g: Geo = {
+      rootX: root.x,
+      rootY: root.y,
+      w: root.w,
+      // la bandeja apoyada en la cinta (la cinta está abajo de su caja)
+      beltY: belt.y - root.y + belt.h - 80,
+      xStart: root.w - TRAY_W / 2 - 14,
+      xMid: root.w / 2,
+      xEnd: TRAY_W / 2 + 14,
+    };
+    game.current.geo = g;
+    return g;
+  };
+
+  /** Una bandeja nueva entra en la cinta. */
+  const startItem = (idx: number) => {
+    const it = items[idx];
+    if (!it) return;
+    const g = game.current;
+    if (g.started === idx) return;
+    g.started = idx;
+    g.token += 1;
+    const token = g.token;
+    measureGeo().then((geo) => {
+      if (!geo || token !== game.current.token) return;
+      dx.set(0);
+      dy.set(0);
+      isc.set(1);
+      irot.set(0);
+      iop.set(1);
+      iy.set(geo.beltY);
+      ix.set(geo.w + TRAY_W);
+      if (!feria) {
+        ix.set(withSpring(geo.xMid, { damping: 14, stiffness: 120 }));
+        irot.set(withSequence(withTiming(-14, { duration: 260 }), withSpring(0, { damping: 8, stiffness: 180 })));
+        return;
+      }
+      const ms = BELT_MS[it.level] ?? 5000;
+      game.current.clock = clockFrom(260, ms);
+      ix.set(withSequence(withTiming(geo.xStart, { duration: 260, easing: Easing.out(Easing.quad) }), withTiming(geo.xEnd, { duration: ms, easing: Easing.linear })));
+      later(() => {
+        if (token === game.current.token) api.current.miss();
+      }, ms + 300);
+    });
+  };
+
+  const begin = () => {
+    setPhase('play');
+    startItem(0);
+  };
+
+  const clfInfo = CLF_BY[item.thing.clf];
+  const okFor = (c: string) => c === item.thing.clf || item.thing.alts.includes(c);
+
+  // ——— Resolver ———
+
+  const remaining = () => (feria ? left(game.current.clock) : 0);
+
+  const flyTo = (clf: string, done: (mouth: Point) => void) => {
+    const ref = { current: basketRefs.current[clf] ?? null };
+    Promise.all([measureBox(rootRef), measureBox(ref)]).then(([root, b]) => {
+      if (!root || !b) return;
+      const mouth = { x: b.x - root.x + b.w / 2, y: b.y - root.y + b.w * 0.2 };
+      // la bandeja sale de donde esté ahora (en la cinta, en la mano o rebotando)
+      cancelAnimation(ix);
+      cancelAnimation(iy);
+      const start = { x: ix.get() + dx.get(), y: iy.get() + dy.get() };
+      ix.set(start.x);
+      iy.set(start.y);
+      dx.set(0);
+      dy.set(0);
+      const up = Math.min(start.y, mouth.y) - 70;
+      ix.set(withTiming(mouth.x, { duration: 440, easing: Easing.out(Easing.quad) }));
+      iy.set(withSequence(withTiming(up, { duration: 200, easing: Easing.out(Easing.quad) }), withTiming(mouth.y, { duration: 240, easing: Easing.in(Easing.quad) })));
+      isc.set(withTiming(0.42, { duration: 440 }));
+      irot.set(withTiming((mouth.x > start.x ? 1 : -1) * 200, { duration: 440 }));
+      later(() => done({ x: mouth.x + root.x, y: mouth.y + root.y }), 450);
+    });
+  };
+
+  const land = (clf: string, at: Point, reward: boolean) => {
+    setBumps((b) => ({ ...b, [clf]: (b[clf] ?? 0) + 1 }));
+    setCounts((c) => ({ ...c, [clf]: (c[clf] ?? 0) + 1 }));
+    iop.set(withTiming(0, { duration: 120 }));
+    if (reward) {
+      juice.burst({ x: at.x, y: at.y - 6 }, 'monedas', 14, 120);
+      fx.coin();
+    } else {
+      juice.ring(at, color.arrozalVivo, 80);
+      fx.pop();
+    }
+  };
+
+  const answer = (clf: string) => {
+    if (phase !== 'play') return;
+    const g = game.current;
+    g.token += 1;
+    g.drag.active = false;
+    setPhase('fly');
+    const ok = okFor(clf);
+    const rem = remaining();
+    onAnswer(ok, item.thing.id);
+    if (ok) {
+      flyTo(clf, (at) => {
+        const combo = score.hit(true);
+        const mult = Math.min(4, 1 + Math.floor(combo / 4)) * (item.gold ? 3 : 1);
+        const pts = (10 + Math.round(rem * 10)) * mult;
+        g.points += pts;
+        setPoints(g.points);
+        land(clf, at, true);
+        juice.float({ x: at.x, y: at.y - 30 }, feria ? `+${pts}` : clf, color.buatong, 26);
+        if (item.gold) juice.burst(at, 'estrellas', 16, 140);
+        setPose('celebra');
+        setJump((j) => j + 1);
+        setAnswered({ ok: true, clf });
+        say(phraseOf(item));
+        if (combo === 5 || combo === 10) {
+          juice.banner(`¡Racha ×${combo}!`, 'Puntos multiplicados', color.farol);
+          fx.sparkle();
+        }
+        later(() => api.current.next(), 1150);
+      });
+      return;
+    }
+    // cesta equivocada: rebota en el borde y se va a la buena
+    flyTo(clf, (at) => {
+      score.hit(false);
+      setBad(clf);
+      juice.shake(6);
+      juice.float({ x: at.x, y: at.y - 24 }, '¡Esa no!', '#FFB4A8', 22);
+      setPose('ups');
+      isc.set(withTiming(0.7, { duration: 200 }));
+      iy.set(withTiming(at.y - game.current.geo!.rootY - 90, { duration: 260, easing: Easing.out(Easing.quad) }));
+      setGlow(item.thing.clf);
+      later(() => {
+        flyTo(item.thing.clf, (at2) => {
+          land(item.thing.clf, at2, false);
+          setAnswered({ ok: false, clf });
+          say(phraseOf(item));
+          if (feria) later(() => api.current.next(), 1700);
+        });
+      }, 420);
+      requeue();
+    });
+  };
+
+  const miss = () => {
+    const g = game.current;
+    g.token += 1;
+    setPhase('fly');
+    onAnswer(false, item.thing.id);
+    score.hit(false);
+    fx.boom();
+    iy.set(withTiming(iy.get() + 140, { duration: 520, easing: Easing.in(Easing.quad) }));
+    irot.set(withTiming(-110, { duration: 520 }));
+    iop.set(withDelay(300, withTiming(0, { duration: 220 })));
+    juice.float(undefined, '¡Se cayó de la cinta!', '#FFB4A8', 24);
+    setGlow(item.thing.clf);
+    setPose('ups');
+    later(() => {
+      setAnswered({ ok: false, clf: '' });
+      say(phraseOf(item));
+    }, 500);
+    requeue();
+    later(() => api.current.next(), 2100);
+  };
+
+  /** Lo que se falla vuelve: en la feria unas bandejas después; en la lección, una vez al final. */
+  const requeue = () => {
+    const g = game.current;
+    if (g.retries >= (feria ? 3 : 1)) return;
+    g.retries += 1;
+    const again: Item = { ...item, key: `x${item.key}`, retry: true, gold: false, n: randInt(2, 4) };
+    if (!feria) {
+      setItems((list) => [...list, again]);
+      return;
+    }
+    const target = items.findIndex((x, k) => k >= i + 3 && !x.retry && !x.gold && setup.sets[x.level - 1].some((c) => c.clf === item.thing.clf));
+    if (target > 0) setItems((list) => list.map((x, k) => (k === target ? { ...again, level: x.level } : x)));
+  };
+
+  const next = () => {
+    if (i + 1 >= items.length) {
+      finish();
+      return;
+    }
+    const nx = items[i + 1];
+    setI(i + 1);
+    setAnswered(null);
+    setBad(null);
+    setGlow(null);
+    setPose('feliz');
+    setPhase('play');
+    const up = feria && nx.level > item.level;
+    const delay = up ? 1500 : 0;
+    if (up) {
+      const fresh = setup.sets[nx.level - 1].find((c) => !setup.sets[item.level - 1].some((x) => x.clf === c.clf));
+      juice.banner(`¡Nivel ${nx.level}!`, fresh ? `Cesta nueva: ${fresh.clf} · ${fresh.es}` : 'La cinta va más rápido', color.farol);
+      fx.levelup();
+    } else if (nx.gold) {
+      juice.banner('¡Bandeja de oro!', 'Puntos ×3', color.buatongHondo);
+      fx.sparkle();
+    }
+    iop.set(0);
+    if (delay) later(() => startItem(i + 1), delay);
+    else startItem(i + 1);
+  };
+
+  const finish = () => {
+    const g = game.current;
+    if (g.finished) return;
+    g.finished = true;
+    if (!feria) {
+      onDone(score.result(g.points));
+      return;
+    }
+    juice.banner('¡Puesto cerrado!', `${g.points} puntos`, color.buatong);
+    juice.burst(undefined, 'monedas', 30, 190);
+    fx.fanfare();
+    later(() => onDone(score.result(g.points)), 1400);
+  };
+
+  // ——— Arrastrar y lanzar la bandeja ———
+
+  const grab = (e: GestureResponderEvent) => {
+    if (phase !== 'play') return;
+    const d = game.current.drag;
+    const { pageX, pageY, timestamp } = e.nativeEvent;
+    Object.assign(d, { x0: pageX, y0: pageY, lx: pageX, ly: pageY, lt: timestamp, vx: 0, vy: 0, moved: false, active: true });
+    game.current.token += 1; // la cinta se para mientras la tienes en la mano
+    cancelAnimation(ix);
+    isc.set(withSpring(1.08, { damping: 12, stiffness: 260 }));
+  };
+  const move = (e: GestureResponderEvent) => {
+    const d = game.current.drag;
+    if (!d.active) return;
+    const { pageX, pageY, timestamp } = e.nativeEvent;
+    const dt = Math.max(1, timestamp - d.lt);
+    d.vx = d.vx * 0.4 + ((pageX - d.lx) / dt) * 0.6;
+    d.vy = d.vy * 0.4 + ((pageY - d.ly) / dt) * 0.6;
+    d.lx = pageX;
+    d.ly = pageY;
+    d.lt = timestamp;
+    if (Math.abs(pageX - d.x0) + Math.abs(pageY - d.y0) > 10) d.moved = true;
+    dx.set(pageX - d.x0);
+    dy.set(pageY - d.y0);
+  };
+  const release = () => {
+    const d = game.current.drag;
+    if (!d.active) return;
+    d.active = false;
+    isc.set(withSpring(1, { damping: 12, stiffness: 260 }));
+    if (!d.moved) {
+      say(item.thing.th);
+      resume();
+      return;
+    }
+    const keys = baskets.map((c) => c.clf);
+    Promise.all(keys.map((k) => measureBox({ current: basketRefs.current[k] ?? null }))).then((boxes) => {
+      // hacia dónde va el lanzamiento: si va hacia abajo, se proyecta hasta la fila de cestas
+      let px = d.lx;
+      let py = d.ly;
+      const rows = boxes.filter((b): b is Box => !!b).map((b) => b.y + b.h * 0.4);
+      const rowY = rows.length ? Math.min(...rows) : py;
+      if (d.vy > 0.25 && py < rowY) {
+        const t = (rowY - py) / d.vy;
+        px += d.vx * t;
+        py = rowY;
+      }
+      let best = -1;
+      let bestD = Infinity;
+      boxes.forEach((b, k) => {
+        if (!b) return;
+        const cx = b.x + b.w / 2;
+        const cy = b.y + b.h * 0.45;
+        const dist = Math.hypot((px - cx) * 1.2, py - cy);
+        if (dist < bestD) {
+          bestD = dist;
+          best = k;
+        }
+      });
+      if (best >= 0 && bestD < 150) answer(keys[best]);
+      else {
+        dx.set(withSpring(0, { damping: 14, stiffness: 160 }));
+        dy.set(withSpring(0, { damping: 14, stiffness: 160 }));
+        resume();
+      }
+    });
+  };
+  /** La cinta sigue (feria) desde donde se quedó la bandeja. */
+  const resume = () => {
+    const geo = game.current.geo;
+    if (!feria || phase !== 'play' || !geo) return;
+    const frac = clamp((ix.get() - geo.xEnd) / (geo.xStart - geo.xEnd), 0, 1);
+    const ms = Math.max(400, (BELT_MS[level] ?? 5000) * frac);
+    game.current.token += 1;
+    const token = game.current.token;
+    ix.set(withTiming(geo.xEnd, { duration: ms, easing: Easing.linear }));
+    later(() => {
+      if (token === game.current.token) api.current.miss();
+    }, ms + 200);
+  };
+
+  const cols = baskets.length <= 4 ? 2 : 3;
+  // los temporizadores y la cuenta atrás llaman siempre a la versión más reciente de cada acción
+  useEffect(() => {
+    api.current = { start: startItem, miss, next, begin };
+  });
+  // la primera bandeja de la lección entra en cuanto se sabe dónde está la cinta
+  useEffect(() => {
+    if (feria || !items.length) return;
+    const t = setTimeout(() => {
+      if (game.current.started < 0) api.current.start(0);
+    }, 350);
+    return () => clearTimeout(t);
+  }, [feria, items.length]);
+  const showHint = !feria || level <= 1;
+  const wrongText = answered && !answered.ok ? `${item.thing.th} se cuenta con ${item.thing.clf}: ${clfInfo?.es ?? ''}` : null;
+
+  if (!items.length) return <View style={{ flex: 1 }} />;
+
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`Cesta ${clf}: ${hint}`}
-      disabled={disabled}
-      onPress={onPress}
-      onLayout={(e) => onLayout(e.nativeEvent.layout)}
-      style={{ width: '31.5%', alignItems: 'center', gap: 4, minHeight: 44 }}>
-      <Animated.View style={[{ width: '100%', height: 74, alignItems: 'center', justifyContent: 'center' }, st]}>
-        <Svg width="100%" height="100%" viewBox="0 0 100 74" style={{ position: 'absolute' }}>
-          <Path d="M10 20 L90 20 L82 68 Q50 76 18 68 Z" fill={fill} />
-          <Path d="M14 36 H86 M16 50 H84 M30 20 L26 70 M50 20 V74 M70 20 L74 70" stroke={dark} strokeWidth={3} strokeLinecap="round" opacity={0.55} />
-          <Rect x={6} y={14} width={88} height={10} rx={5} fill={dark} />
-        </Svg>
-        <Th size={26} bold style={{ color: '#4A3210', marginTop: 12 }}>{clf}</Th>
+    <View ref={rootRef} collapsable={false} style={{ flex: 1 }}>
+      <Backdrop scene="mercado" />
+      <Animated.View style={[{ flex: 1 }, juice.shakeStyle]}>
+        <GameHud label="CESTA" i={i + 1} n={items.length} points={feria ? points : undefined} combo={score.combo} dark />
+
+        {/* el pedido: la frase con el hueco del clasificador */}
+        <View style={styles.orderRow}>
+          <View style={styles.order}>
+            <Text style={styles.orderLabel}>{item.gold ? 'PEDIDO DE ORO ×3' : 'CUENTA EN THAI'}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', columnGap: 6 }}>
+              <Th size={26} bold style={{ color: '#3A2410' }}>
+                {`${item.thing.th} ${thaiNumber(item.n)}`}
+              </Th>
+              <View style={[styles.slot, answered ? (answered.ok ? styles.slotOk : styles.slotBad) : null]}>
+                {answered ? (
+                  <Pop trigger={answered}>
+                    <Th size={24} bold style={{ color: answered.ok ? color.arrozalHondo : color.lacaHondo }}>
+                      {item.thing.clf}
+                    </Th>
+                  </Pop>
+                ) : (
+                  <Text style={styles.slotQ}>?</Text>
+                )}
+              </View>
+            </View>
+            <Rom rom={answered ? romOf(item) : `${item.thing.rom} ${thaiNumberRom(item.n)} …`} size={13} />
+            <Text style={styles.orderEs}>{esOf(item)}</Text>
+          </View>
+          <View style={{ alignItems: 'center', gap: 2, marginTop: 8 }}>
+            <Noi pose={pose} size={62} jump={jump} />
+            <SpeakBtn size={34} onPress={() => say(answered ? phraseOf(item) : `${item.thing.th} ${thaiNumber(item.n)}`)} />
+          </View>
+        </View>
+
+        {/* la cinta */}
+        <View ref={beltRef} collapsable={false} style={styles.beltArea}>
+          <Belt stripeStyle={stripeStyle} />
+          {wrongText && !feria ? (
+            <Animated.View entering={FadeInDown.springify().damping(14)} style={styles.explain}>
+              <Text style={styles.explainText}>{wrongText}</Text>
+              <Btn label="Siguiente" height={40} style={{ width: 120 }} onPress={next} />
+            </Animated.View>
+          ) : null}
+        </View>
+
+        {/* las cestas, sobre el mostrador de madera del puesto */}
+        <View style={[styles.baskets, { paddingHorizontal: cols === 2 ? 34 : 14 }]}>
+          <Counter />
+          {baskets.map((c) => (
+            <View key={c.clf} style={{ width: cols === 2 ? '46%' : '31%' }}>
+              <Basket
+                info={c}
+                count={counts[c.clf] ?? 0}
+                bump={bumps[c.clf] ?? 0}
+                bad={bad === c.clf}
+                glow={glow === c.clf}
+                showHint={showHint}
+                disabled={phase !== 'play'}
+                onPress={() => answer(c.clf)}
+                setRef={(v) => {
+                  basketRefs.current[c.clf] = v;
+                }}
+              />
+            </View>
+          ))}
+        </View>
       </Animated.View>
-      <Txt v="small" style={{ textAlign: 'center', fontSize: 12, lineHeight: 15 }} numberOfLines={2}>{hint}</Txt>
+
+      {/* la bandeja (encima de todo: se puede lanzar) */}
+      <Animated.View
+        style={[styles.item, itemStyle]}
+        onStartShouldSetResponder={() => phase === 'play'}
+        onMoveShouldSetResponder={() => phase === 'play'}
+        onResponderTerminationRequest={() => false}
+        onResponderGrant={grab}
+        onResponderMove={move}
+        onResponderRelease={release}
+        onResponderTerminate={release}>
+        <Tray item={item} />
+      </Animated.View>
+
+      {phase === 'intro' ? <Countdown onDone={onCountdown} dark /> : null}
+      {juice.layer}
+    </View>
+  );
+}
+
+// ——— Piezas ———
+
+/** Mostrador de teca del puesto, con su tela de cuadros (pha khao ma). */
+function Counter() {
+  const u = `ct${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
+  return (
+    <View pointerEvents="none" style={styles.counter}>
+      <Svg style={StyleSheet.absoluteFill} width="100%" height="100%">
+        <Defs>
+          <LinearGradient id={`${u}w`} x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor="#7A4A24" />
+            <Stop offset="0.25" stopColor="#5C3418" />
+            <Stop offset="1" stopColor="#2E180A" />
+          </LinearGradient>
+        </Defs>
+        <Rect x="0" y="0" width="100%" height="100%" fill={`url(#${u}w)`} />
+        {[0.18, 0.38, 0.58, 0.78].map((y) => (
+          <Rect key={y} x="0" y={`${y * 100}%`} width="100%" height={1.5} fill="#2A1406" opacity={0.6} />
+        ))}
+      </Svg>
+      <View style={styles.counterEdge} />
+      <View style={styles.cloth}>
+        {Array.from({ length: 16 }, (_, k) => (
+          <View key={k} style={[styles.check, { backgroundColor: k % 2 ? '#2B5FD9' : '#E8473F' }]} />
+        ))}
+      </View>
+    </View>
+  );
+}
+
+/** Cinta de madera con rodillos; las rayas corren en la feria. */
+function Belt({ stripeStyle }: { stripeStyle: ReturnType<typeof useAnimatedStyle> }) {
+  const u = `bt${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
+  return (
+    <View pointerEvents="none" style={styles.belt}>
+      <View style={styles.beltBody}>
+        <Svg style={StyleSheet.absoluteFill} width="100%" height="100%">
+          <Defs>
+            <LinearGradient id={`${u}b`} x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0" stopColor="#8A5A30" />
+              <Stop offset="0.5" stopColor="#6B4322" />
+              <Stop offset="1" stopColor="#4A2C14" />
+            </LinearGradient>
+          </Defs>
+          <Rect x="0" y="0" width="100%" height="100%" fill={`url(#${u}b)`} />
+        </Svg>
+        <Animated.View style={[styles.stripes, stripeStyle]}>
+          {Array.from({ length: 24 }, (_, k) => (
+            <View key={k} style={styles.stripe} />
+          ))}
+        </Animated.View>
+        <View style={styles.beltShine} />
+      </View>
+      <View style={[styles.roller, { left: -4 }]} />
+      <View style={[styles.roller, { right: -4 }]} />
+      <View style={styles.legs}>
+        {[0, 1, 2, 3].map((k) => (
+          <View key={k} style={styles.leg} />
+        ))}
+      </View>
+    </View>
+  );
+}
+
+const SPOTS: Record<number, [number, number][]> = {
+  2: [[-17, 2], [17, 2]],
+  3: [[-22, 6], [22, 6], [0, -12]],
+  4: [[-20, 8], [20, 8], [-12, -12], [14, -12]],
+  5: [[-26, 8], [0, 10], [26, 8], [-13, -12], [13, -12]],
+};
+
+/** Bandeja de bambú tejida (กระด้ง) con las cosas y su etiqueta. */
+function Tray({ item }: { item: Item }) {
+  const u = `tr${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
+  const gold = item.gold;
+  const spots = SPOTS[item.n] ?? SPOTS[3];
+  return (
+    <View style={{ width: TRAY_W, height: TRAY_H }}>
+      {gold ? <Glow size={170} tint={color.buatong} strength={0.85} style={{ position: 'absolute', left: TRAY_W / 2 - 85, top: TRAY_H / 2 - 85 }} /> : null}
+      <Svg width={TRAY_W} height={TRAY_H} style={StyleSheet.absoluteFill}>
+        <Defs>
+          <LinearGradient id={`${u}t`} x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor={gold ? '#FFE680' : '#E8C27A'} />
+            <Stop offset="1" stopColor={gold ? '#D99A00' : '#A8742F'} />
+          </LinearGradient>
+        </Defs>
+        <Ellipse cx={TRAY_W / 2} cy={TRAY_H - 12} rx={56} ry={9} fill="#000000" opacity={0.28} />
+        <Ellipse cx={TRAY_W / 2} cy={TRAY_H - 26} rx={56} ry={17} fill={`url(#${u}t)`} stroke={gold ? '#B07800' : '#7A5420'} strokeWidth={2.5} />
+        <Ellipse cx={TRAY_W / 2} cy={TRAY_H - 27} rx={44} ry={11} fill="none" stroke={gold ? '#FFF2B0' : '#F6DFA8'} strokeWidth={1.4} opacity={0.8} />
+        {[-36, -18, 0, 18, 36].map((x) => (
+          <Path key={x} d={`M${TRAY_W / 2 + x} ${TRAY_H - 41} q3 15 0 30`} stroke={gold ? '#C08300' : '#8A6024'} strokeWidth={1.2} opacity={0.6} fill="none" />
+        ))}
+      </Svg>
+      {spots.map(([x, y], k) => (
+        <Text key={k} style={[styles.thing, { left: TRAY_W / 2 + x - 17, top: TRAY_H - 66 + y }]}>
+          {item.thing.emoji}
+        </Text>
+      ))}
+      <View style={[styles.tag, gold ? { backgroundColor: '#FFF2B0' } : null]}>
+        <Th size={15} bold style={{ color: '#3A2410' }} numberOfLines={1}>
+          {item.thing.th}
+        </Th>
+      </View>
+    </View>
+  );
+}
+
+function Basket({ info, count, bump, bad, glow, showHint, disabled, onPress, setRef }: { info: Clf; count: number; bump: number; bad: boolean; glow: boolean; showHint: boolean; disabled: boolean; onPress: () => void; setRef: (v: ComponentRef<typeof View> | null) => void }) {
+  const u = `bk${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
+  const sy = useSharedValue(1);
+  const rot = useSharedValue(0);
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    sy.value = withSequence(withTiming(0.82, { duration: 90 }), withSpring(1, { damping: 5, stiffness: 260 }));
+  }, [bump, sy]);
+  useEffect(() => {
+    if (bad) rot.value = withSequence(withTiming(-10, { duration: 70 }), withTiming(9, { duration: 90 }), withTiming(-6, { duration: 80 }), withTiming(3, { duration: 80 }), withTiming(0, { duration: 70 }));
+  }, [bad, rot]);
+  const st = useAnimatedStyle(() => ({ transform: [{ rotate: `${rot.value}deg` }, { scaleY: sy.value }, { scaleX: 2 - sy.value }] }));
+  const W = 100;
+  const H = 74;
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel={`Cesta ${info.clf}: ${info.es}`} disabled={disabled} onPress={onPress} style={{ alignItems: 'center' }}>
+      <View ref={setRef} collapsable={false} style={{ width: '100%', alignItems: 'center' }}>
+        {glow ? <Glow size={170} tint={color.arrozalVivo} strength={0.75} style={{ position: 'absolute', top: -40, alignSelf: 'center' }} /> : null}
+        <Animated.View style={[{ width: '100%', aspectRatio: W / H, transformOrigin: '50% 100%' }, st]}>
+          {/* lo que asoma por la boca de la cesta */}
+          <Text style={styles.peek} numberOfLines={1}>
+            {info.icons}
+          </Text>
+          <Svg width="100%" height="100%" viewBox={`0 0 ${W} ${H}`} style={StyleSheet.absoluteFill}>
+            <Defs>
+              <LinearGradient id={`${u}b`} x1="0" y1="0" x2="0" y2="1">
+                <Stop offset="0" stopColor="#EDC27A" />
+                <Stop offset="1" stopColor="#A06A2A" />
+              </LinearGradient>
+              <LinearGradient id={`${u}r`} x1="0" y1="0" x2="0" y2="1">
+                <Stop offset="0" stopColor="#F7D99A" />
+                <Stop offset="1" stopColor="#B5823A" />
+              </LinearGradient>
+            </Defs>
+            <Ellipse cx={50} cy={70} rx={40} ry={4} fill="#000000" opacity={0.35} />
+            <Path d="M7 22 L93 22 L84 66 Q50 74 16 66 Z" fill={`url(#${u}b)`} />
+            {[33, 44, 55].map((y) => (
+              <Path key={y} d={`M${8 + (y - 22) * 0.2} ${y} Q50 ${y + 5} ${92 - (y - 22) * 0.2} ${y}`} stroke="#8A5820" strokeWidth={1.6} fill="none" opacity={0.7} />
+            ))}
+            {[20, 35, 50, 65, 80].map((x) => (
+              <Path key={x} d={`M${x} 24 L${50 + (x - 50) * 0.8} 69`} stroke="#8A5820" strokeWidth={1.2} opacity={0.45} />
+            ))}
+            <Ellipse cx={50} cy={22} rx={45} ry={7} fill="none" stroke={`url(#${u}r)`} strokeWidth={6} />
+            <Path d="M14 19 Q50 12 86 19" stroke="#FFF1C8" strokeWidth={1.4} fill="none" opacity={0.8} />
+          </Svg>
+          <View style={styles.label}>
+            <Th size={22} bold style={{ color: '#3A2410', lineHeight: 28 }}>
+              {info.clf}
+            </Th>
+          </View>
+          {count ? (
+            <Pop trigger={count} style={styles.count}>
+              <Text style={styles.countText}>{count}</Text>
+            </Pop>
+          ) : null}
+        </Animated.View>
+      </View>
+      <Text style={styles.basketRom}>{info.rom}</Text>
+      {showHint ? (
+        <Text style={styles.basketHint} numberOfLines={2}>
+          {info.es}
+        </Text>
+      ) : null}
     </Pressable>
   );
 }
 
-/** Juego 12 · Cestas del mercado: cada cosa va en la cesta de su clasificador. */
-export default function Cestas({ mode, rounds, onAnswer, onDone }: GameProps) {
-  const score = useScore(mode);
-  const total = mode === 'feria' ? 10 : rounds ?? 5;
-  const list = useMemo(() => makeRounds(total), [total]);
-  const [i, setI] = useState(0);
-  const [pickIdx, setPickIdx] = useState<number | null>(null);
-  const [checked, setChecked] = useState<null | boolean>(null);
-  const [flying, setFlying] = useState(false);
-  const [wiggle, setWiggle] = useState<Record<number, number>>({});
-  const busy = useRef(false);
-  const cardL = useRef({ x: 0, y: 0, width: 0, height: 0 });
-  const gridL = useRef({ x: 0, y: 0, width: 0, height: 0 });
-  const cells = useRef<Record<number, { x: number; y: number; width: number; height: number }>>({});
-  const fx_ = useSharedValue(0);
-  const fy_ = useSharedValue(0);
-  const fs_ = useSharedValue(1);
-  const fo_ = useSharedValue(0);
-  const r = list[i];
-
-  const flyStyle = useAnimatedStyle(() => ({
-    opacity: fo_.value,
-    transform: [{ translateX: fx_.value }, { translateY: fy_.value }, { scale: fs_.value }],
-  }));
-
-  if (!r) return null;
-  const { item, n } = r;
-  const numTh = thaiNumber(n);
-  const phrase = `${item.th} ${numTh} ${item.clf}`;
-  const esPhrase = `${NUM_ES[n]} ${plural(item.es)}`;
-  const clfInfo = CLASSIFIERS.find((c) => c.clf === item.clf)!;
-  const wordId = Object.values(WORDS).find((w) => w.th === item.th)?.id;
-
-  const tap = (k: number) => {
-    if (busy.current || checked !== null) return;
-    busy.current = true;
-    const ok = r.baskets[k].clf === item.clf;
-    const sx = cardL.current.x + 16 + 36 - FLY / 2;
-    const sy = cardL.current.y + 16 + 36 - FLY / 2;
-    const c = cells.current[k] ?? { x: 0, y: 0, width: 80, height: 70 };
-    const tx = gridL.current.x + c.x + c.width / 2 - FLY / 2;
-    const ty = gridL.current.y + c.y + 30 - FLY / 2;
-    setPickIdx(k);
-    say(item.th);
-    fx_.value = sx;
-    fy_.value = sy;
-    fs_.value = 1;
-    fo_.value = 1;
-    setFlying(true);
-    const ease = Easing.out(Easing.cubic);
-    fx_.value = withTiming(tx, { duration: 420, easing: ease });
-    fy_.value = withSequence(withTiming(Math.min(sy, ty) - 40, { duration: 200, easing: Easing.out(Easing.quad) }), withTiming(ty, { duration: 220, easing: Easing.in(Easing.quad) }));
-    setTimeout(() => {
-      if (ok) {
-        fs_.value = withTiming(0.3, { duration: 200 });
-        fo_.value = withTiming(0, { duration: 200 });
-        setWiggle((w) => ({ ...w, [k]: (w[k] ?? 0) + 1 }));
-      } else {
-        fx_.value = withSpring(sx, { damping: 8, stiffness: 140 });
-        fy_.value = withSpring(sy, { damping: 8, stiffness: 140 });
-      }
-      score.hit(ok);
-      onAnswer(ok, wordId);
-      setTimeout(() => {
-        setFlying(false);
-        fo_.value = 0;
-        setChecked(ok);
-      }, ok ? 320 : 650);
-    }, 440);
-  };
-
-  const next = () => {
-    if (i + 1 >= list.length) {
-      onDone(score.result(score.correct));
-      return;
-    }
-    setI(i + 1);
-    setPickIdx(null);
-    setChecked(null);
-    setWiggle({});
-    cells.current = {};
-    busy.current = false;
-  };
-
-  const basketState = (k: number): 'idle' | 'ok' | 'bad' => {
-    if (checked === null) return 'idle';
-    if (r.baskets[k].clf === item.clf) return 'ok';
-    return k === pickIdx ? 'bad' : 'idle';
-  };
-
-  return (
-    <View style={{ flex: 1 }}>
-      <View style={{ flex: 1 }}>
-        <View style={{ paddingHorizontal: 20, paddingTop: 8, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          <View style={{ flex: 1 }}>
-            <GameTitle title="Cestas del mercado" sub="En thai, las cosas se cuentan con su clasificador. ¿En qué cesta va?" />
-          </View>
-          <ComboBadge combo={score.combo} />
-        </View>
-        <View style={{ flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 20, paddingTop: 6 }}>
-          <Txt v="small">{i + 1} / {list.length}</Txt>
-        </View>
-
-        <View
-          onLayout={(e) => (cardL.current = e.nativeEvent.layout)}
-          style={{ marginHorizontal: 20, marginTop: 4, padding: 16, borderRadius: 24, backgroundColor: '#FFFFFF', flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-          <View style={{ opacity: flying ? 0 : 1 }}>
-            <Sticker emoji={item.emoji} size={72} bg={color.niebla} />
-          </View>
-          <View style={{ flex: 1, gap: 4 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <Th size={30}>{`${item.th} ${numTh}`}</Th>
-              <View style={{ minWidth: 56, height: 38, borderRadius: 10, borderWidth: 2.5, borderStyle: checked !== null ? 'solid' : 'dashed', borderColor: checked === null ? color.niebla4 : checked ? color.arrozalVivo : color.laca, alignItems: 'center', justifyContent: 'center', backgroundColor: checked === null ? 'transparent' : checked ? color.arrozalSuave : color.lacaSuave }}>
-                {checked !== null ? <Th size={24} bold>{item.clf}</Th> : null}
-              </View>
-            </View>
-            <Rom rom={`${item.rom} ${thaiNumberRom(n)} ${checked !== null ? clfInfo.rom : '…'}`} />
-            <Txt v="bodyStrong">{esPhrase}</Txt>
-          </View>
-        </View>
-
-        <View
-          onLayout={(e) => (gridL.current = e.nativeEvent.layout)}
-          style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 12, paddingHorizontal: 20, marginTop: 26 }}>
-          {r.baskets.map((b, k) => (
-            <Animated.View key={`${i}-${b.clf}`} entering={FadeInDown.delay(k * 50).springify().damping(13)} style={{ width: '31.5%' }}>
-              <Basket
-                clf={b.clf}
-                hint={b.es}
-                wiggle={wiggle[k] ?? 0}
-                state={basketState(k)}
-                disabled={checked !== null || flying}
-                onPress={() => tap(k)}
-                onLayout={(l) => (cells.current[k] = l)}
-              />
-            </Animated.View>
-          ))}
-        </View>
-
-        <View style={{ flex: 1 }} />
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 20, paddingBottom: 28 }}>
-          <Noi pose={checked === false ? 'ups' : checked ? 'celebra' : 'piensa'} size={64} />
-          <Txt v="small" style={{ flex: 1 }}>Pista: piensa en qué tipo de cosa es, un animal, una persona, una fruta…</Txt>
-        </View>
-
-        <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, top: 0, zIndex: 5 }, flyStyle]}>
-          <Sticker emoji={item.emoji} size={FLY} bg={color.niebla} />
-        </Animated.View>
-      </View>
-      {checked !== null ? (
-        <AnswerSheet
-          ok={checked}
-          th={phrase}
-          rom={`${item.rom} ${thaiNumberRom(n)} ${clfInfo.rom}`}
-          es={esPhrase}
-          note={`Este objeto se cuenta con el clasificador de: ${clfInfo.es}.`}
-          onNext={next}
-        />
-      ) : null}
-    </View>
-  );
-}
+const styles = StyleSheet.create({
+  orderRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, marginTop: 2 },
+  order: {
+    flex: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 18,
+    backgroundColor: '#FFF4DE',
+    borderWidth: 2,
+    borderColor: '#E8B865',
+    shadowColor: '#000000',
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 6,
+  },
+  orderLabel: { fontFamily: font.uiHeavy, fontSize: 10, letterSpacing: 1.1, color: '#B5651D' },
+  orderEs: { fontFamily: font.uiBold, fontSize: 14, color: '#5A3A1A' },
+  slot: { minWidth: 52, height: 38, paddingHorizontal: 6, borderRadius: 10, borderWidth: 2.5, borderStyle: 'dashed', borderColor: '#D9A54A', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,214,90,0.25)' },
+  slotOk: { borderStyle: 'solid', borderColor: color.arrozalVivo, backgroundColor: color.arrozalSuave },
+  slotBad: { borderStyle: 'solid', borderColor: color.laca, backgroundColor: color.lacaSuave },
+  slotQ: { fontFamily: font.displayBold, fontSize: 22, color: '#C98F00' },
+  beltArea: { height: 150, justifyContent: 'flex-end', paddingBottom: 18 },
+  belt: { marginHorizontal: 6, height: 40 },
+  beltBody: { flex: 1, borderRadius: 20, overflow: 'hidden', borderWidth: 2, borderColor: '#3A2210' },
+  stripes: { position: 'absolute', left: 0, top: 4, bottom: 4, flexDirection: 'row', width: 24 * 28 },
+  stripe: { width: 14, marginRight: 14, height: '100%', borderRadius: 3, backgroundColor: 'rgba(255,220,160,0.16)' },
+  beltShine: { position: 'absolute', left: 12, right: 12, top: 4, height: 3, borderRadius: 2, backgroundColor: 'rgba(255,236,200,0.35)' },
+  roller: { position: 'absolute', top: -3, width: 46, height: 46, borderRadius: 23, backgroundColor: '#5A3A1E', borderWidth: 4, borderColor: '#C9A06A' },
+  legs: { position: 'absolute', left: 30, right: 30, top: 38, flexDirection: 'row', justifyContent: 'space-between' },
+  leg: { width: 8, height: 16, borderBottomLeftRadius: 3, borderBottomRightRadius: 3, backgroundColor: '#3A2210' },
+  explain: {
+    position: 'absolute',
+    left: 14,
+    right: 14,
+    top: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 10,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,244,222,0.97)',
+    borderWidth: 2,
+    borderColor: color.laca,
+  },
+  explainText: { flex: 1, fontFamily: font.uiBold, fontSize: 14, lineHeight: 18, color: '#5A1A1A' },
+  baskets: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', alignContent: 'flex-start', columnGap: 10, rowGap: 6, paddingTop: 4 },
+  counter: { position: 'absolute', left: 0, right: 0, top: 44, bottom: -60, borderTopLeftRadius: 10, borderTopRightRadius: 10, overflow: 'hidden' },
+  counterEdge: { position: 'absolute', left: 0, right: 0, top: 0, height: 5, backgroundColor: '#B07A45' },
+  cloth: { position: 'absolute', left: 0, right: 0, top: 5, height: 8, flexDirection: 'row', opacity: 0.85 },
+  check: { flex: 1, height: '100%' },
+  peek: { position: 'absolute', top: -14, left: 0, right: 0, textAlign: 'center', fontSize: 22, letterSpacing: -2 },
+  label: { position: 'absolute', left: '22%', right: '22%', top: '42%', paddingVertical: 1, borderRadius: 9, backgroundColor: '#FFF4DE', borderWidth: 1.5, borderColor: '#8A5820', alignItems: 'center' },
+  count: { position: 'absolute', right: '6%', top: '6%', minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 5, backgroundColor: color.buatong, borderWidth: 2, borderColor: color.buatongHondo, alignItems: 'center', justifyContent: 'center' },
+  countText: { fontFamily: font.displayBold, fontSize: 12, color: '#5A3A00' },
+  basketRom: { fontFamily: font.uiHeavy, fontSize: 12, color: '#FFE3B8', marginTop: 2 },
+  basketHint: { fontFamily: font.uiBold, fontSize: 11, lineHeight: 14, color: '#F2D8C8', textAlign: 'center' },
+  item: { position: 'absolute', left: 0, top: 0, width: TRAY_W, height: TRAY_H, zIndex: 40 },
+  thing: { position: 'absolute', width: 34, fontSize: 28, lineHeight: 34, textAlign: 'center' },
+  tag: { position: 'absolute', right: -6, top: 2, paddingHorizontal: 7, borderRadius: 8, backgroundColor: '#FFF4DE', borderWidth: 1.5, borderColor: '#8A5820', transform: [{ rotate: '8deg' }] },
+});

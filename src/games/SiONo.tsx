@@ -1,212 +1,310 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { PanResponder, Pressable, View, useWindowDimensions } from 'react-native';
-import Animated, { Extrapolation, FadeIn, ZoomIn, interpolate, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
-import Svg, { Circle } from 'react-native-svg';
+// Juego 4 · ¿Sí o บ่?: un mazo de cartas en 3D; la de arriba se arrastra con el dedo y se inclina siguiendo
+// el gesto. ¿La traducción es correcta? Derecha = ใช่ (sí), izquierda = บ่ («no» en el norte). Mezcla thai →
+// español y español → thai, y lo que se falla vuelve. En la feria cada carta tiene su reloj, cada vez más corto.
+import { useEffect, useEffectEvent, useRef, useState, type ComponentRef } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import Animated, { ZoomIn } from 'react-native-reanimated';
 
-import { color } from '@/brand/tokens';
-import { Noi } from '@/components/Noi';
+import { color, font } from '@/brand/tokens';
 import { Icon } from '@/components/icons';
-import { Rom, Sticker, Th, Txt } from '@/components/ui';
+import { Noi } from '@/components/Noi';
+import { Rom, Th } from '@/components/ui';
 import type { Word } from '@/content/types';
 import { fx, say } from '@/lib/audio';
-import { shuffle } from '@/lib/random';
 
-import { ComboBadge, GameTitle, useScore } from './kit';
+import { Backdrop } from './Backdrop';
+import { Countdown, Pop, Press3D, useJuice } from './fx';
+import { ComboBadge, useScore } from './kit';
+import { LevelChip, MultChip, ScoreChip, clash, distinct, multFor, pointIn, useLater } from './palabras/common';
+import { CARD_H, CardBack, CardFace, SwipeCard, type Deal, type Verdict } from './siono/Carta';
 import type { GameProps } from './types';
 
-const FERIA_SECONDS = 45;
-const THRESHOLD = 110;
+const PER_LEVEL = 6;
+type Pose = 'feliz' | 'celebra' | 'ups';
+type Feedback = { n: number; ok: boolean; timeout: boolean; d: Deal };
 
-type Deal = { word: Word; shown: string; truth: boolean };
+const clock = () => Date.now();
+/** Segundos por carta en la feria: empieza holgado y se acorta en cada nivel. */
+const timeFor = (level: number) => Math.max(2400, 6200 - (level - 1) * 650);
 
-function deal(pool: Word[], focus: Word[], i: number): Deal {
-  const base = focus.length && Math.random() < 0.6 ? focus : pool;
-  const word = base[Math.floor(Math.random() * base.length)] ?? pool[0];
-  const others = pool.filter((w) => w.es !== word.es);
+function makeDeal(id: number, pool: Word[], focus: Word[], opts: { prefer?: Word; avoid?: string } = {}): Deal {
+  const base = (focus.length && Math.random() < 0.6 ? focus : pool).filter((w) => w.id !== opts.avoid);
+  const word = opts.prefer ?? base[Math.floor(Math.random() * base.length)] ?? pool[0];
+  const dir = Math.random() < 0.3 ? 'es' : 'th';
+  const others = pool.filter((w) => w.id !== word.id && !clash(w, word));
   const truth = others.length === 0 || Math.random() < 0.5;
-  const shown = truth ? word.es : others[Math.floor(Math.random() * others.length)].es;
-  void i;
-  return { word, shown, truth };
+  let other = word;
+  if (!truth) {
+    // distractor verosímil: de la misma familia de palabras si se puede
+    const same = others.filter((w) => w.cat && w.cat === word.cat);
+    const src = same.length && Math.random() < 0.7 ? same : others;
+    other = src[Math.floor(Math.random() * src.length)];
+  }
+  return { id, word, other, truth, dir };
 }
 
-function TimerRing({ left, total }: { left: number; total: number }) {
-  const r = 22;
-  const c = 2 * Math.PI * r;
-  return (
-    <View style={{ width: 54, height: 54, alignItems: 'center', justifyContent: 'center' }}>
-      <Svg width={54} height={54} viewBox="0 0 54 54" style={{ position: 'absolute', transform: [{ rotate: '-90deg' }] }}>
-        <Circle cx={27} cy={27} r={r} stroke={color.niebla3} strokeWidth={6} fill="none" />
-        <Circle cx={27} cy={27} r={r} stroke={left <= 10 ? color.laca : color.farol} strokeWidth={6} fill="none" strokeLinecap="round" strokeDasharray={`${c}`} strokeDashoffset={c * (1 - Math.max(0, left) / total)} />
-      </Svg>
-      <Txt v="num" style={{ fontSize: 17 }}>{Math.max(0, left)}</Txt>
-    </View>
-  );
-}
+/** Juego 4 · ¿Sí o บ่?: desliza la carta según sea correcta la traducción. */
+export default function SiONo({ mode, words, focus, rounds = 6, onAnswer, onDone }: GameProps) {
+  const feria = mode === 'feria';
+  const total = rounds;
+  const score = useScore(mode);
+  const juice = useJuice();
+  const later = useLater();
+  const deckRef = useRef<ComponentRef<typeof View>>(null);
 
-function SwipeCard({ d, onDecide, registerFly }: { d: Deal; onDecide: (yes: boolean) => void; registerFly: (fn: (yes: boolean) => void) => void }) {
-  const { width } = useWindowDimensions();
-  const x = useSharedValue(0);
-  const y = useSharedValue(0);
-  const gone = useRef(false);
-  const decide = useRef(onDecide);
-  useEffect(() => {
-    decide.current = onDecide;
+  const [pool] = useState(() => distinct([...focus, ...words]));
+  const [deck, setDeck] = useState<Deal[]>(() => {
+    const out: Deal[] = [];
+    for (let k = 0; k < (feria ? 3 : total); k++) out.push(makeDeal(k + 1, pool, feria ? [] : focus, { avoid: out[k - 1]?.word.id }));
+    return out;
   });
+  const [i, setI] = useState(0);
+  const [cmd, setCmd] = useState({ n: 0, yes: true });
+  const [phase, setPhase] = useState<'count' | 'play' | 'end'>(feria ? 'count' : 'play');
+  const [points, setPoints] = useState(0);
+  const [level, setLevel] = useState(1);
+  const [fb, setFb] = useState<Feedback | null>(null);
+  const [jump, setJump] = useState(0);
+  const [pose, setPose] = useState<Pose>('feliz');
 
-  const fly = (yes: boolean) => {
-    if (gone.current) return;
-    gone.current = true;
-    fx.whoosh();
-    x.value = withTiming((yes ? 1 : -1) * (width + 200), { duration: 240 });
-    setTimeout(() => decide.current(yes), 200);
-  };
+  const g = useRef({ i: 0, id: 100, points: 0, level: 1, ended: false, done: false, extra: 0, fbN: 0, poseN: 0, decided: -1, shownAt: 0, retry: [] as { w: Word; at: number }[] });
+
+  const tooFew = pool.length < 2;
+  const bail = useEffectEvent(() => onDone(score.result(0)));
   useEffect(() => {
-    registerFly(fly);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (!tooFew) return;
+    const t = setTimeout(() => bail(), 400);
+    return () => clearTimeout(t);
+  }, [tooFew]);
 
-  const pan = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 4,
-        onPanResponderMove: (_, g) => {
-          if (gone.current) return;
-          x.value = g.dx;
-          y.value = g.dy * 0.25;
-        },
-        onPanResponderRelease: (_, g) => {
-          if (gone.current) return;
-          if (Math.abs(g.dx) > THRESHOLD || Math.abs(g.vx) > 0.9) fly(g.dx > 0);
-          else {
-            x.value = withSpring(0, { damping: 12, stiffness: 180 });
-            y.value = withSpring(0, { damping: 12, stiffness: 180 });
-          }
-        },
-        onPanResponderTerminate: () => {
-          x.value = withSpring(0);
-          y.value = withSpring(0);
-        },
-      }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
-  );
+  const setMood = (p: Pose) => {
+    const s = g.current;
+    s.poseN += 1;
+    const n = s.poseN;
+    setPose(p);
+    later(() => {
+      if (g.current.poseN === n) setPose('feliz');
+    }, 1200);
+  };
 
-  const card = useAnimatedStyle(() => ({
-    transform: [{ translateX: x.value }, { translateY: y.value }, { rotate: `${interpolate(x.value, [-220, 0, 220], [-14, 0, 14], Extrapolation.CLAMP)}deg` }],
-  }));
-  const yes = useAnimatedStyle(() => ({ opacity: interpolate(x.value, [30, THRESHOLD], [0, 1], Extrapolation.CLAMP), transform: [{ rotate: '-12deg' }, { scale: interpolate(x.value, [30, THRESHOLD], [0.7, 1], Extrapolation.CLAMP) }] }));
-  const no = useAnimatedStyle(() => ({ opacity: interpolate(x.value, [-THRESHOLD, -30], [1, 0], Extrapolation.CLAMP), transform: [{ rotate: '12deg' }, { scale: interpolate(x.value, [-THRESHOLD, -30], [1, 0.7], Extrapolation.CLAMP) }] }));
+  const finish = () => {
+    const s = g.current;
+    if (s.ended) return;
+    s.ended = true;
+    setPhase('end');
+    fx.fanfare();
+    setMood('celebra');
+    setJump((j) => j + 1);
+    [0.3, 0.7, 0.5].forEach((x, k) =>
+      later(() => pointIn(deckRef, x, 0.3 + k * 0.1, (at) => juice.burst(at, k === 2 ? 'estrellas' : 'confeti', 24, 180)), k * 220),
+    );
+    juice.banner(feria ? '¡Mazo terminado!' : '¡Hecho!', feria ? `${s.points} puntos · nivel ${s.level}` : 'ใช่ · ¡muy bien!', color.arrozal);
+    later(() => {
+      if (s.done) return;
+      s.done = true;
+      onDone(score.result(s.points));
+    }, 1900);
+  };
+
+  const levelUp = () => {
+    const s = g.current;
+    s.level += 1;
+    setLevel(s.level);
+    fx.levelup();
+    juice.banner(`¡Nivel ${s.level}!`, `${(timeFor(s.level) / 1000).toFixed(1).replace('.', ',')} s por carta`, color.cieloHondo);
+  };
+
+  const decide = (d: Deal, v: Verdict) => {
+    const s = g.current;
+    if (s.ended || s.decided === d.id) return;
+    s.decided = d.id;
+    const ok = v !== null && v === d.truth;
+    s.fbN += 1;
+    setFb({ n: s.fbN, ok, timeout: v === null, d });
+    say(d.word.th);
+    if (ok) {
+      const combo = score.hit(true);
+      onAnswer(true, d.word.id);
+      const quick = feria ? Math.max(0, Math.round((1 - (clock() - s.shownAt) / timeFor(s.level)) * 10)) : 0;
+      const gain = 10 * multFor(combo) + quick;
+      s.points += gain;
+      setPoints(s.points);
+      pointIn(deckRef, v ? 0.78 : 0.22, 0.42, (at) => juice.celebrate(at, `+${gain}`, combo >= 5 ? 'confeti' : 'estrellas'));
+      setJump((j) => j + 1);
+      if (combo >= 3) setMood('celebra');
+      if (combo > 0 && combo % 5 === 0) juice.banner(`¡Racha ×${combo}!`, 'los puntos se multiplican', color.farol);
+    } else {
+      score.hit(false);
+      onAnswer(false, d.word.id);
+      juice.shake(8);
+      setMood('ups');
+      if (!s.retry.some((r) => r.w.id === d.word.id)) s.retry.push({ w: d.word, at: s.i + 3 });
+    }
+
+    s.i += 1;
+    let len = deck.length;
+    if (!feria) {
+      // lo que se falla vuelve al final del mazo (hasta tres cartas extra)
+      if (!ok && s.extra < 3) {
+        s.extra += 1;
+        s.id += 1;
+        setDeck((dk) => [...dk, makeDeal(s.id, pool, focus, { prefer: d.word })]);
+        len += 1;
+      }
+      if (s.i >= len) {
+        later(finish, 350);
+        return;
+      }
+    } else {
+      if (s.i >= total) {
+        later(finish, 350);
+        return;
+      }
+      if (s.i % PER_LEVEL === 0) levelUp();
+      if (s.i + 2 >= len) {
+        const due = s.retry.findIndex((r) => r.at <= s.i);
+        const prefer = due >= 0 ? s.retry.splice(due, 1)[0].w : undefined;
+        s.id += 1;
+        setDeck((dk) => [...dk, makeDeal(s.id, pool, [], { prefer, avoid: dk[dk.length - 1]?.word.id })]);
+      }
+    }
+    s.shownAt = clock() + 200;
+    setI(s.i);
+  };
+
+  const start = () => {
+    g.current.shownAt = clock();
+    setPhase('play');
+  };
+
+  const press = (yes: boolean) => {
+    if (phase !== 'play' || g.current.ended) return;
+    fx.tap();
+    setCmd((c) => ({ n: c.n + 1, yes }));
+  };
+
+  const top = deck[i];
+  const next = deck[i + 1];
+  const shown = Math.min(i + 1, feria ? total : deck.length);
 
   return (
-    <Animated.View entering={ZoomIn.springify().damping(14)} style={[{ width: '100%', maxWidth: 360 }, card]} {...pan.panHandlers}>
-      <View
-        accessible
-        accessibilityLabel={`${d.word.th}, ${d.word.rom}, igual a ${d.shown}. Desliza a la derecha si es correcto, a la izquierda si no.`}
-        style={{ backgroundColor: '#FFFFFF', borderRadius: 28, borderWidth: 2, borderColor: color.niebla3, borderBottomWidth: 6, paddingVertical: 26, paddingHorizontal: 20, alignItems: 'center', gap: 6, minHeight: 300, justifyContent: 'center' }}>
-        <Sticker emoji={d.word.emoji} size={84} bg={color.niebla} />
-        <Th size={44} bold>{d.word.th}</Th>
-        <Rom rom={d.word.rom} size={18} />
-        <Txt v="h2" style={{ marginTop: 8, textAlign: 'center' }}>= {d.shown}</Txt>
-        <Animated.View pointerEvents="none" style={[{ position: 'absolute', top: 22, left: 18, borderWidth: 4, borderColor: color.arrozalVivo, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 2 }, yes]}>
-          <Th size={30} bold style={{ color: color.arrozalVivo }}>ใช่</Th>
-        </Animated.View>
-        <Animated.View pointerEvents="none" style={[{ position: 'absolute', top: 22, right: 18, borderWidth: 4, borderColor: color.laca, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 2 }, no]}>
-          <Th size={30} bold style={{ color: color.laca }}>บ่</Th>
-        </Animated.View>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <Backdrop scene="dia" />
+      <Animated.View style={[{ flex: 1, paddingHorizontal: 18, paddingTop: 4 }, juice.shakeStyle]}>
+        <View style={styles.hud}>
+          <ScoreChip value={points} />
+          <View style={styles.hudMid}>
+            <ComboBadge combo={score.combo} />
+            <MultChip mult={multFor(score.combo)} />
+          </View>
+          {feria ? <LevelChip level={level} /> : null}
+          <Pop trigger={shown} style={styles.count}>
+            <Text style={styles.countText}>
+              {shown}
+              <Text style={{ color: color.tinta3, fontSize: 14 }}> / {feria ? total : deck.length}</Text>
+            </Text>
+          </Pop>
+        </View>
+        <View style={styles.legend}>
+          <Text style={styles.legendText}>
+            <Text style={{ color: color.laca }}>← บ่ (no)</Text>   ¿Es correcta?   <Text style={{ color: color.arrozal }}>ใช่ (sí) →</Text>
+          </Text>
+        </View>
+
+        <View ref={deckRef} style={styles.deck}>
+          {top ? (
+            <>
+              <View pointerEvents="none" style={[styles.under, { transform: [{ translateY: 28 }, { scale: 0.88 }, { rotate: '3deg' }] }]}>
+                <CardBack />
+              </View>
+              {next ? (
+                <View pointerEvents="none" style={[styles.under, { transform: [{ translateY: 14 }, { scale: 0.94 }, { rotate: '-2deg' }] }]}>
+                  <CardFace d={next} />
+                </View>
+              ) : null}
+              {phase !== 'end' ? (
+                <SwipeCard key={top.id} d={top} cmd={cmd} timeMs={feria && phase === 'play' ? timeFor(level) : 0} showRom onDecide={(v) => decide(top, v)} />
+              ) : null}
+            </>
+          ) : null}
+        </View>
+
+        <View style={{ minHeight: 58, justifyContent: 'center' }}>{fb ? <Answer key={fb.n} fb={fb} /> : null}</View>
+
+        <View style={styles.buttons}>
+          <Press3D onPress={() => press(false)} disabled={phase !== 'play'} style={styles.btnWrap} accessibilityLabel="บ่, no es correcta">
+            <View style={[styles.btn, { backgroundColor: '#E2474C', borderColor: '#A9262B' }]}>
+              <Icon name="close" size={30} color="#FFFFFF" stroke={3.6} />
+              <Th size={15} bold style={styles.btnTh}>
+                บ่
+              </Th>
+            </View>
+          </Press3D>
+          <Noi pose={pose} size={88} jump={jump} />
+          <Press3D onPress={() => press(true)} disabled={phase !== 'play'} style={styles.btnWrap} accessibilityLabel="ใช่, es correcta">
+            <View style={[styles.btn, { backgroundColor: '#2DBE78', borderColor: '#13854F' }]}>
+              <Icon name="check" size={32} color="#FFFFFF" stroke={3.6} />
+              <Th size={15} bold style={styles.btnTh}>
+                ใช่
+              </Th>
+            </View>
+          </Press3D>
+        </View>
+      </Animated.View>
+      {phase === 'count' && !tooFew ? <Countdown onDone={start} /> : null}
+      {juice.layer}
+    </GestureHandlerRootView>
+  );
+}
+
+/** Tira con la respuesta: confirma al acertar y enseña las dos parejas al fallar. */
+function Answer({ fb }: { fb: Feedback }) {
+  const { d, ok } = fb;
+  const head = ok ? (d.truth ? '¡Sí! ใช่' : '¡Bien visto! บ่') : fb.timeout ? '¡Tiempo!' : d.truth ? 'Era que sí' : 'Era que no';
+  return (
+    <Animated.View entering={ZoomIn.springify().damping(14)} style={[styles.answer, { borderColor: ok ? '#2DBE78' : '#FF8A5B' }]}>
+      <Text style={[styles.answerHead, { color: ok ? color.arrozalHondo : color.lacaHondo }]}>{head}</Text>
+      <View style={{ flex: 1 }}>
+        <View style={styles.answerRow}>
+          <Th size={17} bold style={{ lineHeight: 24 }}>
+            {d.word.th}
+          </Th>
+          <Rom rom={d.word.rom} size={12} />
+          <Text style={styles.answerEs} numberOfLines={1}>
+            = {d.word.es}
+          </Text>
+        </View>
+        {!d.truth ? (
+          <View style={styles.answerRow}>
+            <Th size={14} style={{ lineHeight: 21, color: color.tinta2 }}>
+              {d.other.th}
+            </Th>
+            <Text style={[styles.answerEs, { color: color.tinta2, fontSize: 12.5 }]} numberOfLines={1}>
+              = {d.other.es}
+            </Text>
+          </View>
+        ) : null}
       </View>
     </Animated.View>
   );
 }
 
-/** Juego 4 · ¿Sí o บ่?: desliza la tarjeta según sea correcta la traducción. */
-export default function SiONo({ mode, words, focus, rounds = 8, onAnswer, onDone }: GameProps) {
-  const feria = mode === 'feria';
-  const score = useScore(mode);
-  const [cards, setCards] = useState<Deal[]>(() => Array.from({ length: feria ? 2 : rounds }, (_, i) => deal(words, focus, i)));
-  const [i, setI] = useState(0);
-  const [time, setTime] = useState(FERIA_SECONDS);
-  const [fb, setFb] = useState<{ ok: boolean; text: string } | null>(null);
-  const [jump, setJump] = useState(0);
-  const flyRef = useRef<(yes: boolean) => void>(() => {});
-  const finished = useRef(false);
-  const pts = useRef(0);
-  const fbTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const finish = () => {
-    if (finished.current) return;
-    finished.current = true;
-    onDone(score.result(pts.current));
-  };
-
-  useEffect(() => {
-    if (!feria) return;
-    const t = setInterval(() => setTime((s) => s - 1), 1000);
-    return () => clearInterval(t);
-  }, [feria]);
-  useEffect(() => {
-    if (feria && time <= 0) finish();
-  });
-  useEffect(
-    () => () => {
-      if (fbTimer.current) clearTimeout(fbTimer.current);
-    },
-    [],
-  );
-
-  const d = cards[i];
-  if (!d) return null;
-
-  const decide = (yes: boolean) => {
-    if (finished.current) return;
-    const ok = yes === d.truth;
-    score.hit(ok);
-    onAnswer(ok, d.word.id);
-    if (ok) {
-      pts.current += 10;
-      setJump((j) => j + 1);
-    }
-    say(d.word.th);
-    setFb({ ok, text: d.truth ? `Sí: ${d.word.th} = ${d.word.es}` : `บ่: ${d.word.th} es «${d.word.es}»` });
-    if (fbTimer.current) clearTimeout(fbTimer.current);
-    fbTimer.current = setTimeout(() => setFb(null), 1500);
-    if (feria) {
-      setCards((c) => [...c, deal(words, focus, c.length)]);
-      setI(i + 1);
-    } else if (i + 1 >= cards.length) {
-      finish();
-    } else setI(i + 1);
-  };
-
-  return (
-    <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 8, gap: 12 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-        <View style={{ flex: 1 }}>
-          <GameTitle title="¿Sí o บ่?" sub="บ่ (bɔ̀ɔ) es «no» en el norte. ¿La traducción es correcta?" />
-        </View>
-        <ComboBadge combo={score.combo} />
-        {feria ? <TimerRing left={time} total={FERIA_SECONDS} /> : null}
-      </View>
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <SwipeCard key={i} d={d} onDecide={decide} registerFly={(fn) => (flyRef.current = fn)} />
-        {fb ? (
-          <Animated.View key={`${i}-${fb.text}`} entering={FadeIn.duration(120)} style={{ position: 'absolute', bottom: 0, backgroundColor: fb.ok ? color.arrozalSuave : color.lacaSuave, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 6 }}>
-            <Th size={16} style={{ color: fb.ok ? color.arrozalHondo : color.lacaHondo, lineHeight: 24 }}>{fb.text}</Th>
-          </Animated.View>
-        ) : null}
-      </View>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 22 }}>
-        <Pressable accessibilityRole="button" accessibilityLabel="บ่, no" onPress={() => flyRef.current(false)} style={{ width: 68, height: 68, borderRadius: 34, backgroundColor: '#FFFFFF', borderWidth: 3, borderColor: color.laca, alignItems: 'center', justifyContent: 'center' }}>
-          <Icon name="close" size={30} color={color.laca} stroke={3.4} />
-        </Pressable>
-        <View style={{ alignItems: 'center' }}>
-          <Noi pose={score.combo >= 3 ? 'celebra' : 'feliz'} size={92} jump={jump} />
-          <Txt v="small">{feria ? `${score.correct} aciertos` : `${i + 1} / ${cards.length}`}</Txt>
-        </View>
-        <Pressable accessibilityRole="button" accessibilityLabel="ใช่, sí" onPress={() => flyRef.current(true)} style={{ width: 68, height: 68, borderRadius: 34, backgroundColor: color.arrozalVivo, alignItems: 'center', justifyContent: 'center' }}>
-          <Icon name="check" size={32} color="#FFFFFF" stroke={3.4} />
-        </Pressable>
-      </View>
-    </View>
-  );
-}
+const styles = StyleSheet.create({
+  hud: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44 },
+  hudMid: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  count: { height: 36, paddingHorizontal: 12, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.92)', justifyContent: 'center', borderWidth: 2, borderColor: '#FFFFFF' },
+  countText: { fontFamily: font.displayBold, fontSize: 18, color: color.tinta },
+  legend: { alignSelf: 'center', marginTop: 4, paddingHorizontal: 14, paddingVertical: 5, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.75)' },
+  legendText: { fontFamily: font.uiHeavy, fontSize: 12.5, color: color.tinta2 },
+  deck: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: CARD_H + 30 },
+  under: { position: 'absolute', width: '100%', maxWidth: 340, height: CARD_H, borderRadius: 28, shadowColor: '#1D2347', shadowOpacity: 0.12, shadowRadius: 10, shadowOffset: { width: 0, height: 6 }, elevation: 3 },
+  answer: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#FFFFFF', borderRadius: 18, borderWidth: 2.5, paddingHorizontal: 12, paddingVertical: 6, shadowColor: '#1D2347', shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
+  answerHead: { fontFamily: font.displayBold, fontSize: 15, maxWidth: 92 },
+  answerRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' },
+  answerEs: { fontFamily: font.uiHeavy, fontSize: 14, color: color.tinta, flexShrink: 1 },
+  buttons: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 14, paddingTop: 2 },
+  btnWrap: { width: 84, height: 84 },
+  btn: { flex: 1, borderRadius: 42, alignItems: 'center', justifyContent: 'center', borderBottomWidth: 6, shadowColor: '#1D2347', shadowOpacity: 0.25, shadowRadius: 8, shadowOffset: { width: 0, height: 5 }, elevation: 5 },
+  btnTh: { color: '#FFFFFF', lineHeight: 20, marginTop: -2 },
+});

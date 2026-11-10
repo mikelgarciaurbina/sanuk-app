@@ -22,7 +22,11 @@ export default function Palabras() {
     const stops = stop === 'todas' ? STOPS : STOPS.filter((s) => s.id === stop);
     const seen = new Set<string>();
     const out: Word[] = [];
-    for (const s of stops) for (const l of s.lessons) for (const w of wordsOf(l.words)) if (!seen.has(w.id)) (seen.add(w.id), out.push(w));
+    for (const s of stops) for (const l of s.lessons) for (const w of wordsOf(l.words))
+          if (!seen.has(w.id)) {
+            seen.add(w.id);
+            out.push(w);
+          }
     return out;
   }, [stop]);
 

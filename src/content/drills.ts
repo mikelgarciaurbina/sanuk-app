@@ -43,6 +43,12 @@ export const MINIMAL_SETS: { title: string; items: MiniWord[]; joke?: string }[]
   { title: '¿Cangrejo o abuelo?', items: [{ th: 'ปู', rom: 'puu', es: 'cangrejo', emoji: '🦀' }, { th: 'ปู่', rom: 'pùu', es: 'abuelo (paterno)', emoji: '👴' }], joke: 'Al abuelo no le hace gracia que le llamen cangrejo.' },
   { title: '¿Médico u olla?', items: [{ th: 'หมอ', rom: 'mɔ̌ɔ', es: 'médico', emoji: '🩺' }, { th: 'หม้อ', rom: 'mɔ̂ɔ', es: 'olla', emoji: '🍲' }] },
   { title: '¿Montaña o entrar?', items: [{ th: 'เขา', rom: 'khǎo', es: 'montaña; él', emoji: '⛰️' }, { th: 'เข้า', rom: 'khâo', es: 'entrar', emoji: '🚪' }] },
+  { title: '¿Huevo o fiebre?', items: [{ th: 'ไข่', rom: 'khài', es: 'huevo', emoji: '🥚' }, { th: 'ไข้', rom: 'khâi', es: 'fiebre', emoji: '🌡️' }], joke: 'Pedir «fiebre frita» para desayunar sorprende a cualquiera.' },
+  { title: '¿Medicina o abuela?', items: [{ th: 'ยา', rom: 'yaa', es: 'medicina', emoji: '💊' }, { th: 'ย่า', rom: 'yâa', es: 'abuela (paterna)', emoji: '👵🏽' }], joke: 'La medicina se toma con agua; a la abuela, mejor un abrazo.' },
+  { title: '¿Guapa o gafe?', items: [{ th: 'สวย', rom: 'sǔay', es: 'guapa, bonito', emoji: '🌸' }, { th: 'ซวย', rom: 'suay', es: '¡qué mala suerte!', emoji: '😖' }], joke: 'A la suegra, siempre สวย. Nunca ซวย.' },
+  { title: '¿Rascar, viejo o nueve?', items: [{ th: 'เกา', rom: 'gao', es: 'rascar', emoji: '🐒' }, { th: 'เก่า', rom: 'gào', es: 'viejo (cosas)', emoji: '🏚️' }, { th: 'เก้า', rom: 'gâo', es: 'nueve', emoji: '9️⃣' }] },
+  { title: '¿Pierna o galanga?', items: [{ th: 'ขา', rom: 'khǎa', es: 'pierna', emoji: '🦵' }, { th: 'ข่า', rom: 'khàa', es: 'galanga', emoji: '🫚' }], joke: 'La galanga va en la sopa tom kha; la pierna, mejor fuera de la olla.' },
+  { title: '¿Cerdo o grupo?', items: [{ th: 'หมู', rom: 'mǔu', es: 'cerdo', emoji: '🐷' }, { th: 'หมู่', rom: 'mùu', es: 'grupo', emoji: '👥' }], joke: 'หมู่บ้าน, «el pueblo», es un grupo de casas… no un cerdo de casa.' },
 ];
 
 /** Clasificadores para «Cestas del mercado». */

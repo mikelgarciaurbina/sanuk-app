@@ -483,10 +483,10 @@ function FirstWord({ onDone }: { onDone: () => void }) {
 
 function FirstLantern({ onDone }: { onDone: () => void }) {
   const rise = useSharedValue(40);
-  const [run, setRun] = useState(0);
+  // el confeti sale en cuanto aparece el farolillo
+  const [run] = useState(1);
   useEffect(() => {
     fx.bell();
-    setRun(1);
     rise.value = withTiming(0, { duration: 1400, easing: Easing.out(Easing.cubic) });
   }, [rise]);
   const sway = useSharedValue(0);

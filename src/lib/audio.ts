@@ -15,7 +15,26 @@ const SOURCES = {
   done: require('../../assets/sfx/done.wav'),
   whoosh: require('../../assets/sfx/whoosh.wav'),
   coin: require('../../assets/sfx/coin.wav'),
+  n1: require('../../assets/sfx/n1.wav'),
+  n2: require('../../assets/sfx/n2.wav'),
+  n3: require('../../assets/sfx/n3.wav'),
+  n4: require('../../assets/sfx/n4.wav'),
+  n5: require('../../assets/sfx/n5.wav'),
+  n6: require('../../assets/sfx/n6.wav'),
+  n7: require('../../assets/sfx/n7.wav'),
+  n8: require('../../assets/sfx/n8.wav'),
+  sparkle: require('../../assets/sfx/sparkle.wav'),
+  levelup: require('../../assets/sfx/levelup.wav'),
+  tick: require('../../assets/sfx/tick.wav'),
+  go: require('../../assets/sfx/go.wav'),
+  boom: require('../../assets/sfx/boom.wav'),
+  swish: require('../../assets/sfx/swish.wav'),
+  fanfare: require('../../assets/sfx/fanfare.wav'),
+  plip: require('../../assets/sfx/plip.wav'),
 } as const;
+
+/** Notas de la cadena de aciertos, de grave a agudo (pentatónica). */
+const CHAIN: Sfx[] = ['n1', 'n2', 'n3', 'n4', 'n5', 'n6', 'n7', 'n8'];
 
 export type Sfx = keyof typeof SOURCES;
 
@@ -91,9 +110,49 @@ export const fx = {
     sfx('pop');
     if (canBuzz()) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
   },
+  /** Acierto: cada acierto seguido sube una nota de la escala; cada 5 seguidos suena además el arpegio. */
   ok(combo = 0) {
-    sfx(combo >= 3 ? 'combo' : 'ok');
+    sfx(CHAIN[Math.max(0, Math.min(CHAIN.length - 1, combo - 1))]);
+    if (combo >= 5 && combo % 5 === 0) sfx('combo');
     if (canBuzz()) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+  },
+  /** Brillo de campanillas: acierto perfecto, premio, algo mágico. */
+  sparkle() {
+    sfx('sparkle');
+  },
+  /** Subida de nivel o de velocidad. */
+  levelup() {
+    sfx('levelup');
+    if (canBuzz()) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+  },
+  /** Tic de cuenta atrás o de reloj. */
+  tick() {
+    sfx('tick');
+    if (canBuzz()) Haptics.selectionAsync().catch(() => {});
+  },
+  /** ¡Ya! Empieza la partida. */
+  go() {
+    sfx('go');
+    if (canBuzz()) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+  },
+  /** Golpe grave: explosión de fuegos, algo que cae al suelo. */
+  boom() {
+    sfx('boom');
+    if (canBuzz()) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
+  },
+  /** Algo que pasa volando rápido. */
+  swish() {
+    sfx('swish');
+  },
+  /** Récord o gran final. */
+  fanfare() {
+    sfx('fanfare');
+    if (canBuzz()) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+  },
+  /** Gota de agua. */
+  plip() {
+    sfx('plip');
+    if (canBuzz()) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
   },
   bad() {
     sfx('bad');
