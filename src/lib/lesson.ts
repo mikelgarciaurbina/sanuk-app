@@ -112,10 +112,9 @@ export function buildLesson(lesson: LessonRef, p: ProgressLike): BuiltLesson {
 /** Lección de repaso con las palabras que tocan (repetición espaciada). */
 export function buildReview(due: Word[], p: ProgressLike): BuiltLesson {
   const focus = shuffle(due).slice(0, 8);
+  // distractores solo entre lo ya presentado: nunca vocabulario futuro, aunque aún sea poco
   const known = [...introducedIds(p)].map((id) => WORDS[id]).filter(Boolean);
-  // distractores entre lo ya presentado; si aún es poco, el conjunto de práctica de siempre
-  const pool = known.length >= 12 ? known : playPool(p);
-  const words = [...focus, ...pool.filter((w) => !focus.some((f) => f.id === w.id))];
+  const words = [...focus, ...known.filter((w) => !focus.some((f) => f.id === w.id))];
   const steps: Step[] = [
     { kind: 'game', game: 'oido', rounds: 3 },
     { kind: 'game', game: 'parejas', rounds: 1 },

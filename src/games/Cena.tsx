@@ -7,7 +7,7 @@ import { Noi } from '@/components/Noi';
 import { Icon } from '@/components/icons';
 import { Btn, Txt } from '@/components/ui';
 import { DIALOGUES } from '@/content';
-import type { Dialogue, DialogueLine } from '@/content/types';
+import type { Dialogue, DialogueLine, Word } from '@/content/types';
 import { fx, say } from '@/lib/audio';
 import { pick, shuffle } from '@/lib/random';
 import { personalize, personalizeRom } from '@/lib/thai';
@@ -34,7 +34,25 @@ const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v
 const now = () => Date.now();
 
 /** Juego 15 · Cena familiar: conversa con la familia alrededor del khantoke y elige qué decir. */
-export default function Cena({ mode, extra, gender, onAnswer, onDone }: GameProps) {
+/** Partículas de cortesía que la app pone según quien aprende: no cuentan como palabras nuevas. */
+const POLITE = ['ค่ะ', 'คะ', 'ครับ'];
+
+/** ¿Se entiende la frase entera con las palabras que ya se saben? */
+function understood(th: string, words: Word[]): boolean {
+  const known = new Set<string>(POLITE);
+  for (const w of words) for (const f of w.th.split(/[\s…/()ๆ]+/)) if (f) known.add(f);
+  return th
+    .split(/[^\u0E00-\u0E7F]+|ๆ/)
+    .filter(Boolean)
+    .every((chunk) => {
+      const ok = new Array<boolean>(chunk.length + 1).fill(false);
+      ok[0] = true;
+      for (let i = 0; i < chunk.length; i++) if (ok[i]) for (let j = i + 1; j <= Math.min(chunk.length, i + 20); j++) if (known.has(chunk.slice(i, j))) ok[j] = true;
+      return ok[chunk.length];
+    });
+}
+
+export default function Cena({ mode, extra, gender, words, oral = false, onAnswer, onDone }: GameProps) {
   const feria = mode === 'feria';
   const score = useScore(mode);
   const juice = useJuice();
@@ -166,12 +184,14 @@ export default function Cena({ mode, extra, gender, onAnswer, onDone }: GameProp
     setThinking(false);
     const seen = new Set<string>();
     const pool = heard.current.filter((l) => (seen.has(l.es) ? false : (seen.add(l.es), true)));
-    const count = pool.length < 3 ? 0 : feria ? 3 : 1;
+    // solo se pregunta por frases que se entienden con lo ya aprendido; en la primera curva, nada
+    const askable = pool.filter((l) => understood(l.th, words));
+    const count = oral || pool.length < 3 ? 0 : Math.min(askable.length, feria ? 3 : 1);
     if (!count) {
       endDinner();
       return;
     }
-    const list: Sweet[] = shuffle(pool)
+    const list: Sweet[] = shuffle(askable)
       .slice(0, count)
       .map((q, i) => ({ q, opts: shuffle([q.es, ...shuffle(pool.filter((p) => p.es !== q.es)).slice(0, 2).map((p) => p.es)]), listen: feria && i === count - 1 }));
     setSweets(list);

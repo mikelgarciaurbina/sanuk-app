@@ -23,6 +23,8 @@ export type GameProps = {
   extra?: LessonExtra;
   /** número de rondas sugerido */
   rounds?: number;
+  /** primera curva: todo de oído (sin opciones escritas ni preguntas sobre frases que aún no se entienden) */
+  oral?: boolean;
   gender: Gender;
   /** avisa de cada respuesta (repaso espaciado, combo y sonido los gestiona el juego) */
   onAnswer: (ok: boolean, wordId?: string) => void;

@@ -1,4 +1,4 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, { FadeInRight } from 'react-native-reanimated';
@@ -16,6 +16,7 @@ import type { GameResult } from '@/games/types';
 import { fx, stopSpeech } from '@/lib/audio';
 import { buildLesson, buildReview } from '@/lib/lesson';
 import { useStore } from '@/lib/store';
+import { goBack } from '@/lib/nav';
 
 /** Una lección = una curva: tarjetas de palabras nuevas y minijuegos encadenados (~4 min). */
 export default function Leccion() {
@@ -63,7 +64,7 @@ export default function Leccion() {
 
   const close = () => {
     stopSpeech();
-    router.back();
+    goBack('/(tabs)');
   };
 
   const example = useMemo(() => {
@@ -118,6 +119,7 @@ export default function Leccion() {
             sentences={built.sentences}
             extra={lesson?.extra}
             rounds={step.rounds}
+            oral={built.firstCurve}
             gender={p.profile.gender}
             onAnswer={(ok, wordId) => {
               if (wordId) store.answer(wordId, ok);

@@ -1,4 +1,4 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useEffectEvent, useState } from 'react';
 import { StyleSheet, View, useWindowDimensions } from 'react-native';
 import Animated, { FadeInDown, ZoomIn } from 'react-native-reanimated';
@@ -9,15 +9,16 @@ import { color, shadow } from '@/brand/tokens';
 import { Art } from '@/components/icons';
 import { Noi } from '@/components/Noi';
 import { Btn, Hud, Txt } from '@/components/ui';
-import { DIALOGUES, STORIES, currentLesson, playPool, SENTENCES } from '@/content';
-import type { GameId, LessonExtra } from '@/content/types';
+import { currentLesson } from '@/content';
+import type { GameId } from '@/content/types';
 import { Backdrop } from '@/games/Backdrop';
 import { Floaty, GameFrame, Glow, useJuice } from '@/games/fx';
 import { GAME_BG, GAME_COMPONENTS, GAME_DARK, gameMeta } from '@/games/registry';
 import type { GameResult } from '@/games/types';
 import { fx, stopSpeech } from '@/lib/audio';
-import { pick, shuffle } from '@/lib/random';
+import { feriaSetup } from '@/lib/feria';
 import { useStore } from '@/lib/store';
+import { goBack } from '@/lib/nav';
 
 
 /** Una partida completa de la feria, con récord y plátanos. */
@@ -32,26 +33,20 @@ export default function Juego() {
   const [prevBest] = useState(() => p.games[id]?.best ?? 0);
   const [hudH, setHudH] = useState(0);
 
-  const [setup] = useState(() => {
-    const words = shuffle(playPool(p, 16));
-    const learnedSentences = Object.values(SENTENCES).filter((s) => s.th.every((t) => t.startsWith('{') || words.some((w) => w.th === t) || t.length <= 3));
-    const sentences = shuffle(learnedSentences.length >= 4 ? learnedSentences : Object.values(SENTENCES)).slice(0, 12);
-    let extra: LessonExtra | undefined;
-    if (id === 'cena') extra = { kind: 'dialogo', id: pick(Object.keys(DIALOGUES)) };
-    if (id === 'cuentos' && STORIES.length) extra = { kind: 'cuento', id: pick(STORIES).id };
-    if (id === 'cueva' || id === 'traza') extra = { kind: 'letras', set: pick(['media', 'baja', 'alta']) };
-    return { words, sentences, extra };
-  });
+  // solo palabras con ficha, frases que se entienden y conversaciones ya vistas (src/lib/feria.ts)
+  const [setup] = useState(() => feriaSetup(id, p));
 
   const close = () => {
     stopSpeech();
-    router.back();
+    // si se llegó por un enlace directo no hay historial: se vuelve a la feria igualmente
+    goBack('/(tabs)/feria');
   };
 
   if (!meta || !Game) return null;
   // un puesto cerrado no se abre ni desde el juego del día ni con un enlace
   const reached = Math.max(p.profile.startStop, currentLesson(p).stop.n);
   if (meta.unlock > reached) return <Locked name={meta.name} unlock={meta.unlock} onClose={close} />;
+  if ('needMore' in setup) return <Locked name={meta.name} text={setup.needMore} onClose={close} />;
   const bg = GAME_BG[id] ?? color.niebla;
   const dark = !!GAME_DARK[id];
 
@@ -112,13 +107,13 @@ export default function Juego() {
 }
 
 /** Puesto aún cerrado: se abre al llegar a su parada del camino. */
-function Locked({ name, unlock, onClose }: { name: string; unlock: number; onClose: () => void }) {
+function Locked({ name, unlock, text, onClose }: { name: string; unlock?: number; text?: string; onClose: () => void }) {
   const insets = useSafeAreaInsets();
   return (
     <View style={{ flex: 1, backgroundColor: color.niebla, paddingTop: insets.top + 40, paddingHorizontal: 24, paddingBottom: Math.max(insets.bottom, 16) + 8, gap: 16, alignItems: 'center' }}>
       <Noi pose="piensa" size={170} />
       <Txt v="h1" style={{ textAlign: 'center' }}>{name}</Txt>
-      <Txt style={{ textAlign: 'center' }}>Este puesto de la feria se abre en la parada {unlock} del camino. ¡Sigue avanzando y nos vemos allí!</Txt>
+      <Txt style={{ textAlign: 'center' }}>{text ?? `Este puesto de la feria se abre en la parada ${unlock} del camino. ¡Sigue avanzando y nos vemos allí!`}</Txt>
       <View style={{ flex: 1 }} />
       <Btn label="Volver a la feria" onPress={onClose} style={{ alignSelf: 'stretch' }} />
     </View>

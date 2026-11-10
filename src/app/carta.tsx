@@ -13,6 +13,7 @@ import { letterProgress } from '@/content';
 import { YAI_LETTER, type LetterToken } from '@/content/yai';
 import { fx, say, stopSpeech } from '@/lib/audio';
 import { useStore } from '@/lib/store';
+import { goBack } from '@/lib/nav';
 
 /** La carta de Yai: cada palabra aprendida despeja su trozo de niebla. */
 export default function Carta() {
@@ -37,7 +38,7 @@ export default function Carta() {
     <View style={{ flex: 1, backgroundColor: color.niebla }}>
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 8, paddingHorizontal: 20, paddingBottom: 24, gap: 14 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Volver" style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}>
+          <Pressable onPress={() => goBack('/(tabs)')} accessibilityRole="button" accessibilityLabel="Volver" style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}>
             <Icon name="back" size={24} />
           </Pressable>
           <Txt v="h2" style={{ flex: 1 }}>La carta de Yai</Txt>

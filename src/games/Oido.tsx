@@ -82,7 +82,7 @@ function optionsFor(target: Word, words: Word[], focus: Word[], n: number, kind:
   return shuffle([target, ...out]);
 }
 
-function plan(mode: GameProps['mode'], words: Word[], focus: Word[], rounds: number): Round[] {
+function plan(mode: GameProps['mode'], words: Word[], focus: Word[], rounds: number, oral = false): Round[] {
   const seen = new Set<string>();
   const order: Word[] = [];
   for (const w of [...shuffle(focus), ...shuffle(words)]) {
@@ -95,14 +95,14 @@ function plan(mode: GameProps['mode'], words: Word[], focus: Word[], rounds: num
   const golden = mode === 'feria' && n >= 6 ? 3 + Math.floor(Math.random() * (n - 4)) : -1;
   return Array.from({ length: n }, (_, i) => {
     const target = order[i % order.length];
-    const level = mode === 'feria' ? (i < Math.round(n * 0.3) ? 0 : i < Math.round(n * 0.6) ? 1 : 2) : n >= 3 && i === n - 1 ? 2 : 1;
+    const level = mode === 'feria' ? (i < Math.round(n * 0.3) ? 0 : i < Math.round(n * 0.6) ? 1 : 2) : !oral && n >= 3 && i === n - 1 ? 2 : 1;
     const L = LEVELS[level];
     return { target, kind: L.kind, level, options: optionsFor(target, words, focus, L.n, L.kind), golden: i === golden };
   });
 }
 
 /** Juego 6 · Oído de elefante: escucha y elige lo que has oído. */
-export default function Oido({ mode, words, focus, rounds = 4, onAnswer, onDone }: GameProps) {
+export default function Oido({ mode, words, focus, rounds = 4, oral = false, onAnswer, onDone }: GameProps) {
   const feria = mode === 'feria';
   const score = useScore(mode);
   const juice = useJuice();
@@ -111,7 +111,7 @@ export default function Oido({ mode, words, focus, rounds = 4, onAnswer, onDone 
   const { height: winH } = useWindowDimensions();
   const compact = winH < 760;
 
-  const [queue, setQueue] = useState(() => plan(mode, words, focus, rounds));
+  const [queue, setQueue] = useState(() => plan(mode, words, focus, rounds, oral));
   const [i, setI] = useState(0);
   const [phase, setPhase] = useState<Phase>('deal');
   const [shown, setShown] = useState(0);

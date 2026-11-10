@@ -1,6 +1,5 @@
 // La respuesta a Yai: cierra el arco de la carta. Eliges dos frases, las oyes, la carta sube al cielo
 // en un farolillo y Yai te contesta.
-import { router } from 'expo-router';
 import { useEffect, useEffectEvent, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import Animated, { Easing, FadeIn, FadeInDown, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
@@ -18,6 +17,7 @@ import { Floaty, Glow, Press3D, useJuice } from '@/games/fx';
 import { fx, say, stopSpeech } from '@/lib/audio';
 import { useStore } from '@/lib/store';
 import { joinThai, personalize, personalizeRom, type Gender } from '@/lib/thai';
+import { goBack } from '@/lib/nav';
 
 /** Frases de la lección «Responder a Yai»: la carta empieza con la primera y se eligen dos de las demás. */
 const OPENER = 'b142';
@@ -42,7 +42,7 @@ export default function Respuesta() {
 
   const close = () => {
     stopSpeech();
-    router.back();
+    goBack('/carta');
   };
   const toggle = (id: string) => {
     fx.tap();

@@ -14,6 +14,7 @@ import { Floaty, Press3D, Shine } from '@/games/fx';
 import { GAMES } from '@/games/registry';
 import type { GameCategory, GameMeta } from '@/games/types';
 import { fx } from '@/lib/audio';
+import { MIN_FERIA_WORDS, feriaWords } from '@/lib/feria';
 import { todayKey } from '@/lib/random';
 import { useStore } from '@/lib/store';
 
@@ -54,6 +55,14 @@ export default function Feria() {
         </View>
 
         <DailyCard daily={daily} best={p.games[daily.id]?.best} />
+
+        {feriaWords(p).length < MIN_FERIA_WORDS ? (
+          <View style={styles.few}>
+            <Txt v="bodyStrong" style={{ color: '#FFFFFF', fontSize: 14 }}>
+              La feria se llena con lo que aprendes. Termina las dos primeras lecciones del camino y tendrás palabras para jugar en todos los puestos.
+            </Txt>
+          </View>
+        ) : null}
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 8 }}>
           {CATS.map((c) => (
@@ -218,4 +227,5 @@ const styles = StyleSheet.create({
   iconShine: { position: 'absolute', left: 6, top: 4, width: 22, height: 12, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.4)', transform: [{ rotate: '-20deg' }] },
   record: { alignSelf: 'flex-start', paddingHorizontal: 8, height: 22, borderRadius: 11, backgroundColor: color.buatong, justifyContent: 'center' },
   recordText: { fontFamily: font.uiHeavy, fontSize: 11, color: color.tinta },
+  few: { marginHorizontal: 20, padding: 14, borderRadius: 18, backgroundColor: 'rgba(14,17,36,0.7)', borderWidth: 2, borderColor: 'rgba(255,255,255,0.18)' },
 });

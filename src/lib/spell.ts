@@ -30,48 +30,78 @@ const VOWELS: Record<string, string> = {
 const TONES: Record<string, string> = { '่': 'mai ek', '้': 'mai tho', '๊': 'mai tri', '๋': 'mai jattawa' };
 const isMark = (c?: string) => !!c && (c in VOWELS || c in TONES) && !LEADING.includes(c);
 
+/** Grupos de dos consonantes que se pronuncian juntas al empezar sílaba (กล = gl, คร = khr…). */
+const CLUSTERS = ['กร', 'กล', 'กว', 'ขร', 'ขล', 'ขว', 'คร', 'คล', 'คว', 'ปร', 'ปล', 'พร', 'พล', 'ผล', 'ตร'];
+/** Consonantes sonoras: una ห delante de ellas es muda y solo cambia el tono (หมา, ไหม). */
+const SONOR = 'งญณนมยรลวฬ';
+
+const consonantOf = (c?: string) => (c ? CONSONANTS.find((x) => x.ch === c) : undefined);
+/** ¿La segunda consonante va pegada a la primera al empezar sílaba? (grupo, ห muda o อ muda ante ย) */
+const joins = (a?: string, b?: string) => !!a && !!b && (CLUSTERS.includes(a + b) || (a === 'ห' && SONOR.includes(b)) || (a === 'อ' && b === 'ย'));
+
 /** Letras de la palabra con su sonido; null si es demasiado larga o no es thai (frases, nombres largos). */
 export function spell(th: string): Glyph[] | null {
-  const chars = [...th].filter((c) => c >= '\u0E01' && c <= '\u0E5B');
+  const chars = [...th].filter((c) => c >= 'ก' && c <= '๛');
   if (!chars.length || chars.length > 10) return null;
-  // vocales compuestas: เ◌ีย (ia), เ◌ือ (ʉa) y ◌ัว (ua) se leen como un solo sonido
+
+  // vocales compuestas que se leen como un solo sonido: เ◌ีย (ia), เ◌ือ (ʉa), เ◌า (ao), เ◌อ y เ◌ิ (əə), ◌ัว (ua)
   const part = new Map<number, string>();
+  const tone = (k: number) => (chars[k] && chars[k] in TONES ? k + 1 : k);
   chars.forEach((ch, i) => {
-    if (ch !== 'เ') return;
-    const j = chars[i + 2] && chars[i + 2] in TONES ? i + 3 : i + 2;
-    const k = chars[j + 1] && chars[j + 1] in TONES ? j + 2 : j + 1;
-    if (chars[j] === 'ี' && chars[k] === 'ย') [i, j, k].forEach((n, x) => part.set(n, x ? '(ia)' : 'ia'));
-    if (chars[j] === 'ื' && chars[k] === 'อ') [i, j, k].forEach((n, x) => part.set(n, x ? '(ʉa)' : 'ʉa'));
-  });
-  chars.forEach((ch, i) => {
-    const k = chars[i + 1] && chars[i + 1] in TONES ? i + 2 : i + 1;
-    if (ch === 'ั' && chars[k] === 'ว') {
+    if (ch === 'เ') {
+      let j = i + 1;
+      if (consonantOf(chars[j])) j += joins(chars[j], chars[j + 1]) ? 2 : 1;
+      const v = chars[j];
+      if (v === 'ี' && chars[tone(j + 1)] === 'ย') [i, j, tone(j + 1)].forEach((n, x) => part.set(n, x ? '(ia)' : 'ia'));
+      else if (v === 'ื' && chars[tone(j + 1)] === 'อ') [i, j, tone(j + 1)].forEach((n, x) => part.set(n, x ? '(ʉa)' : 'ʉa'));
+      else if (v === 'ิ') [i, j].forEach((n, x) => part.set(n, x ? '(əə)' : 'əə'));
+      else if (chars[tone(j)] === 'า' && chars[tone(j) + 1] !== 'ะ') [i, tone(j)].forEach((n, x) => part.set(n, x ? '(ao)' : 'ao'));
+      else if (chars[tone(j)] === 'อ') [i, tone(j)].forEach((n, x) => part.set(n, x ? '(əə)' : 'əə'));
+    }
+    if (ch === 'ั' && chars[tone(i + 1)] === 'ว') {
       part.set(i, 'ua');
-      part.set(k, '(ua)');
+      part.set(tone(i + 1), '(ua)');
     }
   });
-  return chars.map((ch, i): Glyph => {
+
+  const out: Glyph[] = [];
+  let prevInitial = false;
+  chars.forEach((ch, i) => {
     const prev = chars[i - 1];
     const next = chars[i + 1];
     const shown = COMBINING.includes(ch) ? `◌${ch}` : ch;
-    if (ch in TONES) return { ch: shown, label: TONES[ch], kind: 'tono' };
-    if (ch === '์') return { ch: shown, label: 'muda', kind: 'signo' };
-    if (ch === 'ๆ') return { ch, label: 'repite', kind: 'signo' };
-    const inVowel = part.get(i);
-    if (inVowel) return { ch: shown, label: inVowel, kind: 'vocal' };
-    if (ch in VOWELS) return { ch: shown, label: VOWELS[ch], kind: 'vocal' };
-    const c = CONSONANTS.find((x) => x.ch === ch);
-    if (!c) return { ch, label: '', kind: 'signo' };
-    // letras mudas: la que lleva การันต์ (์) y la ท de ทร์
-    if (next === '์' || chars[i + 2] === '์') return { ch, label: 'muda', kind: 'consonante', cls: c.cls };
-    if (ch === 'อ' && prev === 'ื') return { ch, label: '(ʉʉ)', kind: 'vocal' };
-    // una consonante es inicial al empezar, tras una vocal que va delante, ante una vocal o tono,
-    // o ante una อ que hace de vocal (สอน: ส + ɔɔ + น)
-    const vowelO = next === 'อ' && !isMark(chars[i + 2]);
-    const initial = i === 0 || (!!prev && LEADING.includes(prev)) || isMark(next) || vowelO;
-    if (ch === 'อ' && !initial) return { ch, label: 'ɔɔ', kind: 'vocal' };
-    return { ch, label: initial ? c.sound : (c.final ?? c.sound), kind: 'consonante', cls: c.cls };
+    let initialHere = false;
+    const push = (g: Glyph) => out.push(g);
+    if (ch in TONES) push({ ch: shown, label: TONES[ch], kind: 'tono' });
+    else if (ch === '์') push({ ch: shown, label: 'muda', kind: 'signo' });
+    else if (ch === 'ๆ') push({ ch, label: 'repite', kind: 'signo' });
+    else if (part.has(i)) push({ ch: shown, label: part.get(i)!, kind: 'vocal' });
+    else if (ch in VOWELS) push({ ch: shown, label: VOWELS[ch], kind: 'vocal' });
+    else {
+      const c = consonantOf(ch);
+      if (!c) push({ ch, label: '', kind: 'signo' });
+      // letras mudas: la que lleva การันต์ (์) y la ท de ทร์
+      else if (next === '์' || chars[i + 2] === '์') push({ ch, label: 'muda', kind: 'consonante', cls: c.cls });
+      else if (ch === 'อ' && prev === 'ื') push({ ch, label: '(ʉʉ)', kind: 'vocal' });
+      else {
+        // empieza sílaba: al principio, tras una vocal que va delante, ante una vocal o tono, ante una อ que
+        // hace de vocal (สอน), o pegada a la consonante anterior en un grupo (ไกล = g + l, ใคร = kh + r)
+        const vowelO = next === 'อ' && !isMark(chars[i + 2]);
+        const initial = i === 0 || (!!prev && LEADING.includes(prev)) || isMark(next) || vowelO || (prevInitial && joins(prev, ch));
+        if (ch === 'อ' && !initial) push({ ch, label: 'ɔɔ', kind: 'vocal' });
+        // ห o อ delante de su pareja (หมา, ไหม, อยู่): no suenan, solo marcan el tono
+        else if (initial && joins(ch, next) && (ch === 'ห' || ch === 'อ')) {
+          push({ ch, label: 'muda', kind: 'consonante', cls: c.cls });
+          initialHere = true;
+        } else {
+          push({ ch, label: initial ? c.sound : (c.final ?? c.sound), kind: 'consonante', cls: c.cls });
+          initialHere = initial;
+        }
+      }
+    }
+    prevInitial = initialHere;
   });
+  return out;
 }
 
 /** Nota sobre la primera consonante: «La letra ช se llama ช ช้าง (chɔɔ cháang): la «ch» de elefante». */

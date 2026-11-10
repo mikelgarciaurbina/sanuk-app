@@ -1,4 +1,3 @@
-import { router } from 'expo-router';
 import { useEffect, useState, type ReactNode } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown, ZoomIn } from 'react-native-reanimated';
@@ -14,6 +13,7 @@ import { SEASON_2_STOPS, curvesFor, lessonById, letterProgress, moonOf, moonsDon
 import type { GameResult } from '@/games/types';
 import { fx } from '@/lib/audio';
 import { useStore } from '@/lib/store';
+import { goBack } from '@/lib/nav';
 
 /** Número que cuenta desde 0 (funciona igual en web y en móvil). */
 function AnimatedNumber({ value, suffix = '', style }: { value: number; suffix?: string; style?: object }) {
@@ -126,7 +126,7 @@ export function LessonDone({ result, seconds, letterBefore, lessonId }: { result
         <Chip label={`Racha de ${p.streak.count} ${p.streak.count === 1 ? 'día' : 'días'}`} icon="farol" style={{ alignSelf: 'center' }} />
       </ScrollView>
       <View style={{ paddingHorizontal: 20, paddingBottom: Math.max(insets.bottom, 16) + 8 }}>
-        <Btn label="Continuar" onPress={() => router.back()} />
+        <Btn label="Continuar" onPress={() => goBack('/(tabs)')} />
       </View>
       <Confetti run={1} />
     </View>

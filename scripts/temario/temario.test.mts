@@ -145,3 +145,77 @@ describe('lecciones: nada se pregunta antes de presentarse', async () => {
     assert.ok(b.steps.some((s) => s.kind === 'intro' && s.word.id === 'maipenrai'));
   });
 });
+
+describe('«Cómo se escribe»: cada letra con su sonido', async () => {
+  await import('./lib/cargar.mts');
+  const { spell } = await import('../../src/lib/spell.ts');
+  const labels = (th: string) => (spell(th) ?? []).map((g) => g.label).join(' ');
+
+  test('grupos de consonantes, ห y อ mudas y vocales compuestas', () => {
+    const casos: [string, string][] = [
+      ['ไกล', 'ai g l'],
+      ['ใคร', 'ai kh r'],
+      ['ไหม', 'ai muda m'],
+      ['หนังสือ', 'muda n a ng s ʉʉ (ʉʉ)'],
+      ['อยู่', 'muda y uu mai ek'],
+      ['ช้าง', 'ch mai tho aa ng'],
+      ['สวัสดี', 's w a t d ii'],
+      ['คน', 'kh n'],
+      ['เปล่า', 'ao p l mai ek (ao)'],
+      ['เรียน', 'ia r (ia) (ia) n'],
+      ['จันทร์', 'j a n muda muda muda'],
+      ['เดิน', 'əə d (əə) n'],
+      ['เธอ', 'əə th (əə)'],
+    ];
+    for (const [th, esperado] of casos) assert.equal(labels(th), esperado, th);
+  });
+});
+
+describe('feria y repaso: solo palabras con ficha', async () => {
+  const { cargarTemario } = await import('./lib/cargar.mts');
+  const { app } = await cargarTemario();
+  const { buildReview, introducedIds } = await import('../../src/lib/lesson.ts');
+  const { feriaSetup } = await import('../../src/lib/feria.ts');
+
+  const progressAfter = (n: number) => {
+    const words: Record<string, { s: number; due: number; intro?: boolean }> = { sawatdii: { s: 1, due: 0, intro: true } };
+    const completed: Record<string, { stars: number; best: number; at: string }> = {};
+    for (const l of app.LESSONS.slice(0, n)) {
+      for (const id of l.words) words[id] = { s: 1, due: 0, intro: true };
+      completed[l.id] = { stars: 3, best: 1, at: '' };
+    }
+    return { words, completed, profile: { startStop: 1 } };
+  };
+
+  test('quien solo conoce «hola» no recibe palabras futuras: la feria le pide aprender un poco más', () => {
+    const r = feriaSetup('parejas', progressAfter(0));
+    assert.ok('needMore' in r);
+  });
+
+  test('a lo largo del camino, cada juego de la feria usa solo palabras, frases y conversaciones ya vistas', () => {
+    const ids = ['parejas', 'memoria', 'monzon', 'siono', 'farolillos', 'oido', 'puente', 'hueco', 'eco', 'cena', 'cuentos', 'curvas'] as const;
+    for (const n of [2, 10, 40, 100, 164]) {
+      const p = progressAfter(n);
+      const known = introducedIds(p);
+      const forms = new Set([...known].flatMap((id) => app.WORDS[id].th.split(/[\s…/()ๆ]+/).filter(Boolean)));
+      for (const id of ids) {
+        const r = feriaSetup(id, p);
+        if ('needMore' in r) continue;
+        assert.deepEqual(r.words.filter((w) => !known.has(w.id)).map((w) => w.id), [], `${id} tras ${n} lecciones`);
+        for (const s of r.sentences) assert.ok(s.th.every((t) => t.startsWith('{') || forms.has(t)), `${id}: frase ${s.id} tras ${n}`);
+        if (r.extra?.kind === 'dialogo') {
+          const extra = r.extra;
+          assert.ok(app.LESSONS.some((l) => p.completed[l.id] && l.extra?.kind === 'dialogo' && l.extra.id === extra.id), `cena con ${extra.id} tras ${n}`);
+        }
+      }
+    }
+  });
+
+  test('el repaso pone como distractores solo palabras ya presentadas', () => {
+    const p = progressAfter(3);
+    const known = introducedIds(p);
+    const due = [...known].slice(0, 4).map((id) => app.WORDS[id]);
+    const b = buildReview(due, p);
+    assert.deepEqual(b.words.filter((w) => !known.has(w.id)).map((w) => w.id), []);
+  });
+});
