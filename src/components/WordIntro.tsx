@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown, ZoomIn } from 'react-native-reanimated';
 
 import { color, shadow } from '@/brand/tokens';
@@ -8,18 +8,23 @@ import { Noi } from '@/components/Noi';
 import { Btn, Rom, Speech, Sticker, Th, ToneChip, Txt, mainTone } from '@/components/ui';
 import type { Sentence, Word } from '@/content/types';
 import { say } from '@/lib/audio';
+import { firstLetterNote, spell } from '@/lib/spell';
 import { personalize, personalizeRom, syllables, joinThai, type Gender } from '@/lib/thai';
 
-/** Tarjeta de «Palabra nueva»: imagen, thai grande, tono por sílaba, audio y un ejemplo. */
-export function WordIntro({ word, example, gender, n, total, onNext }: { word: Word; example?: Sentence; gender: Gender; n: number; total: number; onNext: () => void }) {
+/** Tarjeta de «Palabra nueva»: imagen, thai grande, tono, audio, cómo se escribe y un ejemplo.
+ *  `writing = false` en la primera curva: allí se aprende de oído y la escritura llega después. */
+export function WordIntro({ word, example, gender, n, total, writing = true, onNext }: { word: Word; example?: Sentence; gender: Gender; n: number; total: number; writing?: boolean; onNext: () => void }) {
   useEffect(() => {
     const t = setTimeout(() => say(word.th), 380);
     return () => clearTimeout(t);
   }, [word.th]);
   const ex = example ? joinThai(example.th.map((t) => personalize(t, gender))) : null;
   const oneSyllable = syllables(word.rom).length === 1;
+  const glyphs = writing ? spell(word.th) : null;
+  const letterNote = writing ? firstLetterNote(word.th) : null;
   return (
-    <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 10, gap: 14 }}>
+    <View style={{ flex: 1 }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 10, paddingBottom: 12, gap: 14 }}>
       <Txt v="eyebrow">
         Palabra nueva · {n} de {total}
       </Txt>
@@ -42,6 +47,22 @@ export function WordIntro({ word, example, gender, n, total, onNext }: { word: W
           <Btn v="ghost" label="Lento" height={48} style={{ flex: 1 }} silent onPress={() => say(word.th, { slow: true })} icon={<Icon name="turtle" size={22} color={color.cieloHondo} />} />
         </View>
       </Animated.View>
+      {glyphs ? (
+        <Animated.View entering={FadeInDown.delay(140)} style={{ gap: 6 }}>
+          <Txt v="eyebrow">Cómo se escribe</Txt>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', columnGap: 16, rowGap: 6 }}>
+            {glyphs.map((g, k) => (
+              <View key={k} style={{ alignItems: 'center', minWidth: 28 }}>
+                <Th size={30} style={{ lineHeight: 46, color: g.kind === 'tono' ? color.farol : g.label === 'muda' ? color.tinta3 : color.tinta }}>
+                  {g.ch}
+                </Th>
+                <Txt v="small" style={{ fontSize: 12 }}>{g.label}</Txt>
+              </View>
+            ))}
+          </View>
+          {letterNote ? <Txt v="small" style={{ fontSize: 13 }}>{letterNote}</Txt> : null}
+        </Animated.View>
+      ) : null}
       {ex && example ? (
         <Animated.View entering={FadeInDown.delay(200)} style={[styles.card, { gap: 2, padding: 14 }]}>
           <Txt v="eyebrow" style={{ fontSize: 10 }}>En una frase</Txt>
@@ -58,8 +79,8 @@ export function WordIntro({ word, example, gender, n, total, onNext }: { word: W
           </Speech>
         </Animated.View>
       ) : null}
-      <View style={{ flex: 1 }} />
-      <View style={{ paddingBottom: 28 }}>
+      </ScrollView>
+      <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 28 }}>
         <Btn label="¡Entendido!" onPress={onNext} />
       </View>
     </View>

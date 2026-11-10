@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useEffect, useState, type ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import Animated, {
   Easing,
   FadeIn,
@@ -170,34 +170,56 @@ export default function Onboarding() {
 
 // ——— pasos ———
 
-function Splash({ onStart, bottom }: { onStart: () => void; bottom: number }) {
-  const clusters = ['ส', 'นุ', 'ก'];
+/** Paso del onboarding: el contenido se desplaza si no cabe y el botón queda siempre a la vista
+ *  (pantallas bajas como la exterior de un plegable, o el móvil en horizontal). */
+function Page({ children, footer, gap = 16 }: { children: ReactNode; footer: ReactNode; gap?: number }) {
   return (
     <View style={{ flex: 1 }}>
-      <Mountains height={560} house />
-      <View style={{ alignItems: 'center', paddingTop: 110, gap: 2 }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 20, paddingBottom: 12, gap }} bounces={false} showsVerticalScrollIndicator={false}>
+        {children}
+      </ScrollView>
+      <View style={{ paddingHorizontal: 20, paddingTop: 8 }}>{footer}</View>
+    </View>
+  );
+}
+
+/** Tamaño que crece con la altura de la pantalla, entre un mínimo y un máximo. */
+const fit = (height: number, k: number, min: number, max: number) => Math.round(Math.max(min, Math.min(max, height * k)));
+
+function Splash({ onStart, bottom }: { onStart: () => void; bottom: number }) {
+  const { height } = useWindowDimensions();
+  const [panelH, setPanelH] = useState(190);
+  const clusters = ['ส', 'นุ', 'ก'];
+  const title = fit(height, 0.09, 64, 112);
+  const noi = fit(height, 0.17, 110, 220);
+  return (
+    <View style={{ flex: 1 }}>
+      <Mountains height={fit(height, 0.62, 420, 820)} house />
+      <View style={{ alignItems: 'center', paddingTop: fit(height, 0.13, 56, 170), gap: 2 }}>
         <View style={{ flexDirection: 'row' }}>
           {clusters.map((c, i) => (
             <Animated.View key={c} entering={FadeInDown.delay(300 + i * 180).springify().damping(9)}>
-              <Th size={86} bold style={{ lineHeight: 120 }}>
+              <Th size={title} bold style={{ lineHeight: Math.round(title * 1.4) }}>
                 {c}
               </Th>
             </Animated.View>
           ))}
         </View>
-        <Animated.Text entering={FadeIn.delay(950)} style={{ fontFamily: font.displayBold, fontSize: 30, color: color.azafranHondo, letterSpacing: 0.6 }}>
+        <Animated.Text entering={FadeIn.delay(950)} style={{ fontFamily: font.displayBold, fontSize: Math.round(title * 0.35), color: color.azafranHondo, letterSpacing: 0.6 }}>
           Sanuk
         </Animated.Text>
         <Animated.View entering={FadeIn.delay(1200)}>
           <Txt v="body" style={{ marginTop: 8, fontSize: 17 }}>Thai, curva a curva.</Txt>
         </Animated.View>
       </View>
-      <Animated.View entering={FadeInDown.delay(700).springify()} style={{ position: 'absolute', left: 26, bottom: 214 + bottom }}>
-        <Noi pose="hola" size={150} />
+      <Animated.View entering={FadeInDown.delay(700).springify()} style={{ position: 'absolute', left: 26, bottom: panelH - 6 }}>
+        <Noi pose="hola" size={noi} />
       </Animated.View>
-      <View style={[styles.splashPanel, { paddingBottom: Math.max(bottom, 16) + 20 }]}>
-        <Txt v="small" style={{ textAlign: 'center' }}>1.864 curvas te separan de una familia que aún no conoce tu voz.</Txt>
-        <Btn label="Empezar el viaje" onPress={onStart} />
+      <View style={[styles.splashPanel, { paddingBottom: Math.max(bottom, 16) + 20 }]} onLayout={(e) => setPanelH(e.nativeEvent.layout.height)}>
+        <View style={{ width: '100%', maxWidth: 440, alignSelf: 'center', gap: 12 }}>
+          <Txt v="small" style={{ textAlign: 'center' }}>1.864 curvas te separan de una familia que aún no conoce tu voz.</Txt>
+          <Btn label="Empezar el viaje" onPress={onStart} />
+        </View>
       </View>
     </View>
   );
@@ -221,10 +243,11 @@ function Dots({ on, onSkip }: { on: number; onSkip?: () => void }) {
 }
 
 function Story({ onNext, onSkip }: { onNext: () => void; onSkip: () => void }) {
+  const { height } = useWindowDimensions();
   return (
-    <View style={{ flex: 1, paddingHorizontal: 20, gap: 20 }}>
+    <Page gap={20} footer={<Btn label="Siguiente" onPress={onNext} />}>
       <Dots on={0} onSkip={onSkip} />
-      <View style={[styles.figure]}>
+      <View style={[styles.figure, { height: fit(height, 0.36, 170, 330) }]}>
         <Svg width="100%" height="100%" viewBox="0 0 350 340" preserveAspectRatio="xMidYMid slice">
           <Rect width={350} height={340} fill="#DCE5F1" />
           <Circle cx={70} cy={70} r={26} fill="#FFF4DD" />
@@ -242,19 +265,17 @@ function Story({ onNext, onSkip }: { onNext: () => void; onSkip: () => void }) {
       </View>
       <Animated.View entering={FadeInDown.delay(200)} style={{ gap: 10 }}>
         <Txt v="eyebrow">Capítulo 0 · La invitación</Txt>
-        <Txt v="h1">En lo alto de Mae Hong Son, la niebla se queda a dormir.</Txt>
-        <Txt>Allí, en una casa de teca, una familia espera conocerte. Todavía no habla tu idioma. Tú todavía no hablas el suyo.</Txt>
+        <Txt v="h1">En Chiang Mai, tu pareja te hace una invitación.</Txt>
+        <Txt>«Ven a conocer a mi familia.» Viven en lo alto de Mae Hong Son, donde la niebla se queda a dormir, en una casa de teca. Todavía no hablan tu idioma. Tú todavía no hablas el suyo.</Txt>
       </Animated.View>
-      <View style={{ flex: 1 }} />
-      <Btn label="Siguiente" onPress={onNext} />
-    </View>
+    </Page>
   );
 }
 
 function Letter({ onNext, onSkip }: { onNext: () => void; onSkip: () => void }) {
   const lines = YAI_LETTER.slice(0, 6);
   return (
-    <View style={{ flex: 1, paddingHorizontal: 20, gap: 16 }}>
+    <Page footer={<Btn label="¿Y cómo llego hasta allí?" onPress={onNext} />}>
       <Dots on={1} onSkip={onSkip} />
       <View style={{ gap: 6 }}>
         <Txt v="eyebrow">Llega una carta</Txt>
@@ -285,12 +306,13 @@ function Letter({ onNext, onSkip }: { onNext: () => void; onSkip: () => void }) 
           <Txt v="bodyStrong" style={{ fontSize: 15 }}>Todavía es niebla. Para cuando lleguemos arriba, la leerás entera. Prometido.</Txt>
         </Speech>
       </View>
-      <Btn label="¿Y cómo llego hasta allí?" onPress={onNext} />
-    </View>
+    </Page>
   );
 }
 
 function MeetNoi({ onNext }: { onNext: () => void }) {
+  const { height } = useWindowDimensions();
+  const size = fit(height, 0.3, 140, 270);
   const [jump, setJump] = useState(0);
   const [heard, setHeard] = useState(false);
   const hello = () => {
@@ -303,7 +325,7 @@ function MeetNoi({ onNext }: { onNext: () => void }) {
     return () => clearTimeout(t);
   }, []);
   return (
-    <View style={{ flex: 1, paddingHorizontal: 20, gap: 14 }}>
+    <Page gap={14} footer={<Btn label="¡Vamos, Noi!" onPress={onNext} />}>
       <Dots on={2} />
       <Animated.View entering={ZoomIn.delay(200).springify().damping(10)} style={{ alignSelf: 'center' }}>
         <Speech tail="bottom" style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -313,9 +335,9 @@ function MeetNoi({ onNext }: { onNext: () => void }) {
           <Txt v="h3">Soy Noi.</Txt>
         </Speech>
       </Animated.View>
-      <View style={{ alignItems: 'center', justifyContent: 'center', height: 280 }}>
-        <View style={styles.noiHalo} />
-        <Noi pose="hola" size={270} jump={jump} onPress={hello} accessibilityLabel="Noi. Tócala para que te salude" />
+      <View style={{ alignItems: 'center', justifyContent: 'center', height: size + 10 }}>
+        <View style={[styles.noiHalo, { width: size * 0.9, height: size * 0.9, borderRadius: size }]} />
+        <Noi pose="hola" size={size} jump={jump} onPress={hello} accessibilityLabel="Noi. Tócala para que te salude" />
       </View>
       <View style={{ gap: 8, alignItems: 'center' }}>
         <Txt v="h1" style={{ textAlign: 'center' }}>Mi nombre significa «pequeña».</Txt>
@@ -334,9 +356,7 @@ function MeetNoi({ onNext }: { onNext: () => void }) {
           </View>
         </Animated.View>
       ) : null}
-      <View style={{ flex: 1 }} />
-      <Btn label="¡Vamos, Noi!" onPress={onNext} />
-    </View>
+    </Page>
   );
 }
 
@@ -440,7 +460,7 @@ function FirstWord({ onDone }: { onDone: () => void }) {
           <Txt v="bodyStrong">+15</Txt>
         </View>
       </View>
-      <View style={{ paddingHorizontal: 20, gap: 20, paddingTop: 16 }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, gap: 20, paddingTop: 16, paddingBottom: 12 }} bounces={false}>
         <Txt v="h2">¿Qué ha dicho Noi?</Txt>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           <Noi pose="escucha" size={130} />
@@ -456,8 +476,7 @@ function FirstWord({ onDone }: { onDone: () => void }) {
             </Tile>
           ))}
         </View>
-      </View>
-      <View style={{ flex: 1 }} />
+      </ScrollView>
       {!checked ? (
         <View style={{ paddingHorizontal: 20 }}>
           <Btn
@@ -495,46 +514,52 @@ function FirstLantern({ onDone }: { onDone: () => void }) {
   }, [sway]);
   const s = useAnimatedStyle(() => ({ transform: [{ translateY: rise.value }, { rotate: `${sway.value}deg` }] }));
   const firstLine = YAI_LETTER[0].tokens;
+  const { height } = useWindowDimensions();
+  const box = fit(height, 0.26, 140, 220);
   return (
-    <View style={{ flex: 1, paddingHorizontal: 20, gap: 16, alignItems: 'center' }}>
+    <View style={{ flex: 1 }}>
       <Stars n={22} />
-      <Animated.View style={[{ width: 220, height: 220, alignItems: 'center', justifyContent: 'center' }, s]}>
-        <View style={{ position: 'absolute', width: 220, height: 220, borderRadius: 110, backgroundColor: '#FF8A3D', opacity: 0.18 }} />
-        <View style={{ position: 'absolute', width: 140, height: 140, borderRadius: 70, backgroundColor: '#FFB347', opacity: 0.28 }} />
-        <Art name="farol" size={150} />
-      </Animated.View>
-      <View style={{ gap: 8, alignItems: 'center' }}>
-        <Txt v="eyebrow" style={{ color: color.buatong }}>Día 1 · racha encendida</Txt>
-        <Txt v="h1" style={{ color: '#FFFFFF', textAlign: 'center' }}>Has encendido tu primer farolillo</Txt>
-        <Txt style={{ color: '#C9D0EE', textAlign: 'center' }}>Y algo más: la primera palabra de la carta de Yai ya no es niebla.</Txt>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 20, paddingBottom: 12, gap: 16, alignItems: 'center' }} bounces={false} showsVerticalScrollIndicator={false}>
+        <Animated.View style={[{ width: box, height: box, alignItems: 'center', justifyContent: 'center' }, s]}>
+          <View style={{ position: 'absolute', width: box, height: box, borderRadius: box / 2, backgroundColor: '#FF8A3D', opacity: 0.18 }} />
+          <View style={{ position: 'absolute', width: box * 0.64, height: box * 0.64, borderRadius: box, backgroundColor: '#FFB347', opacity: 0.28 }} />
+          <Art name="farol" size={Math.round(box * 0.68)} />
+        </Animated.View>
+        <View style={{ gap: 8, alignItems: 'center' }}>
+          <Txt v="eyebrow" style={{ color: color.buatong }}>Día 1 · racha encendida</Txt>
+          <Txt v="h1" style={{ color: '#FFFFFF', textAlign: 'center' }}>Has encendido tu primer farolillo</Txt>
+          <Txt style={{ color: '#C9D0EE', textAlign: 'center' }}>Y algo más: la primera palabra de la carta de Yai ya no es niebla.</Txt>
+        </View>
+        <View style={[styles.letterStrip]}>
+          {firstLine.map((t, i) => (
+            <Th key={i} size={22} style={i === 0 ? null : { opacity: 0.25 }}>
+              {t.th}
+            </Th>
+          ))}
+          <Txt v="small" style={{ marginLeft: 'auto' }}>
+            สวัสดี = hola
+          </Txt>
+        </View>
+        <View style={{ flexDirection: 'row', gap: 10, alignSelf: 'stretch' }}>
+          {[
+            { icon: 'platano' as const, v: '+15', l: 'plátanos' },
+            { icon: 'farol' as const, v: '1', l: 'día de racha' },
+            { icon: 'paraguas' as const, v: '2', l: 'paraguas' },
+          ].map((s2) => (
+            <View key={s2.l} style={styles.nightStat}>
+              <Art name={s2.icon} size={30} />
+              <Txt v="num" style={{ color: '#FFFFFF' }}>{s2.v}</Txt>
+              <Txt v="small" style={{ color: '#C9D0EE', fontSize: 11 }}>{s2.l}</Txt>
+            </View>
+          ))}
+        </View>
+        <View style={{ flex: 1, alignSelf: 'stretch', alignItems: 'flex-end', justifyContent: 'flex-end' }}>
+          <Noi pose="celebra" size={96} />
+        </View>
+      </ScrollView>
+      <View style={{ paddingHorizontal: 20, paddingTop: 8 }}>
+        <Btn label="Ver el camino" onPress={onDone} />
       </View>
-      <View style={[styles.letterStrip]}>
-        {firstLine.map((t, i) => (
-          <Th key={i} size={22} style={i === 0 ? null : { opacity: 0.25 }}>
-            {t.th}
-          </Th>
-        ))}
-        <Txt v="small" style={{ marginLeft: 'auto' }}>
-          สวัสดี = hola
-        </Txt>
-      </View>
-      <View style={{ flexDirection: 'row', gap: 10, alignSelf: 'stretch' }}>
-        {[
-          { icon: 'platano' as const, v: '+15', l: 'plátanos' },
-          { icon: 'farol' as const, v: '1', l: 'día de racha' },
-          { icon: 'paraguas' as const, v: '2', l: 'paraguas' },
-        ].map((s2) => (
-          <View key={s2.l} style={styles.nightStat}>
-            <Art name={s2.icon} size={30} />
-            <Txt v="num" style={{ color: '#FFFFFF' }}>{s2.v}</Txt>
-            <Txt v="small" style={{ color: '#C9D0EE', fontSize: 11 }}>{s2.l}</Txt>
-          </View>
-        ))}
-      </View>
-      <View style={{ flex: 1, alignSelf: 'stretch', alignItems: 'flex-end', justifyContent: 'flex-end' }}>
-        <Noi pose="celebra" size={96} />
-      </View>
-      <Btn label="Ver el camino" onPress={onDone} style={{ alignSelf: 'stretch' }} />
       <Confetti run={run} />
     </View>
   );

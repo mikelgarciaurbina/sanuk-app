@@ -5,7 +5,8 @@ import type { GameId } from '@/content/types';
 import type { Gender } from '@/lib/thai';
 import { daysBetween, todayKey } from '@/lib/random';
 
-export type WordStat = { s: number; due: number; seen: number; ok: number; bad: number };
+/** `intro`: la palabra ya se ha presentado con su ficha. Responderla en un juego no la presenta. */
+export type WordStat = { s: number; due: number; seen: number; ok: number; bad: number; intro?: boolean };
 
 export type Profile = {
   name: string;
@@ -31,6 +32,8 @@ export type Progress = {
   stamps: string[];
   /** misiones de la vida real que quien aprende ha marcado como hechas (id de la parada) */
   missions: string[];
+  /** la carta de respuesta a Yai: las frases elegidas y cuándo se envió */
+  reply?: { sentences: string[]; at: string };
   settings: Settings;
 };
 
@@ -85,6 +88,8 @@ type Actions = {
   recordGame: (id: GameId, score: number, bananas: number) => void;
   /** marca como hecha la misión de un mes (+30 plátanos la primera vez) */
   completeMission: (stopId: string) => void;
+  /** envía la carta de respuesta a Yai (+50 plátanos la primera vez) */
+  sendReply: (sentences: string[]) => void;
   setSetting: <K extends keyof Settings>(k: K, v: Settings[K]) => void;
   setProfile: (p: Partial<Profile>) => void;
   reset: () => void;
@@ -131,13 +136,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           seen: w.seen + 1,
           ok: w.ok + (ok ? 1 : 0),
           bad: w.bad + (ok ? 0 : 1),
+          // responder no presenta la palabra: se conserva si ya tenía ficha
+          ...(w.intro ? { intro: true } : null),
         };
         return { ...s, words: { ...s.words, [wordId]: next } };
       }),
     seeWords: (ids) =>
       setP((s) => {
         const words = { ...s.words };
-        for (const id of ids) if (!words[id]) words[id] = { s: 1, due: Date.now() + SRS_MS[1], seen: 1, ok: 0, bad: 0 };
+        for (const id of ids) words[id] = words[id] ? { ...words[id], intro: true } : { s: 1, due: Date.now() + SRS_MS[1], seen: 1, ok: 0, bad: 0, intro: true };
         return { ...s, words };
       }),
     addBananas: (n) => setP((s) => withBananas(s, n)),
@@ -163,6 +170,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const next = withBananas(s, bananas);
         return { ...next, games: { ...s.games, [id]: { best: Math.max(g.best, score), plays: g.plays + 1 } } };
       }),
+    sendReply: (sentences) => setP((s) => ({ ...(s.reply ? s : withBananas(s, 50)), reply: { sentences, at: todayKey() } })),
     completeMission: (stopId) =>
       setP((s) => (s.missions.includes(stopId) ? s : { ...withBananas(s, 30), missions: [...s.missions, stopId] })),
     setSetting: (k, v) => setP((s) => ({ ...s, settings: { ...s.settings, [k]: v } })),

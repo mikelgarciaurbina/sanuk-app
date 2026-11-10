@@ -31,6 +31,11 @@ export const GRUPOS_DE_LETRAS_ESPECIALES: Record<string, string> = {
   silabas: 'solo el juego de sílabas',
 };
 
+/** Lecciones que se salen a propósito de los tamaños habituales. */
+export const TAMANOS_ESPECIALES: Record<string, string> = {
+  p1l1: 'primera curva: dos expresiones, de oído, y un saludo de dos turnos',
+};
+
 /** Lo que se sabe antes de la primera lección. */
 export const CONOCIDAS_DE_INICIO: Record<string, string> = {
   ครับ: 'partícula {P} y {PQ} de quien habla en masculino',
@@ -57,6 +62,7 @@ export const HOMOGRAFOS: Record<string, string> = {
  * Si una excepción deja de hacer falta, el revisor avisa para que se borre.
  */
 export const ANTES_DE_TIEMPO: { en: string; piezas: string[]; porque: string }[] = [
+  { en: 'd0', piezas: ['นี่', 'กล้วย', 'ไป', 'กัน', 'เถอะ'], porque: 'primera curva: Noi habla con traducción y quien aprende solo responde con สวัสดี y ขอบคุณ' },
   { en: 'd1', piezas: ['พรุ่งนี้', 'เช้า', 'เรา', 'แม่ฮ่องสอน'], porque: 'Nong habla deprisa a propósito para practicar «no entiendo, más despacio»' },
   { en: 'd1', piezas: ['เถอะ'], porque: 'Nong se despide con «ไปกันเถอะ»; la partícula se enseña en p9l4' },
   { en: 'b140', piezas: ['เอ๋ย'], porque: 'la llamada ritual al khwan de la ceremonia del hilo blanco' },

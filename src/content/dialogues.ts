@@ -3,6 +3,36 @@ import type { Dialogue } from './types';
 /** Conversaciones para «Cena familiar». {P}/{PQ}/{I} se adaptan a quien aprende. */
 export const DIALOGUES_A: Dialogue[] = [
   {
+    id: 'd0',
+    title: 'Noi te saluda',
+    scene: 'En Chiang Mai, antes de salir hacia la montaña. Noi quiere oír tu primer saludo.',
+    lines: [
+      {
+        who: 'Noi',
+        th: 'สวัสดีค่ะ',
+        rom: 'sà-wàt-dii khâ',
+        es: '¡Hola!',
+        options: [
+          { th: 'สวัสดี{P}', rom: 'sà-wàt-dii {P}', es: 'Hola', ok: true, reply: { th: 'เก่งมากค่ะ', rom: 'gèng mâak khâ', es: '¡Muy bien!' } },
+          { th: 'ขอบคุณ{P}', rom: 'khɔ̀ɔp-khun {P}', es: 'Gracias', ok: false },
+          { th: 'ขอบคุณ ขอบคุณ', rom: 'khɔ̀ɔp-khun khɔ̀ɔp-khun', es: 'Gracias, gracias', ok: false },
+        ],
+      },
+      {
+        who: 'Noi',
+        th: 'นี่ค่ะ กล้วย',
+        rom: 'nîi khâ glûay',
+        es: 'Toma, un plátano para ti.',
+        options: [
+          { th: 'ขอบคุณ{P}', rom: 'khɔ̀ɔp-khun {P}', es: 'Gracias', ok: true, reply: { th: 'ไม่เป็นไรค่ะ', rom: 'mâi-pen-rai khâ', es: 'De nada.' } },
+          { th: 'สวัสดี{P}', rom: 'sà-wàt-dii {P}', es: 'Hola', ok: false },
+          { th: 'สวัสดี สวัสดี', rom: 'sà-wàt-dii sà-wàt-dii', es: 'Hola, hola', ok: false },
+        ],
+      },
+      { who: 'Noi', th: 'ไปกันเถอะ', rom: 'pai gan thə̀', es: '¡Vámonos a la montaña!' },
+    ],
+  },
+  {
     id: 'd1',
     title: 'En la puerta Tha Phae',
     scene: 'Nong, la hermana pequeña de la familia, ha bajado a Chiang Mai a recogerte.',

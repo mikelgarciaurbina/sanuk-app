@@ -104,6 +104,7 @@ export default function Leccion() {
             gender={p.profile.gender}
             n={introN}
             total={introTotal}
+            writing={!built.firstCurve}
             onNext={() => {
               store.seeWords([step.word.id]);
               advance();
@@ -112,8 +113,8 @@ export default function Leccion() {
         ) : Game ? (
           <Game
             mode="leccion"
-            words={built.words}
-            focus={built.focus}
+            words={step.words ?? built.words}
+            focus={step.focus ?? built.focus}
             sentences={built.sentences}
             extra={lesson?.extra}
             rounds={step.rounds}

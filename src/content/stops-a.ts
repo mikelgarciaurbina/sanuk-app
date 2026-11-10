@@ -296,8 +296,8 @@ export const STOPS_A: Stop[] = [
     stamp: 'CHIANG MAI',
     message: { from: 'Nong', th: 'สวัสดี! ยินดีที่ได้รู้จัก', rom: 'sà-wàt-dii! yin-dii thîi dâi rúu-jàk', es: '¡Hola! Encantado de conocerte.' },
     lessons: [
-      { id: 'p1l1', title: 'Hola y gracias', goal: 'Saluda, da las gracias y di «no pasa nada».', words: ['sawatdii', 'khopkhun', 'khrap', 'kha', 'maipenrai'], sentences: ['a1', 'a2', 'a3'] },
-      { id: 'p1l2', title: 'Sí y no', goal: 'Responde sí, no, vale y no se puede.', words: ['chai', 'maichai', 'mai_neg', 'dai', 'maidai'], sentences: ['a5', 'a6'] },
+      { id: 'p1l1', title: 'Hola y gracias', goal: 'Saluda y da las gracias, primero de oído.', words: ['sawatdii', 'khopkhun'], sentences: ['a1', 'a2'], extra: { kind: 'dialogo', id: 'd0' } },
+      { id: 'p1l2', title: 'Sí, no y no pasa nada', goal: 'Responde con cortesía: sí, no, vale y no pasa nada.', words: ['khrap', 'kha', 'chai', 'maichai', 'mai_neg', 'dai', 'maidai', 'maipenrai'], sentences: ['a3', 'a5', 'a6'] },
       { id: 'p1l3', title: '¿Cómo te llamas?', goal: 'Preséntate y pregunta el nombre.', words: ['phom', 'chan', 'khun', 'chue', 'arai'], sentences: ['a7', 'a8'] },
       { id: 'p1l4', title: '¿Qué tal?', goal: 'Pregunta cómo están, devuelve la pregunta y despídete.', words: ['sabaidii', 'mai_q', 'laeokhunla', 'yindii', 'khothot', 'laeojoegan', 'paigonna'], sentences: ['a9', 'a10', 'a41', 'a11', 'a42'] },
       { id: 'p1l5', title: 'No entiendo', goal: 'Lo que salva cualquier conversación: no entiendo, ¿otra vez?, más despacio.', words: ['khaojai', 'phuut', 'iikthii', 'chaachaa', 'noi_bit', 'plae', 'waa', 'nitnoi'], sentences: ['a43', 'a44', 'a45', 'a46'] },

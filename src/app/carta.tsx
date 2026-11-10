@@ -9,7 +9,7 @@ import { Icon } from '@/components/icons';
 import { Noi } from '@/components/Noi';
 import { MistBand } from '@/components/Scenery';
 import { Bar, Btn, Rom, Th, Txt } from '@/components/ui';
-import { REPLY_LESSON, letterProgress } from '@/content';
+import { letterProgress } from '@/content';
 import { YAI_LETTER, type LetterToken } from '@/content/yai';
 import { fx, say, stopSpeech } from '@/lib/audio';
 import { useStore } from '@/lib/store';
@@ -115,7 +115,9 @@ export default function Carta() {
           <View style={[styles.card, { flex: 1, marginBottom: 12 }]}>
             <Txt v="bodyStrong" style={{ fontSize: 14 }}>
               {prog.pct >= 100
-                ? '¡La entiendes entera! Ya puedes contestarle a Yai.'
+                ? p.reply
+                  ? 'Yai ya tiene tu carta. Le ha hecho muy feliz.'
+                  : '¡La entiendes entera! Ya puedes escribirle tu respuesta.'
                 : `La niebla se despeja palabra a palabra. Te faltan ${missing}. Toca las palabras claras para oírlas.`}
             </Txt>
           </View>
@@ -124,10 +126,10 @@ export default function Carta() {
       <View style={{ paddingHorizontal: 20, paddingBottom: Math.max(insets.bottom, 16) + 8, gap: 10 }}>
         <Btn v="blue" label={reading ? 'Parar' : 'Escuchar la voz de Yai'} onPress={readAll} silent icon={<Icon name={reading ? 'pause' : 'play'} size={20} color="#FFFFFF" />} />
         <Btn
-          label={prog.pct >= 100 ? 'Responder a Yai' : 'Responder a Yai · al 100 %'}
-          disabled={prog.pct < 100}
-          onPress={() => router.push(`/leccion/${REPLY_LESSON.id}`)}
-          icon={prog.pct >= 100 ? undefined : <Icon name="lock" size={18} color={color.tinta3} />}
+          label={p.reply ? 'Ver tu respuesta y la de Yai' : prog.pct >= 100 ? 'Escribir a Yai' : 'Escribir a Yai · al 100 %'}
+          disabled={prog.pct < 100 && !p.reply}
+          onPress={() => router.push('/respuesta')}
+          icon={prog.pct >= 100 || p.reply ? undefined : <Icon name="lock" size={18} color={color.tinta3} />}
         />
       </View>
     </View>

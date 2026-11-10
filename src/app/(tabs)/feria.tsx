@@ -19,10 +19,11 @@ import { useStore } from '@/lib/store';
 
 const CATS: ('Todos' | GameCategory)[] = ['Todos', 'Palabras', 'Oído y tonos', 'Frases', 'Vida real', 'Letras'];
 
-/** Juego del día: cambia cada día y da ×2 plátanos. */
-export function gameOfTheDay(): GameMeta {
+/** Juego del día: cambia cada día, da ×2 plátanos y siempre es uno de los puestos que ya están abiertos. */
+export function gameOfTheDay(reached: number): GameMeta {
   const k = todayKey().split('-').reduce((a, b) => a + Number(b), 0);
-  const pool = GAMES.filter((g) => g.unlock <= 2);
+  const open = GAMES.filter((g) => g.unlock <= reached);
+  const pool = open.length ? open : GAMES.filter((g) => g.unlock <= 1);
   return pool[k % pool.length];
 }
 
@@ -32,7 +33,7 @@ export default function Feria() {
   const insets = useSafeAreaInsets();
   const [cat, setCat] = useState<(typeof CATS)[number]>('Todos');
   const reached = Math.max(p.profile.startStop, currentLesson(p).stop.n);
-  const daily = gameOfTheDay();
+  const daily = gameOfTheDay(reached);
   const list = GAMES.filter((g) => cat === 'Todos' || g.cat === cat);
 
   return (

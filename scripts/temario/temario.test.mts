@@ -100,3 +100,48 @@ describe('vocabulario: qué se ha enseñado ya', () => {
     assert.deepEqual(voc.desconocidas('เด็กๆ กิน'), ['กิน']);
   });
 });
+
+describe('lecciones: nada se pregunta antes de presentarse', async () => {
+  const { cargarTemario } = await import('./lib/cargar.mts');
+  const { app } = await cargarTemario();
+  const { buildLesson, introducedIds } = await import('../../src/lib/lesson.ts');
+
+  test('la primera curva presenta dos expresiones, practica de oído y cierra con un saludo', () => {
+    const p = { words: { sawatdii: { s: 1, intro: true } }, completed: {}, profile: { startStop: 1 } };
+    const b = buildLesson(app.LESSONS[0], p);
+    assert.equal(b.firstCurve, true);
+    assert.deepEqual(
+      b.steps.map((s) => (s.kind === 'intro' ? `ficha:${s.word.id}` : s.game)),
+      ['ficha:sawatdii', 'ficha:khopkhun', 'oido', 'eco', 'cena'],
+    );
+    for (const s of b.steps) if (s.kind === 'game') assert.deepEqual((s.words ?? []).map((w) => w.id).sort(), ['khopkhun', 'sawatdii']);
+  });
+
+  test('recorriendo las 164 lecciones en orden, cada juego solo usa palabras ya presentadas', () => {
+    const words: Record<string, { s: number; intro?: boolean }> = { sawatdii: { s: 1, intro: true } };
+    const completed: Record<string, { stars: number; best: number; at: string }> = {};
+    const p = { words, completed, profile: { startStop: 1 } };
+    for (const l of app.LESSONS) {
+      const b = buildLesson(l, p);
+      const shown = introducedIds(p);
+      for (const s of b.steps) {
+        if (s.kind === 'intro') {
+          shown.add(s.word.id);
+          continue;
+        }
+        const usados = [...(s.words ?? b.words), ...(s.focus ?? b.focus)];
+        const sinFicha = usados.filter((w) => !shown.has(w.id)).map((w) => w.id);
+        assert.deepEqual(sinFicha, [], `${l.id} · ${s.game}: usa palabras sin ficha`);
+      }
+      // al terminar la lección, sus palabras quedan presentadas
+      for (const id of l.words) words[id] = { s: 1, intro: true };
+      completed[l.id] = { stars: 3, best: 1, at: '' };
+    }
+  });
+
+  test('una palabra respondida en un juego, pero sin ficha, sigue teniendo su ficha en la lección', () => {
+    const p = { words: { sawatdii: { s: 1, intro: true }, maipenrai: { s: 0 } }, completed: { p1l1: { stars: 3, best: 1, at: '' } }, profile: { startStop: 1 } };
+    const b = buildLesson(app.LESSONS[1], p);
+    assert.ok(b.steps.some((s) => s.kind === 'intro' && s.word.id === 'maipenrai'));
+  });
+});

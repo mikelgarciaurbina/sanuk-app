@@ -8,22 +8,24 @@ import type { Dialogue, Sentence, Stop, Story, Word } from '../../../src/content
 
 export const CONTENIDO = new URL('../../../src/content/', import.meta.url);
 
-// El temario importa sin extensión ('./stops-a'), como permite Metro; Node necesita la ruta exacta.
-// Además se marca cada .ts como módulo ES para que Node no tenga que adivinarlo (y no avise por ello).
+// El temario importa sin extensión ('./stops-a') y con el alias '@/' (src/), como permite Metro; Node necesita
+// la ruta exacta. Además se marca cada .ts como módulo ES para que Node no tenga que adivinarlo (y no avise).
+const SRC = new URL('../../../src/', import.meta.url);
 registerHooks({
   resolve(especificador, contexto, siguiente) {
+    const spec = especificador.startsWith('@/') ? new URL(especificador.slice(2), SRC).href : especificador;
     let r: ReturnType<typeof siguiente> | undefined;
-    if (/^\.{1,2}\//.test(especificador) && !/\.[cm]?[jt]sx?$/.test(especificador)) {
+    if (/^(\.{1,2}\/|file:)/.test(spec) && !/\.[cm]?[jt]sx?$/.test(spec)) {
       for (const ext of ['.ts', '/index.ts']) {
         try {
-          r = siguiente(especificador + ext, contexto);
+          r = siguiente(spec + ext, contexto);
           break;
         } catch {
           // probamos la siguiente forma
         }
       }
     }
-    r ??= siguiente(especificador, contexto);
+    r ??= siguiente(spec, contexto);
     return r.url.endsWith('.ts') ? { ...r, format: 'module-typescript' } : r;
   },
 });

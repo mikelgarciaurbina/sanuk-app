@@ -6,7 +6,7 @@ import type { Stop } from '../../src/content/types.ts';
 import { cargarTemario, type ConOrigen } from './lib/cargar.mts';
 import { comprobarTonos } from './lib/tonos.mts';
 import { cargarFrecuencias, crearDiccionario, Vocabulario } from './lib/vocabulario.mts';
-import { ANTES_DE_TIEMPO, CONOCIDAS_DE_INICIO, GRUPOS_DE_LETRAS_ESPECIALES, HOMOGRAFOS, type Rango, reglasDe } from './reglas.mts';
+import { ANTES_DE_TIEMPO, CONOCIDAS_DE_INICIO, GRUPOS_DE_LETRAS_ESPECIALES, HOMOGRAFOS, type Rango, reglasDe, TAMANOS_ESPECIALES } from './reglas.mts';
 
 type Seccion = { titulo: string; errores: string[]; avisos: string[]; nota?: string };
 const secciones: Seccion[] = [];
@@ -157,6 +157,7 @@ const fuera = (s: Seccion, [min, max]: Rango, n: number, que: string, tt: number
     st.lessons.forEach((l, i) => {
       if (l.id !== `${st.id}l${i + 1}`) s.errores.push(`lección ${l.id}: debería llamarse ${st.id}l${i + 1}`);
       if (!l.title?.trim() || !l.goal?.trim()) s.errores.push(`lección ${l.id}: falta el título o el objetivo`);
+      if (TAMANOS_ESPECIALES[l.id]) return;
       fuera(s, r.palabrasPorLeccion, l.words.length, `lección ${l.id}: ${l.words.length} palabras`, tt);
       const nf = (l.sentences ?? []).length;
       fuera(s, r.frasesPorLeccion, nf, `lección ${l.id}: ${nf} frases`, tt);

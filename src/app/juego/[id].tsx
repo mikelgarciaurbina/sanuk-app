@@ -9,7 +9,7 @@ import { color, shadow } from '@/brand/tokens';
 import { Art } from '@/components/icons';
 import { Noi } from '@/components/Noi';
 import { Btn, Hud, Txt } from '@/components/ui';
-import { DIALOGUES, STORIES, playPool, SENTENCES } from '@/content';
+import { DIALOGUES, STORIES, currentLesson, playPool, SENTENCES } from '@/content';
 import type { GameId, LessonExtra } from '@/content/types';
 import { Backdrop } from '@/games/Backdrop';
 import { Floaty, GameFrame, Glow, useJuice } from '@/games/fx';
@@ -49,6 +49,9 @@ export default function Juego() {
   };
 
   if (!meta || !Game) return null;
+  // un puesto cerrado no se abre ni desde el juego del día ni con un enlace
+  const reached = Math.max(p.profile.startStop, currentLesson(p).stop.n);
+  if (meta.unlock > reached) return <Locked name={meta.name} unlock={meta.unlock} onClose={close} />;
   const bg = GAME_BG[id] ?? color.niebla;
   const dark = !!GAME_DARK[id];
 
@@ -104,6 +107,20 @@ export default function Juego() {
       </View>
       </GameFrame.Provider>
       <View style={{ height: insets.bottom }} />
+    </View>
+  );
+}
+
+/** Puesto aún cerrado: se abre al llegar a su parada del camino. */
+function Locked({ name, unlock, onClose }: { name: string; unlock: number; onClose: () => void }) {
+  const insets = useSafeAreaInsets();
+  return (
+    <View style={{ flex: 1, backgroundColor: color.niebla, paddingTop: insets.top + 40, paddingHorizontal: 24, paddingBottom: Math.max(insets.bottom, 16) + 8, gap: 16, alignItems: 'center' }}>
+      <Noi pose="piensa" size={170} />
+      <Txt v="h1" style={{ textAlign: 'center' }}>{name}</Txt>
+      <Txt style={{ textAlign: 'center' }}>Este puesto de la feria se abre en la parada {unlock} del camino. ¡Sigue avanzando y nos vemos allí!</Txt>
+      <View style={{ flex: 1 }} />
+      <Btn label="Volver a la feria" onPress={onClose} style={{ alignSelf: 'stretch' }} />
     </View>
   );
 }

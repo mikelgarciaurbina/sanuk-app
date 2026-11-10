@@ -6,7 +6,7 @@ Tres órdenes, desde `app/`. Necesitan Node 22.18 o más nuevo, que ejecuta Type
 | --- | --- |
 | `npm run temario` | Revisa todo el temario que carga la app. Termina con código 1 si hay errores. Con `-- --todo` no recorta las listas largas. |
 | `npm run temario:nivel` | Informe de nivel al acabar cada temporada. Con `-- --faltan 100` lista las palabras más frecuentes que aún no enseña ninguna lección. |
-| `npm run temario:test` | Pruebas de los propios revisores. |
+| `npm run temario:test` | Pruebas de los propios revisores y del orden de las lecciones: recorre las 164 como un alumno y comprueba que ningún juego pregunta una palabra antes de su ficha. |
 
 Los errores (❌) hay que arreglarlos. Los avisos (⚠️) se aceptan si tienen sentido.
 

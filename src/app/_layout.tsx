@@ -11,7 +11,7 @@ import { Stack } from 'expo-router/stack';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { Platform, View } from 'react-native';
+import { Platform, View, useWindowDimensions } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -31,6 +31,9 @@ function AudioSettings() {
 
 function Root() {
   const { ready } = useStore();
+  const { width } = useWindowDimensions();
+  // en la web, en tablets y en pantallas anchas (plegables abiertos) la app va en una columna centrada
+  const maxWidth = Platform.OS === 'web' ? 520 : width >= 700 ? 600 : undefined;
   const [fontsLoaded, fontError] = useFonts({
     Fredoka_600SemiBold,
     Fredoka_700Bold,
@@ -56,7 +59,7 @@ function Root() {
       <AudioSettings />
       <StatusBar style="dark" />
       <View style={{ flex: 1, backgroundColor: color.niebla2 }}>
-      <View style={{ flex: 1, width: '100%', maxWidth: Platform.OS === 'web' ? 520 : undefined, alignSelf: 'center', overflow: 'hidden', backgroundColor: color.niebla }}>
+      <View style={{ flex: 1, width: '100%', maxWidth, alignSelf: 'center', overflow: 'hidden', backgroundColor: color.niebla }}>
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: color.niebla }, animation: 'slide_from_right' }}>
         <Stack.Screen name="index" options={{ animation: 'none' }} />
         <Stack.Screen name="onboarding" options={{ animation: 'fade', gestureEnabled: false }} />
@@ -64,6 +67,7 @@ function Root() {
         <Stack.Screen name="leccion/[id]" options={{ animation: 'slide_from_bottom', gestureEnabled: false }} />
         <Stack.Screen name="juego/[id]" options={{ animation: 'slide_from_bottom', gestureEnabled: false }} />
         <Stack.Screen name="carta" options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="respuesta" options={{ animation: 'slide_from_bottom' }} />
       </Stack>
       </View>
       </View>
