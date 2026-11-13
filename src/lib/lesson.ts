@@ -1,6 +1,7 @@
-import { LESSONS, WORDS, introducedIds, knownForms, sentencesOf, wordsOf, type LessonRef } from '@/content';
-import { bodyCommandsFor, minimalSetsFor } from '@/content/drills';
-import type { GameId, Sentence, Word } from '@/content/types';
+import { LESSONS, WORDS, introducedIds, knownForms, patternsOf, sentencesOf, wordsOf, type LessonRef } from '@/content';
+import { bodyCommandsFor } from '@/content/drills';
+import type { GameId, Pattern, Sentence, Word } from '@/content/types';
+import { toneFamilies } from '@/games/tonos/familias';
 import { shuffle } from '@/lib/random';
 import { syllables } from '@/lib/thai';
 
@@ -8,7 +9,13 @@ import { syllables } from '@/lib/thai';
  * Un paso de la lección. Los juegos pueden traer sus propias `words` y `focus`: entre tandas de fichas,
  * solo las palabras que ya se han presentado (nunca se pregunta una palabra antes de enseñar su ficha).
  */
-export type Step = { kind: 'intro'; word: Word } | { kind: 'game'; game: GameId; rounds: number; words?: Word[]; focus?: Word[] };
+export type Step =
+  /** el momento de la historia con el que empieza la lección */
+  | { kind: 'beat' }
+  | { kind: 'intro'; word: Word }
+  /** gramática en un minuto, justo antes de practicar las frases */
+  | { kind: 'patron'; pattern: Pattern }
+  | { kind: 'game'; game: GameId; rounds: number; words?: Word[]; focus?: Word[] };
 
 export type BuiltLesson = {
   steps: Step[];
@@ -42,8 +49,9 @@ export function buildLesson(lesson: LessonRef, p: ProgressLike): BuiltLesson {
 
   // Primera curva: Noi presenta dos expresiones con audio e imagen, se practican de oído y en voz alta,
   // y la lección se cierra con un saludo de dos turnos. La escritura llega en las lecciones siguientes.
+  const opening: Step[] = lesson.beat ? [{ kind: 'beat' }] : [];
   if (lesson.index === 0) {
-    const steps: Step[] = focus.map((word) => ({ kind: 'intro', word }));
+    const steps: Step[] = [...opening, ...focus.map((word): Step => ({ kind: 'intro', word }))];
     steps.push({ kind: 'game', game: 'oido', rounds: 3, words: focus, focus });
     steps.push({ kind: 'game', game: 'eco', rounds: 2, words: focus, focus });
     if (lesson.extra?.kind === 'dialogo') steps.push({ kind: 'game', game: 'cena', rounds: 1, words: focus, focus });
@@ -53,7 +61,7 @@ export function buildLesson(lesson: LessonRef, p: ProgressLike): BuiltLesson {
   const fresh = focus.filter((w) => !known.has(w.id));
   let shown = focus.filter((w) => known.has(w.id));
   const words = [...focus, ...base];
-  const steps: Step[] = [];
+  const steps: Step[] = [...opening];
 
   // 1) descubrir las palabras nuevas por tandas; tras cada tanda, un juego corto solo con lo ya presentado
   const chunks: Word[][] = [];
@@ -80,15 +88,23 @@ export function buildLesson(lesson: LessonRef, p: ProgressLike): BuiltLesson {
   if (x?.kind === 'cuerpo' && bodyCommandsFor(forms).length >= 2) steps.push({ kind: 'game', game: 'noidice', rounds: 5 });
   if (x?.kind === 'tonos') {
     steps.push({ kind: 'game', game: 'tonos', rounds: 4 });
-    if (minimalSetsFor(forms).length) steps.push({ kind: 'game', game: 'tigre', rounds: 2 });
+    // pares que solo cambian de tono: los preparados y los que salen del vocabulario ya presentado
+    if (toneFamilies(words).length) steps.push({ kind: 'game', game: 'tigre', rounds: 3 });
   }
   if (x?.kind === 'letras') {
-    if (x.set === 'silabas' || x.set === 'vocales') steps.push({ kind: 'game', game: 'silabas', rounds: 3 });
-    if (x.set !== 'silabas') steps.push({ kind: 'game', game: 'cueva', rounds: 4 });
-    if (x.set === 'media' || x.set === 'baja' || x.set === 'alta') steps.push({ kind: 'game', game: 'traza', rounds: 1 });
+    const vowels = x.set === 'vocales' || x.set === 'cortas' || x.set === 'compuestas';
+    // consonantes: se buscan en la cueva y se trazan · vocales: se buscan y se montan en sílabas ·
+    // sílabas: se construye lo que se oye · reglas: se lee la sílaba y se dice su tono
+    if (x.set === 'silabas' || x.set === 'reglas') steps.push({ kind: 'game', game: 'silabas', rounds: 4 });
+    else {
+      steps.push({ kind: 'game', game: 'cueva', rounds: 4 });
+      if (vowels) steps.push({ kind: 'game', game: 'silabas', rounds: 3 });
+      else steps.push({ kind: 'game', game: 'traza', rounds: 3 });
+    }
   }
 
-  // 4) frases
+  // 4) gramática en un minuto y, enseguida, las frases que la usan
+  for (const pattern of patternsOf(lesson.patterns)) steps.push({ kind: 'patron', pattern });
   if (sentences.length) {
     steps.push({ kind: 'game', game: 'puente', rounds: Math.min(2, sentences.length) });
     if (sentences.length >= 2) steps.push({ kind: 'game', game: 'hueco', rounds: Math.min(2, sentences.length) });
@@ -96,7 +112,7 @@ export function buildLesson(lesson: LessonRef, p: ProgressLike): BuiltLesson {
 
   // 5) tonos si hay palabras de una sílaba y la lección no es ya de tonos
   const mono = focus.filter((w) => syllables(w.rom).length === 1);
-  if (x?.kind !== 'tonos' && mono.length >= 2 && lesson.index % 2 === 1) steps.push({ kind: 'game', game: 'tonos', rounds: 3 });
+  if (x?.kind !== 'tonos' && mono.length >= 2 && lesson.index >= 3 && lesson.index % 2 === 1) steps.push({ kind: 'game', game: 'tonos', rounds: 3 });
 
   // 6) un juego de la feria que va rotando, y a veces practicar la voz
   for (const g of ROTATION[lesson.index % ROTATION.length]) steps.push({ kind: 'game', ...g });

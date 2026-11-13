@@ -2,9 +2,15 @@ import type { ToneId } from '@/brand/tokens';
 
 export type Gender = 'm' | 'f';
 
-/** Divide la transcripción en sílabas (guiones, espacios y puntos medios separan). */
+/** Algo que se pronuncia: una letra latina o fonética (a–z, ɛ ɔ ʉ ə…), con o sin tilde de tono. */
+const SOUND = /[A-Za-z\u00C0-\u02AF]/;
+
+/**
+ * Divide la transcripción en sílabas (guiones, espacios y puntos medios separan). Los puntos suspensivos de los
+ * moldes («ทั้ง…และ…» = «tháng … lɛ́») no son sílabas: sin esto contaban como una sílaba de tono medio.
+ */
 export function syllables(rom: string): string[] {
-  return rom.split(/[-\s·]+/).filter(Boolean);
+  return rom.split(/(?:[-\s·…]|\.{3})+/).filter((s) => SOUND.test(s));
 }
 
 /** Tono de una sílaba a partir de su tilde (NFD): ` bajo, ^ descendente, ´ alto, ˇ ascendente, sin tilde medio. */
@@ -18,6 +24,44 @@ export function toneOfSyllable(s: string): ToneId {
 }
 
 export const tonesOf = (rom: string): ToneId[] => syllables(rom).map(toneOfSyllable);
+
+/** La transcripción sin las tildes de tono: lo que queda igual en «mâi», «mài» y «mǎi». */
+export function stripTones(rom: string): string {
+  return rom.normalize('NFD').replace(/[\u0300\u0301\u0302\u030C]/g, '').normalize('NFC');
+}
+
+/** Una sílaba partida en ataque (consonantes iniciales) y rima (vocal y final), sin tono: «khâao» → kh + aao. */
+export function soundParts(syllable: string): { onset: string; rhyme: string } {
+  const s = stripTones(syllable).toLowerCase();
+  const v = s.search(/[aeiouɛɔʉə]/);
+  return v < 0 ? { onset: s, rhyme: '' } : { onset: s.slice(0, v), rhyme: s.slice(v) };
+}
+
+/**
+ * Cuánto se parecen al oído dos palabras (0–1), por sus transcripciones: 1 = solo cambia el tono (o ni eso);
+ * suman las sílabas con la misma rima o el mismo ataque en la misma posición. Sirve para elegir distractores que
+ * obliguen a escuchar («khâao» frente a «khǎao» o «khâo», no frente a «sà-wàt-dii»).
+ */
+export function soundCloseness(a: string, b: string): number {
+  const A = syllables(a).map(soundParts);
+  const B = syllables(b).map(soundParts);
+  if (!A.length || !B.length) return 0;
+  const sim = (x: (typeof A)[number], y: (typeof A)[number]) => {
+    if (x.onset === y.onset && x.rhyme === y.rhyme) return 1;
+    let s = 0;
+    if (x.rhyme === y.rhyme) s += 0.6;
+    else if (x.rhyme[0] === y.rhyme[0]) s += x.rhyme.replace(/(.)\1/g, '$1') === y.rhyme.replace(/(.)\1/g, '$1') ? 0.5 : 0.2;
+    if (x.onset === y.onset) s += 0.3;
+    else if (x.onset[0] === y.onset[0]) s += 0.15;
+    return s;
+  };
+  const n = Math.max(A.length, B.length);
+  let total = 0;
+  // sílaba a sílaba desde el principio y, si no miden lo mismo, también las últimas entre sí
+  for (let i = 0; i < Math.min(A.length, B.length); i++) total += sim(A[i], B[i]);
+  if (A.length !== B.length) total = Math.max(total, sim(A[A.length - 1], B[B.length - 1]) + sim(A[0], B[0]) * (Math.min(A.length, B.length) > 1 ? 1 : 0));
+  return Math.min(1, total / n);
+}
 
 const PARTICLE = { m: { P: 'ครับ', PQ: 'ครับ', I: 'ผม' }, f: { P: 'ค่ะ', PQ: 'คะ', I: 'ฉัน' } } as const;
 const PARTICLE_ROM = { m: { P: 'khráp', PQ: 'khráp', I: 'phǒm' }, f: { P: 'khâ', PQ: 'khá', I: 'chǎn' } } as const;

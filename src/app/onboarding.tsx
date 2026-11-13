@@ -39,7 +39,7 @@ const LEVELS: { start: number; title: string; sub: string }[] = [
   { start: 1, title: 'Nada de nada', sub: 'Empiezas en Chiang Mai, curva 0' },
   { start: 3, title: 'Unas palabras sueltas', sub: 'sawatdee, khop khun… · empiezas en Mae Taeng' },
   { start: 5, title: 'Me defiendo hablando', sub: 'Pido comida, saludo, pregunto · empiezas en Pai' },
-  { start: 6, title: 'Leo algo del alfabeto', sub: 'Empiezas en la cueva Tham Lod' },
+  { start: 8, title: 'Ya leo el alfabeto', sub: 'Empiezas en el puente de los tonos, Su Tong Pae' },
   ...(HAS_SEASON_2 ? [{ start: SEASON_2_STOPS[0].n, title: 'Ya converso en thai', sub: 'Saltas a la temporada 2: un año en el pueblo, hacia el B1' }] : []),
 ];
 
@@ -266,7 +266,7 @@ function Story({ onNext, onSkip }: { onNext: () => void; onSkip: () => void }) {
       <Animated.View entering={FadeInDown.delay(200)} style={{ gap: 10 }}>
         <Txt v="eyebrow">Capítulo 0 · La invitación</Txt>
         <Txt v="h1">En Chiang Mai, tu pareja te hace una invitación.</Txt>
-        <Txt>«Ven a conocer a mi familia.» Viven en lo alto de Mae Hong Son, donde la niebla se queda a dormir, en una casa de teca. Todavía no hablan tu idioma. Tú todavía no hablas el suyo.</Txt>
+        <Txt>«Ven a conocer a mi familia. Yo subo antes para prepararlo todo.» Viven en lo alto de Mae Hong Son, donde la niebla se queda a dormir, en una casa de teca. Todavía no hablan tu idioma. Tú todavía no hablas el suyo.</Txt>
       </Animated.View>
     </Page>
   );
@@ -341,7 +341,7 @@ function MeetNoi({ onNext }: { onNext: () => void }) {
       </View>
       <View style={{ gap: 8, alignItems: 'center' }}>
         <Txt v="h1" style={{ textAlign: 'center' }}>Mi nombre significa «pequeña».</Txt>
-        <Txt style={{ textAlign: 'center' }}>Peso 1.200 kilos y me sé las 1.864 curvas de memoria. Yo te llevo hasta la casa de Yai.</Txt>
+        <Txt style={{ textAlign: 'center' }}>Peso 1.200 kilos y me sé las 1.864 curvas de memoria. Yo te llevo hasta la casa de Yai, donde te espera tu pareja con toda la familia.</Txt>
       </View>
       {heard ? (
         <Animated.View entering={FadeInDown.springify()} style={[styles.card, { flexDirection: 'row', alignItems: 'center', gap: 12 }]}>

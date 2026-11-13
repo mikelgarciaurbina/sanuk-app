@@ -1,16 +1,22 @@
 // Carta de Memoria del templo: dorso Lanna (oro sobre laca roja para el thai, sobre índigo mo hom para el
 // español), cara de papel de arroz, reparto en abanico, volteo 3D con elevación y salida flotando al acertar.
+// Al emparejarse, cada carta enseña también la otra mitad (thai + significado). Las cartas «de oído» no llevan
+// escritura: hay que voltearlas y escuchar.
 import { useEffect, useId } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 import Svg, { Circle, Defs, G, LinearGradient, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 
-import { font } from '@/brand/tokens';
+import { color, font } from '@/brand/tokens';
+import { Icon } from '@/components/icons';
 import { Rom, Th } from '@/components/ui';
 import type { Word } from '@/content/types';
 
+import { fitTh } from '../palabras/common';
+
 export type Side = 'th' | 'es';
-export type CardData = { key: string; pair: string; side: Side; word: Word };
+/** `audio`: carta thai «de oído» (sin escritura hasta que se empareja). */
+export type CardData = { key: string; pair: string; side: Side; word: Word; audio?: boolean };
 
 const LACA = { center: '#D9452F', edge: '#741212', line: '#8F1F23' };
 const INDIGO = { center: '#4258C4', edge: '#151C58', line: '#2B3A86' };
@@ -67,14 +73,17 @@ function Back({ side, u }: { side: Side; u: string }) {
   );
 }
 
-/** Cara de la carta: papel de arroz con filete del color de su dorso. */
-function Face({ card, u, w, matched }: { card: CardData; u: string; w: number; matched: boolean }) {
+/**
+ * Cara de la carta: papel de arroz con filete del color de su dorso. Emparejada (`matched`) enseña también su otra
+ * mitad: la thai, su significado; la española, cómo se escribe en thai.
+ */
+function Face({ card, u, w, matched, showRom, reveal }: { card: CardData; u: string; w: number; matched: boolean; showRom: boolean; reveal: boolean }) {
   const c = card.side === 'th' ? LACA : INDIGO;
   const small = w < 92;
-  const len = card.word.th.length;
-  const thSize = small ? (len > 8 ? 13 : len > 5 ? 16 : 20) : len > 8 ? 17 : len > 5 ? 21 : 26;
+  const fit = fitTh(card.word.th, w - 16, small ? 20 : 26, 10.5);
   const es = card.word.es;
   const esSize = small ? (es.length > 22 ? 10.5 : es.length > 12 ? 12 : 13.5) : es.length > 22 ? 12.5 : 15;
+  const heard = !!card.audio && !matched && !reveal;
   return (
     <View style={[StyleSheet.absoluteFill, styles.round, styles.face, { borderColor: matched ? '#FFC83D' : '#E9B44C' }]}>
       <Svg width="100%" height="100%" style={StyleSheet.absoluteFill}>
@@ -89,18 +98,37 @@ function Face({ card, u, w, matched }: { card: CardData; u: string; w: number; m
       </Svg>
       <View style={styles.faceIn}>
         {card.side === 'th' ? (
-          <>
-            <Th size={thSize} bold numberOfLines={1} style={{ color: '#3A1F0B', lineHeight: Math.round(thSize * 1.5) }}>
-              {card.word.th}
-            </Th>
-            {w >= 70 ? <Rom rom={card.word.rom} size={small ? 10 : 12} /> : null}
-          </>
+          heard ? (
+            <>
+              <View style={[styles.ear, small ? { width: 38, height: 38, borderRadius: 19 } : null]}>
+                <Icon name="speaker" size={small ? 20 : 26} color="#FFFFFF" />
+              </View>
+              <Text style={styles.earText}>de oído</Text>
+            </>
+          ) : (
+            <>
+              <Th size={fit.size} bold numberOfLines={fit.lines} style={{ color: '#3A1F0B', lineHeight: Math.round(fit.size * 1.5), textAlign: 'center' }}>
+                {card.word.th}
+              </Th>
+              {showRom || matched ? <Rom rom={card.word.rom} size={w < 70 ? 9.5 : small ? 10 : 12} style={{ textAlign: 'center' }} /> : null}
+              {matched ? (
+                <Text numberOfLines={2} style={[styles.half, { fontSize: small ? 10.5 : 12, lineHeight: small ? 12.5 : 14.5 }]}>
+                  {es}
+                </Text>
+              ) : null}
+            </>
+          )
         ) : (
           <>
             {card.word.emoji && w >= 64 ? <Text style={{ fontSize: small ? 20 : 26, lineHeight: small ? 26 : 34 }}>{card.word.emoji}</Text> : null}
-            <Text numberOfLines={3} style={[styles.es, { fontSize: esSize, lineHeight: esSize * 1.2 }]}>
+            <Text numberOfLines={matched ? 2 : 3} style={[styles.es, { fontSize: esSize, lineHeight: esSize * 1.2 }]}>
               {es}
             </Text>
+            {matched ? (
+              <Th size={small ? 12 : 14} bold numberOfLines={1} style={{ color: color.arrozalHondo, lineHeight: small ? 18 : 21 }}>
+                {card.word.th}
+              </Th>
+            ) : null}
           </>
         )}
       </View>
@@ -123,6 +151,8 @@ export function Carta({
   dealDelay,
   flipDelay,
   disabled,
+  showRom,
+  reveal,
   onPress,
 }: {
   card: CardData;
@@ -138,6 +168,10 @@ export function Carta({
   dealDelay: number;
   flipDelay: number;
   disabled: boolean;
+  /** transcripción bajo el thai (siempre mientras no se sabe leer) */
+  showRom: boolean;
+  /** fin de la partida: las cartas de oído enseñan su escritura */
+  reveal: boolean;
   onPress: () => void;
 }) {
   const u = useId().replace(/[^a-zA-Z0-9]/g, '');
@@ -189,7 +223,17 @@ export function Carta({
       <Animated.View pointerEvents="none" style={[styles.halo, { borderRadius: 16 }, halo]} />
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={open || matched ? (card.side === 'th' ? `Thai: ${card.word.th}` : card.word.es) : card.side === 'th' ? 'Carta roja (thai) boca abajo' : 'Carta azul (español) boca abajo'}
+        accessibilityLabel={
+          open || matched
+            ? card.side === 'th'
+              ? card.audio && !matched && !reveal
+                ? 'Carta thai de oído'
+                : `Thai: ${card.word.th}`
+              : card.word.es
+            : card.side === 'th'
+              ? 'Carta roja (thai) boca abajo'
+              : 'Carta azul (español) boca abajo'
+        }
         disabled={disabled || open || matched}
         onPressIn={() => press.set(withTiming(1, { duration: 70 }))}
         onPressOut={() => press.set(withSpring(0, { damping: 10, stiffness: 260 }))}
@@ -201,7 +245,7 @@ export function Carta({
             <Text style={styles.backTag}>{card.side === 'th' ? 'ไทย' : 'ESP'}</Text>
           </Animated.View>
           <Animated.View style={[StyleSheet.absoluteFill, styles.lifted, { backgroundColor: '#FCEBC6' }, face]}>
-            <Face card={card} u={u} w={w} matched={matched} />
+            <Face card={card} u={u} w={w} matched={matched} showRom={showRom} reveal={reveal} />
           </Animated.View>
         </Animated.View>
       </Pressable>
@@ -230,6 +274,9 @@ const styles = StyleSheet.create({
   face: { borderWidth: 2 },
   faceIn: { position: 'absolute', left: 4, right: 4, top: 4, bottom: 8, alignItems: 'center', justifyContent: 'center', gap: 1 },
   es: { fontFamily: font.uiHeavy, color: '#1D2347', textAlign: 'center' },
+  half: { fontFamily: font.uiHeavy, color: color.arrozalHondo, textAlign: 'center' },
+  ear: { width: 46, height: 46, borderRadius: 23, backgroundColor: color.cielo, alignItems: 'center', justifyContent: 'center', borderBottomWidth: 3, borderColor: color.cieloHondo },
+  earText: { fontFamily: font.uiHeavy, fontSize: 10.5, letterSpacing: 0.4, color: '#8F1F23', marginTop: 3 },
   tag: { position: 'absolute', left: '35%', right: '35%', bottom: 4, height: 3, borderRadius: 2, opacity: 0.6 },
   backTag: { position: 'absolute', left: 0, right: 0, bottom: '7%', textAlign: 'center', fontFamily: font.uiHeavy, fontSize: 10, letterSpacing: 1.5, color: '#FFE7A8' },
   lifted: { borderRadius: 10, shadowColor: '#5A2A10', shadowOpacity: 0.35, shadowRadius: 6, shadowOffset: { width: 0, height: 4 }, elevation: 4 },

@@ -1,14 +1,16 @@
 import { DIALOGUES_A } from './dialogues';
 import { DIALOGUES_B } from './dialogues-b';
-import { STOPS_A, SENTENCES_A, WORDS_A } from './stops-a';
-import { STOPS_B, SENTENCES_B, WORDS_B } from './stops-b';
-import { DIALOGUES_S2A, SENTENCES_S2A, STOPS_S2A, STORIES_S2A, WORDS_S2A } from './season2/meses-a';
-import { DIALOGUES_S2B, SENTENCES_S2B, STOPS_S2B, STORIES_S2B, WORDS_S2B } from './season2/meses-b';
-import { DIALOGUES_S2C, SENTENCES_S2C, STOPS_S2C, STORIES_S2C, WORDS_S2C } from './season2/meses-c';
-import { DIALOGUES_S2D, SENTENCES_S2D, STOPS_S2D, STORIES_S2D, WORDS_S2D } from './season2/meses-d';
+import { PATTERNS_A } from './patterns-a';
+import { PATTERNS_B } from './patterns-b';
+import { RENAMED_A, STOPS_A, SENTENCES_A, WORDS_A } from './stops-a';
+import { RENAMED_B, STOPS_B, SENTENCES_B, WORDS_B } from './stops-b';
+import { DIALOGUES_S2A, PATTERNS_S2A, SENTENCES_S2A, STOPS_S2A, STORIES_S2A, WORDS_S2A } from './season2/meses-a';
+import { DIALOGUES_S2B, PATTERNS_S2B, SENTENCES_S2B, STOPS_S2B, STORIES_S2B, WORDS_S2B } from './season2/meses-b';
+import { DIALOGUES_S2C, PATTERNS_S2C, SENTENCES_S2C, STOPS_S2C, STORIES_S2C, WORDS_S2C } from './season2/meses-c';
+import { DIALOGUES_S2D, PATTERNS_S2D, SENTENCES_S2D, STOPS_S2D, STORIES_S2D, WORDS_S2D } from './season2/meses-d';
 import { STORIES_A } from './stories';
 import { STORIES_B } from './stories-b';
-import type { Dialogue, Lesson, Sentence, Stop, Story, Word } from './types';
+import type { Dialogue, Lesson, Pattern, Sentence, Stop, Story, Word } from './types';
 import { YAI_TOKENS } from './yai';
 
 export * from './types';
@@ -27,6 +29,15 @@ for (const s of [...SENTENCES_A, ...SENTENCES_B, ...SENTENCES_S2A, ...SENTENCES_
 export const DIALOGUES: Record<string, Dialogue> = Object.fromEntries([...DIALOGUES_A, ...DIALOGUES_B, ...DIALOGUES_S2A, ...DIALOGUES_S2B, ...DIALOGUES_S2C, ...DIALOGUES_S2D].map((d) => [d.id, d]));
 export const STORIES: Story[] = [...STORIES_A, ...STORIES_B, ...STORIES_S2A, ...STORIES_S2B, ...STORIES_S2C, ...STORIES_S2D];
 
+/** Gramática en un minuto: los patrones que explican las lecciones (`Lesson.patterns`). */
+export const PATTERNS: Record<string, Pattern> = Object.fromEntries(
+  [...PATTERNS_A, ...PATTERNS_B, ...PATTERNS_S2A, ...PATTERNS_S2B, ...PATTERNS_S2C, ...PATTERNS_S2D].map((x) => [x.id, x]),
+);
+export const patternsOf = (ids: string[] = []) => ids.map((id) => PATTERNS[id]).filter(Boolean);
+
+/** Lecciones que cambiaron de id respecto a la versión 1 del temario (id antiguo → nuevo), para migrar el progreso guardado. */
+export const RENAMED_LESSONS: Record<string, string> = { ...RENAMED_A, ...RENAMED_B };
+
 export type LessonRef = Lesson & { stop: Stop; index: number; inStop: number; last: boolean };
 
 export const LESSONS: LessonRef[] = STOPS.flatMap((stop) =>
@@ -35,8 +46,11 @@ export const LESSONS: LessonRef[] = STOPS.flatMap((stop) =>
 
 export const TOTAL_LESSONS = LESSONS.length;
 
-/** Lecciones de la carretera: de Chiang Mai a la ceremonia (el epílogo es un extra fuera del camino). */
-const ROAD = LESSONS.filter((l) => l.stop.n <= 14);
+/** Última parada de la carretera: al acabarla se han tomado las 1.864 curvas y se llega al pueblo (parada 11). */
+export const LAST_ROAD_STOP = 10;
+
+/** Lecciones de la carretera: de Chiang Mai a Ban Rak Thai. En la casa de teca ya no hay curvas: allí avanza la carta. */
+const ROAD = LESSONS.filter((l) => l.stop.n <= LAST_ROAD_STOP);
 
 /** Curvas que se ganan al completar una lección por primera vez: suman 1.864 justo al llegar al pueblo. */
 export function curvesFor(lesson: LessonRef): number {
@@ -46,14 +60,32 @@ export function curvesFor(lesson: LessonRef): number {
   return i === ROAD.length - 1 ? TOTAL_CURVES - base * (ROAD.length - 1) : base;
 }
 
-/** La lección final del camino: responder a la carta de Yai. */
-export const REPLY_LESSON = LESSONS.find((l) => l.id === 'p14l5') ?? ROAD[ROAD.length - 1];
+/** Parada del alfabeto (la cueva de las letras): la primera que tiene lecciones de escritura. */
+export const ALPHABET_STOP = STOPS.find((s) => s.lessons.some((l) => l.extra?.kind === 'letras' && l.extra.set === 'media'))?.n ?? 7;
+
+/** ¿Quien aprende ya sabe leer? Ha terminado la parada del alfabeto o empezó el camino más arriba. */
+export function canRead(p: { completed: Record<string, unknown>; profile: { startStop: number } }): boolean {
+  if (p.profile.startStop > ALPHABET_STOP) return true;
+  const cave = STOPS.find((s) => s.n === ALPHABET_STOP);
+  return !!cave && cave.lessons.every((l) => !!p.completed[l.id]);
+}
+
+/** Última lección que enseña las reglas de tono (clase + viva o muerta + marca): a partir de ahí, las fichas las aplican. */
+const TONE_RULES_INDEX = Math.max(-1, ...LESSONS.filter((l) => l.extra?.kind === 'letras' && l.extra.set === 'reglas').map((l) => l.index));
+/** ¿Esta lección va después de las reglas de tono? Entonces sus fichas enseñan de dónde sale el tono de cada palabra. */
+export const afterToneRules = (l: LessonRef) => TONE_RULES_INDEX >= 0 && l.index > TONE_RULES_INDEX;
+
+/** La lección que cierra la temporada 1: responder a la carta de Yai (la que trae el saludo «ถึงยายที่รัก», frase b142). */
+export const REPLY_LESSON = LESSONS.find((l) => l.sentences?.includes('b142')) ?? seasonLessonsOf(1).slice(-1)[0];
 
 /** Temporada de una parada: 1 = la carretera · 2 = un año en el pueblo. */
 export const seasonOf = (s: Stop): 1 | 2 => s.season ?? 1;
 export const SEASON_2_STOPS = STOPS.filter((s) => seasonOf(s) === 2);
 export const HAS_SEASON_2 = SEASON_2_STOPS.length > 0;
 export const seasonLessons = (n: 1 | 2) => LESSONS.filter((l) => seasonOf(l.stop) === n);
+function seasonLessonsOf(n: 1 | 2) {
+  return LESSONS.filter((l) => (l.stop.season ?? 1) === n);
+}
 /** Número de luna (1–12) de un mes de la temporada 2; 0 en la temporada 1. */
 export const moonOf = (s: Stop) => SEASON_2_STOPS.indexOf(s) + 1;
 export const moonsDone = (p: { stamps: string[] }) => SEASON_2_STOPS.filter((s) => p.stamps.includes(s.id)).length;

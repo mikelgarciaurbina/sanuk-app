@@ -2,7 +2,7 @@ import Svg, { Circle, Path, Rect, SvgXml } from 'react-native-svg';
 
 import { color } from '@/brand/tokens';
 
-/** Iconos ilustrados de la historia (farolillo, plátano, curva, sello, paraguas de Bo Sang, carta, luna, cofre). */
+/** Iconos ilustrados de la historia (farolillo, plátano, curva, sello, paraguas de Bo Sang, carta, luna, cofre, diario). */
 const ART = {
   farol:
     '<svg viewBox="0 0 64 64"><circle cx="32" cy="30" r="27" fill="#FFB347" opacity=".22"/><path d="M19 13 C19 9 45 9 45 13 L49 44 C49 51 15 51 15 44 Z" fill="#FF7A3D"/><path d="M24 13 C24 11 40 11 40 13 L42 44 C42 48 22 48 22 44 Z" fill="#FFB347"/><path d="M28 13 L27.5 47 M36 13 L36.5 47" stroke="#FF8A4D" stroke-width="1.6"/><ellipse cx="32" cy="48" rx="11" ry="3.2" fill="#C2410C"/><path d="M32 50 C28.5 53.5 29.5 57.5 32 60 C34.5 57.5 35.5 53.5 32 50 Z" fill="#FFD166"/></svg>',
@@ -22,6 +22,8 @@ const ART = {
     '<svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="27" fill="#FFD166" opacity=".2"/><path d="M41 9 C27 11 17 22 18 36 C19 50 33 58 47 53 C36 50 28 41 28 30 C28 21 33 13 41 9 Z" fill="#FFC83D"/><path d="M41 9 C33 13 28 21 28 30 C28 41 36 50 47 53 C43 55 38 56 34 55 C25 52 20 44 20 34 C20 22 29 12 41 9 Z" fill="#E8A600"/><circle cx="45" cy="21" r="2.4" fill="#FFF3C4"/><circle cx="51" cy="33" r="1.6" fill="#FFF3C4"/><circle cx="43" cy="42" r="1.2" fill="#FFF3C4"/></svg>',
   cofre:
     '<svg viewBox="0 0 64 64"><rect x="8" y="26" width="48" height="28" rx="5" fill="#8E5530"/><path d="M8 30 C8 12 56 12 56 30 Z" fill="#C07A45"/><rect x="8" y="27" width="48" height="6" fill="#FFC83D"/><rect x="28" y="30" width="8" height="11" rx="2" fill="#FFC83D"/><circle cx="32" cy="35" r="1.6" fill="#8E5530"/></svg>',
+  diario:
+    '<svg viewBox="0 0 64 64"><rect x="12" y="9" width="42" height="48" rx="6" fill="#6E3F22"/><rect x="17" y="9" width="37" height="46" rx="5" fill="#C07A45"/><path d="M17 9v46" stroke="#8E5530" stroke-width="3"/><rect x="23" y="17" width="20" height="15" rx="3" fill="#FFFDF7"/><circle cx="33" cy="24.5" r="4.6" fill="#FFC83D"/><circle cx="33" cy="24.5" r="1.9" fill="#9A5B32"/><path d="M24 40h22M24 46h15" stroke="#FFE2B8" stroke-width="2.6" stroke-linecap="round"/><path d="M44 6h7v18l-3.5-3.2L44 24z" fill="#D93A3F"/></svg>',
 } as const;
 
 export type ArtIcon = keyof typeof ART;

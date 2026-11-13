@@ -6,7 +6,7 @@ import type { Stop } from '../../src/content/types.ts';
 import { cargarTemario, type ConOrigen } from './lib/cargar.mts';
 import { comprobarTonos } from './lib/tonos.mts';
 import { cargarFrecuencias, crearDiccionario, Vocabulario } from './lib/vocabulario.mts';
-import { ANTES_DE_TIEMPO, CONOCIDAS_DE_INICIO, GRUPOS_DE_LETRAS_ESPECIALES, HOMOGRAFOS, type Rango, reglasDe, TAMANOS_ESPECIALES } from './reglas.mts';
+import { ANTES_DE_TIEMPO, CONOCIDAS_DE_INICIO, GRUPOS_DE_LETRAS_ESPECIALES, HOMOGRAFOS, type Rango, reglasDe, TAMANOS_ESPECIALES, TEXTOS } from './reglas.mts';
 
 type Seccion = { titulo: string; errores: string[]; avisos: string[]; nota?: string };
 const secciones: Seccion[] = [];
@@ -40,6 +40,7 @@ const dialogos = Object.values(app.DIALOGUES);
   for (const { item, archivo } of t.paradas) if (!app.STOPS.includes(item)) anota(archivo, 'paradas');
   for (const { item, archivo } of t.dialogos) if (!(item.id in app.DIALOGUES)) anota(archivo, 'conversaciones');
   for (const { item, archivo } of t.cuentos) if (!app.STORIES.includes(item)) anota(archivo, 'cuentos');
+  for (const { item, archivo } of t.patrones) if (app.PATTERNS[item.id] !== item) s.errores.push(`${archivo}: el patrón ${item.id} no llega a la app (impórtalo en src/content/index.ts o tiene el id repetido)`);
   for (const [archivo, m] of faltan) {
     const lista = [...m].map(([que, n]) => plural(n, NOMBRES[que][0], NOMBRES[que][1])).join(', ');
     s.errores.push(`${archivo} no llega a la app (${lista}): impórtalo en src/content/index.ts`);
@@ -157,6 +158,10 @@ const fuera = (s: Seccion, [min, max]: Rango, n: number, que: string, tt: number
     st.lessons.forEach((l, i) => {
       if (l.id !== `${st.id}l${i + 1}`) s.errores.push(`lección ${l.id}: debería llamarse ${st.id}l${i + 1}`);
       if (!l.title?.trim() || !l.goal?.trim()) s.errores.push(`lección ${l.id}: falta el título o el objetivo`);
+      // la historia: cada lección empieza con su momento (beat) y, si pasa algo, se cierra con otro (after)
+      if (!l.beat?.trim()) s.errores.push(`lección ${l.id}: falta el momento de la historia (beat)`);
+      else fuera(s, TEXTOS.momento, l.beat.length, `lección ${l.id}: el momento de la historia tiene ${l.beat.length} caracteres`, tt);
+      if (l.after !== undefined) fuera(s, TEXTOS.despues, l.after.length, `lección ${l.id}: el cierre (after) tiene ${l.after.length} caracteres`, tt);
       if (TAMANOS_ESPECIALES[l.id]) return;
       fuera(s, r.palabrasPorLeccion, l.words.length, `lección ${l.id}: ${l.words.length} palabras`, tt);
       const nf = (l.sentences ?? []).length;
@@ -193,6 +198,41 @@ const fuera = (s: Seccion, [min, max]: Rango, n: number, que: string, tt: number
   }
 }
 
+// ——— 4b. Gramática en un minuto ———
+{
+  const s = seccion('Gramática en un minuto');
+  const leccionDeFrase = new Map<string, number>();
+  for (const l of app.LESSONS) for (const id of l.sentences ?? []) if (!leccionDeFrase.has(id)) leccionDeFrase.set(id, l.index);
+  const usados = new Map<string, string>();
+  for (const l of app.LESSONS)
+    for (const id of l.patterns ?? []) {
+      const pt = app.PATTERNS[id];
+      if (!pt) {
+        s.errores.push(`${l.id}: el patrón ${id} no existe`);
+        continue;
+      }
+      const antes = usados.get(id);
+      if (antes) s.errores.push(`el patrón ${id} se explica dos veces (${antes} y ${l.id}): una sola, donde aparece por primera vez`);
+      usados.set(id, l.id);
+      for (const f of pt.examples) {
+        const donde = leccionDeFrase.get(f);
+        if (!app.SENTENCES[f]) s.errores.push(`patrón ${id}: el ejemplo ${f} no es una frase del temario`);
+        else if (donde === undefined || donde > l.index) s.errores.push(`patrón ${id} (${l.id}): el ejemplo ${f} es de una lección posterior; usa frases de esta lección o de las anteriores`);
+      }
+    }
+  for (const { item: pt, archivo } of t.patrones) {
+    if (!/^[a-z0-9_]+$/.test(pt.id)) s.errores.push(`patrón ${pt.id} (${archivo}): el id solo puede llevar a-z, 0-9 y _`);
+    if (!usados.has(pt.id)) s.errores.push(`el patrón ${pt.id} (${archivo}) no se explica en ninguna lección (añádelo a patterns de la suya)`);
+    if (!pt.title?.trim() || !pt.rule?.trim()) s.errores.push(`patrón ${pt.id}: falta el título o la regla`);
+    else fuera(s, TEXTOS.regla, pt.rule.length, `patrón ${pt.id}: la regla tiene ${pt.rule.length} caracteres`, 1);
+    const [min, max] = TEXTOS.ejemplosPorPatron;
+    if (pt.examples.length < min || pt.examples.length > max) s.errores.push(`patrón ${pt.id}: ${pt.examples.length} ejemplos (de ${min} a ${max})`);
+    const piezas = new Set(pt.examples.flatMap((f) => app.SENTENCES[f]?.th ?? []));
+    for (const m of pt.mark ?? []) if (!piezas.has(m)) s.errores.push(`patrón ${pt.id}: la pieza resaltada «${m}» no sale en ninguno de sus ejemplos`);
+  }
+  s.nota = `${plural(t.patrones.length, 'patrón', 'patrones')}`;
+}
+
 // ——— 5. Tonos y transcripción ———
 {
   const s = seccion('Tonos y transcripción');
@@ -218,6 +258,7 @@ const fuera = (s: Seccion, [min, max]: Rango, n: number, que: string, tt: number
   for (const st of app.STOPS) {
     if (st.message) tono(`mensaje de ${st.id}`, st.message.th, st.message.rom);
     if (st.mission?.th) tono(`misión de ${st.id}`, st.mission.th, st.mission.rom);
+    for (const r of st.mission?.replies ?? []) tono(`respuesta a la misión de ${st.id}`, r.th, r.rom);
   }
   for (const d of dialogos)
     for (const linea of d.lines) {
@@ -266,7 +307,10 @@ const fuera = (s: Seccion, [min, max]: Rango, n: number, que: string, tt: number
     }
     for (const id of l.sentences ?? []) {
       const f = app.SENTENCES[id];
-      const n = f ? nuevas(id, f.th.join('')) : [];
+      // las piezas de una frase se leen juntas (ไม่ + ใช่ = ไม่ใช่) y, si eso deja dudas, de una en una: al juntarlas,
+      // el segmentador puede cortar mal entre dos palabras que sí se conocen (ตลาด + มี → ตลา + ดมี)
+      const juntas = f ? nuevas(id, f.th.join('')) : [];
+      const n = juntas.length && f ? nuevas(id, f.th.join(' ')) : juntas;
       if (n.length) s.errores.push(`${l.id}: la frase ${id} («${f.es}») usa palabras aún no enseñadas: ${n.join(', ')}`);
     }
     if (l.extra?.kind === 'dialogo') {

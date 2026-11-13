@@ -1,7 +1,9 @@
 // Piezas comunes de los juegos de «Palabras» (Parejas, Memoria, Monzón, ¿Sí o บ่?, Farolillos):
-// temporizadores que se limpian solos, selección de palabras sin traducciones repetidas y chapas del marcador.
-import { useEffect, useId, useRef, type ComponentRef, type RefObject } from 'react';
+// temporizadores que se limpian solos, selección de palabras sin traducciones repetidas, cuándo se enseña la
+// transcripción, letra thai que cabe en su sitio, avisos que no tapan el tablero y chapas del marcador.
+import { useEffect, useId, useRef, useState, type ComponentRef, type RefObject } from 'react';
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 import Svg, { Circle, Defs, Ellipse, LinearGradient, Path, RadialGradient, Stop } from 'react-native-svg';
 
 import { color, font } from '@/brand/tokens';
@@ -12,19 +14,60 @@ import { Pop, type Point } from '../fx';
 
 type ViewRef = ComponentRef<typeof View>;
 
-/** `later(fn, ms)`: setTimeout que se cancela solo si el juego se desmonta. */
+/** `later(fn, ms)`: setTimeout que se cancela solo si el juego se desmonta. Devuelve cómo cancelarlo antes. */
 export function useLater() {
-  const list = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const list = useRef(new Set<ReturnType<typeof setTimeout>>());
   useEffect(() => {
     const l = list.current;
     return () => {
       l.forEach(clearTimeout);
-      l.length = 0;
+      l.clear();
     };
   }, []);
   return (fn: () => void, ms: number) => {
-    list.current.push(setTimeout(fn, ms));
+    const t = setTimeout(() => {
+      list.current.delete(t);
+      fn();
+    }, ms);
+    list.current.add(t);
+    return () => {
+      clearTimeout(t);
+      list.current.delete(t);
+    };
   };
+}
+
+// ——— Transcripción y letra thai ———
+
+/**
+ * ¿Se enseña la transcripción? Mientras no se sabe leer (`reads` falso), siempre: sin ella la palabra no se puede
+ * reconocer. Sabiendo leer se va quitando para que se lea de verdad: en la feria desde el nivel 2 y, en las
+ * lecciones, en todo lo que es repaso (`review`: la palabra no es nueva de la lección o vuelve tras un fallo).
+ */
+export const romFor = (reads: boolean | undefined, o: { feria: boolean; level?: number; review?: boolean }) => !reads || (o.feria ? (o.level ?? 1) < 2 : !o.review);
+
+/** Marcas thai que se dibujan encima o debajo de otra letra: no ocupan ancho. */
+const TH_MARK = /[\u0E31\u0E34-\u0E3A\u0E47-\u0E4E]/;
+
+/** Ancho aproximado, en em, de un texto thai en negrita (medido sobre Noto Sans Thai Looped Bold). */
+export function thWidth(th: string): number {
+  let w = 0;
+  for (const ch of th) {
+    if (TH_MARK.test(ch)) continue;
+    w += 'เไโใะาำ '.includes(ch) ? 0.44 : 'รวงจ'.includes(ch) ? 0.57 : 'พฟฬ'.includes(ch) ? 0.75 : 'ญฌณฒ…'.includes(ch) ? 0.95 : 0.68;
+  }
+  return w;
+}
+
+/**
+ * Tamaño de letra con el que un texto thai cabe en `width` px: en una línea si se puede con `min` o más y, si no,
+ * en dos (el thai se parte solo entre palabras). Así ninguna palabra larga acaba en puntos suspensivos.
+ */
+export function fitTh(th: string, width: number, max: number, min = 11): { size: number; lines: 1 | 2 } {
+  const em = thWidth(th) * 1.03;
+  const one = Math.floor((width / em) * 2) / 2;
+  if (one >= min) return { size: Math.min(max, one), lines: 1 };
+  return { size: Math.max(min - 1.5, Math.min(max, Math.floor((width / (em * 0.62)) * 2) / 2)), lines: 2 };
 }
 
 const norm = (s: string) => s.trim().toLowerCase();
@@ -70,6 +113,60 @@ export function pointIn(ref: RefObject<ViewRef | null>, fx: number, fy: number, 
 
 /** Multiplicador de puntos según la racha: ×1, ×2 desde 3 seguidos, ×3 desde 6, ×4 desde 10. */
 export const multFor = (combo: number) => (combo >= 10 ? 4 : combo >= 6 ? 3 : combo >= 3 ? 2 : 1);
+
+// ——— Aviso que no tapa el tablero ———
+
+export type Toast = { n: number; text: string; sub?: string; tint: string };
+
+/**
+ * Avisos cortos («¡Racha ×5!», «¡Paraguas extra!») que salen en una cinta pequeña y se van solos, para no tapar
+ * el tablero mientras corre el reloj (el letrero grande de `juice.banner` se queda para las pausas).
+ * Pon `<ToastRibbon toast={toast.now} />` donde deba verse y llama a `toast.show(…)`.
+ */
+export function useToast() {
+  const [now, setNow] = useState<Toast | null>(null);
+  const n = useRef(0);
+  const show = (text: string, sub?: string, tint: string = color.farol) => {
+    n.current += 1;
+    setNow({ n: n.current, text, sub, tint });
+  };
+  return { now, show };
+}
+
+/** La cinta del aviso: entra con un saltito, se queda un segundo y se desvanece. No recibe toques. */
+export function ToastRibbon({ toast, style }: { toast: Toast | null; style?: StyleProp<ViewStyle> }) {
+  if (!toast) return null;
+  return (
+    <View pointerEvents="none" style={[styles.toastWrap, style]}>
+      <ToastBody key={toast.n} toast={toast} />
+    </View>
+  );
+}
+
+function ToastBody({ toast }: { toast: Toast }) {
+  const enter = useSharedValue(0);
+  const leave = useSharedValue(0);
+  useEffect(() => {
+    enter.value = withSequence(withTiming(1.12, { duration: 140, easing: Easing.out(Easing.quad) }), withSpring(1, { damping: 9, stiffness: 220 }));
+    leave.value = withDelay(1250, withTiming(1, { duration: 260, easing: Easing.in(Easing.quad) }));
+  }, [enter, leave]);
+  const st = useAnimatedStyle(() => ({
+    opacity: Math.min(1, enter.value * 1.6) * (1 - leave.value),
+    transform: [{ translateY: (1 - Math.min(1, enter.value)) * -14 - leave.value * 10 }, { scale: 0.6 + 0.4 * enter.value }],
+  }));
+  return (
+    <Animated.View style={[styles.toast, { borderColor: toast.tint, shadowColor: toast.tint }, st]}>
+      <Text style={[styles.toastText, { color: toast.tint }]} numberOfLines={1}>
+        {toast.text}
+      </Text>
+      {toast.sub ? (
+        <Text style={styles.toastSub} numberOfLines={1}>
+          {toast.sub}
+        </Text>
+      ) : null}
+    </Animated.View>
+  );
+}
 
 // ——— Chapas del marcador ———
 
@@ -144,6 +241,10 @@ export const styles = StyleSheet.create({
   chipDark: { backgroundColor: 'rgba(14,17,40,0.55)', borderColor: 'rgba(255,255,255,0.16)' },
   num: { fontFamily: font.displayBold, fontSize: 19, lineHeight: 23 },
   small: { fontFamily: font.uiHeavy, fontSize: 11, letterSpacing: 0.6, textTransform: 'uppercase' },
+  toastWrap: { position: 'absolute', left: 0, right: 0, top: 0, alignItems: 'center', zIndex: 50, elevation: 50 },
+  toast: { maxWidth: '92%', paddingHorizontal: 16, paddingVertical: 5, borderRadius: 18, borderWidth: 3, backgroundColor: '#FFFFFF', alignItems: 'center', shadowOpacity: 0.45, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 8 },
+  toastText: { fontFamily: font.displayBold, fontSize: 20, lineHeight: 25, textAlign: 'center' },
+  toastSub: { fontFamily: font.uiBold, fontSize: 12, lineHeight: 15, color: color.tinta2, textAlign: 'center' },
   mult: { height: 30, paddingHorizontal: 10, borderRadius: 999, alignItems: 'center', justifyContent: 'center', shadowOpacity: 0.6, shadowRadius: 10, shadowOffset: { width: 0, height: 0 }, elevation: 4 },
   multText: { fontFamily: font.displayBold, fontSize: 17, color: '#FFFFFF' },
 });

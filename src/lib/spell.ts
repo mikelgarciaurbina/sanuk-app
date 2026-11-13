@@ -2,8 +2,10 @@
 // Es una guía para quien empieza, no un analizador completo: no muestra las vocales implícitas. Las reglas
 // dan una primera lectura y, si se pasa la transcripción de la ficha, cada consonante se ajusta a ella
 // (inicial, final o muda), para que el desglose nunca contradiga lo que se oye y se lee en la ficha.
-import { CONSONANTS } from '@/content/letters';
+import type { ToneId } from '@/brand/tokens';
+import { CONSONANTS, TONE_MARKS, toneByRule } from '@/content/letters';
 import type { Consonant } from '@/content/types';
+import { syllables, toneOfSyllable } from '@/lib/thai';
 
 export type Glyph = { ch: string; label: string; kind: 'consonante' | 'vocal' | 'tono' | 'signo'; cls?: Consonant['cls'] };
 
@@ -74,19 +76,32 @@ export function spell(th: string, rom?: string): Glyph[] | null {
     return after && (CLUSTERS.includes(pair) || SILENT_R.includes(pair) || pair === 'อย') && chars[i + 2] !== 'ร' && vowelAt(i + 2);
   };
 
-  // vocales compuestas que se leen como un solo sonido: เ◌ีย (ia), เ◌ือ (ʉa), เ◌า (ao), เ◌อ y เ◌ิ (əə), ◌ัว (ua)
+  // vocales compuestas que se leen como un solo sonido: เ◌ีย (ia), เ◌ือ (ʉa), เ◌า (ao), เ◌อ y เ◌ิ (əə), เ◌ย (əəi), ◌ัว (ua),
+  // y las cortas que cierra una ะ: เ◌ะ (e), แ◌ะ (ɛ), โ◌ะ (o), เ◌าะ (ɔ), เ◌อะ (ə)
   const part = new Map<number, string>();
   const tone = (k: number) => (chars[k] && chars[k] in TONES ? k + 1 : k);
+  /** El primer signo lleva el sonido; los demás, entre paréntesis: forman parte de la misma vocal. */
+  const whole = (label: string, ...at: number[]) => at.forEach((n, x) => part.set(n, x ? `(${label})` : label));
   chars.forEach((ch, i) => {
-    if (ch === 'เ') {
+    if (ch === 'เ' || ch === 'แ' || ch === 'โ') {
       let j = i + 1;
       if (consonantOf(chars[j])) j += joins(chars[j], chars[j + 1]) ? 2 : 1;
+      // เ + consonante con «a» escondida + consonante + าะ (เฉพาะ = chà-phɔ́, เสนาะ): la vocal rodea a la segunda
+      if (ch === 'เ' && consonantOf(chars[j]) && chars[tone(j + 1)] === 'า' && chars[tone(j + 1) + 1] === 'ะ') j += 1;
       const v = chars[j];
-      if (v === 'ี' && chars[tone(j + 1)] === 'ย') [i, j, tone(j + 1)].forEach((n, x) => part.set(n, x ? '(ia)' : 'ia'));
-      else if (v === 'ื' && chars[tone(j + 1)] === 'อ') [i, j, tone(j + 1)].forEach((n, x) => part.set(n, x ? '(ʉa)' : 'ʉa'));
-      else if (v === 'ิ') [i, j].forEach((n, x) => part.set(n, x ? '(əə)' : 'əə'));
-      else if (chars[tone(j)] === 'า' && chars[tone(j) + 1] !== 'ะ') [i, tone(j)].forEach((n, x) => part.set(n, x ? '(ao)' : 'ao'));
-      else if (chars[tone(j)] === 'อ') [i, tone(j)].forEach((n, x) => part.set(n, x ? '(əə)' : 'əə'));
+      const t = tone(j);
+      if (ch !== 'เ') {
+        if (chars[t] === 'ะ') whole(ch === 'แ' ? 'ɛ' : 'o', i, t);
+      } else if (v === 'ี' && chars[tone(j + 1)] === 'ย') whole('ia', i, j, tone(j + 1));
+      else if (v === 'ื' && chars[tone(j + 1)] === 'อ') whole('ʉa', i, j, tone(j + 1));
+      else if (v === 'ิ') whole('əə', i, j);
+      else if (chars[t] === 'า' && chars[t + 1] === 'ะ') whole('ɔ', i, t, t + 1);
+      else if (chars[t] === 'า') whole('ao', i, t);
+      else if (chars[t] === 'อ' && chars[t + 1] === 'ะ') whole('ə', i, t, t + 1);
+      else if (chars[t] === 'อ') whole('əə', i, t);
+      else if (chars[t] === 'ะ') whole('e', i, t);
+      // เ◌ย al final de la palabra (เลย, เคย, เฉยๆ)
+      else if (chars[t] === 'ย' && (!chars[t + 1] || chars[t + 1] === 'ๆ')) whole('əəi', i, t);
     }
     if (ch === 'ั' && chars[tone(i + 1)] === 'ว') {
       part.set(i, 'ua');
@@ -123,7 +138,8 @@ export function spell(th: string, rom?: string): Glyph[] | null {
       if (!c) push({ ch, label: '', kind: 'signo' });
       // letras mudas: la que lleva การันต์ (์) y la ท de ทร์
       else if (next === '์' || chars[i + 2] === '์') push({ ch, label: 'muda', kind: 'consonante', cls: c.cls }, { alts: ['muda'], fixed: true });
-      else if (ch === 'อ' && prev === 'ื') push({ ch, label: '(ʉʉ)', kind: 'vocal' });
+      // la อ que acompaña a ◌ื, también con una marca de tono en medio (ชื่อ, ซื้อ)
+      else if (ch === 'อ' && (prev === 'ื' || (!!prev && prev in TONES && chars[i - 2] === 'ื'))) push({ ch, label: '(ʉʉ)', kind: 'vocal' });
       else {
         // empieza sílaba: al principio, tras una vocal que va delante, ante una vocal o tono, ante una อ que
         // hace de vocal (สอน), pegada a la consonante anterior en un grupo (ไกล = g + l, ใคร = kh + r), ante una
@@ -215,9 +231,39 @@ function alignTo(glyphs: Glyph[], choices: Map<number, Choice>, rom: string, rep
   return glyphs.map((gl, k) => (labels.has(k) ? { ...gl, label: labels.get(k)! } : gl));
 }
 
-/** Nota sobre la primera consonante: «La letra ช se llama ช ช้าง (chɔɔ cháang): la «ch» de elefante». */
-export function firstLetterNote(th: string): string | null {
-  const c = [...th].map((ch) => CONSONANTS.find((x) => x.ch === ch)).find(Boolean);
+/** Nota sobre la primera consonante que suena: «La letra ช se llama ช ช้าง (chɔɔ cháang): la «ch» de elefante». */
+export function firstLetterNote(th: string, rom?: string): string | null {
+  // en หมา, ใหม่ o หนู la ห no suena: la nota va con la letra que sí se oye (ม, น)
+  const heard = spell(th, rom)?.find((g) => g.kind === 'consonante' && g.label !== 'muda');
+  const c = heard ? consonantOf(heard.ch) : [...th].map(consonantOf).find(Boolean);
   if (!c || c.ch === 'อ') return null;
   return `La letra ${c.ch} se llama ${c.ch} ${c.name} (${c.nameRom}): ¡la «${c.sound}» de ${c.meaning}!`;
+}
+
+/** La regla que da el tono de una palabra de una sílaba: clase de su primera consonante + marca (o, sin marca, cómo acaba). */
+export type ToneRule = { letter: string; cls: Consonant['cls']; silent: boolean; ending: string; mark?: { ch: string; rom: string }; tone: ToneId };
+
+/**
+ * Por qué una palabra de una sílaba tiene su tono. La clase y la marca salen de la escritura; si la sílaba es viva
+ * o muerta, larga o corta, de la transcripción de la ficha. Devuelve null si la palabra no es de una sílaba o si su
+ * tono no es el que da la regla (ก็, ท่าน…): mejor no explicar que explicar mal.
+ */
+export function toneRuleOf(th: string, rom: string): ToneRule | null {
+  if (syllables(rom).length !== 1) return null;
+  const glyphs = spell(th, rom);
+  const first = glyphs?.find((g) => g.kind === 'consonante');
+  if (!glyphs || !first?.cls) return null;
+  const marks = glyphs.filter((g) => g.kind === 'tono');
+  if (marks.length > 1) return null;
+  const mark = TONE_MARKS.find((m) => m.ch === marks[0]?.ch.replace('◌', ''));
+  const plain = rom.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const end = plain.match(/([aeiouɛɔʉə]+)([^aeiouɛɔʉə]*)$/);
+  if (!end) return null;
+  // larga: vocal doble o diptongo · viva: acaba en vocal larga, en -i/-o/-u o en -n, -ng, -m
+  const long = end[1].length > 1;
+  const live = end[2] ? !/[ptk]$/.test(end[2]) : long;
+  const tone = toneByRule(first.cls, live, long, mark?.ch ?? '');
+  if (tone !== toneOfSyllable(rom)) return null;
+  const ending = live ? 'viva' : first.cls === 'baja' ? (long ? 'muerta larga' : 'muerta corta') : 'muerta';
+  return { letter: first.ch, cls: first.cls, silent: first.label.includes('muda'), ending, mark: mark ? { ch: mark.ch, rom: mark.rom } : undefined, tone };
 }

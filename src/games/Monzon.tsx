@@ -1,6 +1,8 @@
-// Juego 3 · Monzón: cae la lluvia sobre el arrozal y cada gota lleva una palabra thai. Toca la que te piden
-// antes de que se hunda en el agua: revienta en gotitas, suena y el arrozal crece y verdea. En la feria hay
-// paraguas como vidas, niveles con relámpago (más rápido, más gotas, avisos solo de oído) y gotas doradas.
+// Juego 3 · Monzón: cae la lluvia sobre el arrozal y cada gota lleva una palabra thai (con su transcripción
+// mientras no se sabe leer). Toca la que te piden antes de que se hunda en el agua: revienta en gotitas, suena y
+// el arrozal crece y verdea. En la lección cada aviso se dice en voz alta y, si la gota buena se escapa, vuelve
+// con un halo. En la feria hay paraguas como vidas, niveles con relámpago que despeja el cielo (más rápido, más
+// gotas, avisos solo de oído) y gotas doradas.
 import { useEffect, useEffectEvent, useRef, useState, type ComponentRef } from 'react';
 import { StyleSheet, Text, View, type GestureResponderEvent } from 'react-native';
 import Animated, { ZoomIn } from 'react-native-reanimated';
@@ -19,13 +21,18 @@ import { Countdown, Pop, Press3D, tapPoint, useJuice } from './fx';
 import { ComboBadge, useScore } from './kit';
 import { Arcoiris, Arrozal, FIELD_H, Paraguas, Rayo } from './monzon/Escena';
 import { DROP_H, DROP_W, Gota, type DropState } from './monzon/Gota';
-import { LevelChip, MultChip, ScoreChip, clash, distinct, multFor, pickWords, useLater } from './palabras/common';
+import { LevelChip, MultChip, ScoreChip, ToastRibbon, clash, distinct, multFor, pickWords, romFor, useLater, useToast } from './palabras/common';
 import type { GameProps } from './types';
 
 const LIVES = 3;
 const PER_LEVEL = 6;
+/** Transcripción más larga que cabe, legible, dentro de una gota. */
+const ROM_MAX = 16;
+/** Una gota buena que cae en menos tiempo que este y se escapa no baja la palabra en el repaso: faltó rapidez. */
+const SLOW_MS = 4000;
 
-type Drop = { id: number; word: Word; x: number; dur: number; golden: boolean; state: DropState };
+/** `goal`: número de la pregunta para la que cayó como gota buena (−1 si salió de relleno). */
+type Drop = { id: number; word: Word; x: number; dur: number; golden: boolean; state: DropState; goal: number; rom: boolean; hint: boolean };
 type Prompt = { word: Word; audio: boolean; n: number };
 type Feedback = { n: number; kind: 'ok' | 'bad' | 'missed'; word: Word; tapped?: Word };
 
@@ -33,19 +40,28 @@ type Feedback = { n: number; kind: 'ok' | 'bad' | 'missed'; word: Word; tapped?:
 /** Azar fuera del render (solo se usa en manejadores y temporizadores). */
 const chance = (p: number) => Math.random() < p;
 const lane0 = (n: number) => Math.floor(Math.random() * n);
+const clock = () => Date.now();
 
 const durFor = (feria: boolean, level: number) => (feria ? Math.max(2500, 7200 - (level - 1) * 650) : 8400);
 
 /** Juego 3 · Monzón: toca la gota con la palabra que te piden antes de que riegue el arrozal. */
-export default function Monzon({ mode, words, focus, rounds = 8, onAnswer, onDone }: GameProps) {
+export default function Monzon({ mode, words, focus, rounds = 8, reads, review, onAnswer, onDone }: GameProps) {
   const feria = mode === 'feria';
   const score = useScore(mode);
   const juice = useJuice();
+  const toast = useToast();
   const later = useLater();
   const fieldRef = useRef<ComponentRef<typeof View>>(null);
 
-  const [pool] = useState(() => distinct([...focus, ...words]));
-  const [list] = useState(() => (feria ? [] : pickWords(rounds, { focus, pool })));
+  const [pool] = useState(() => {
+    const all = distinct([...focus, ...words]);
+    if (reads) return all;
+    // mientras no se sabe leer cada gota lleva su transcripción: las frases que no caben en una gota no salen aquí
+    const fit = all.filter((w) => w.rom.length <= ROM_MAX);
+    return fit.length >= 2 ? fit : all;
+  });
+  const [fresh] = useState(() => new Set(review ? [] : focus.map((w) => w.id)));
+  const [list] = useState(() => (feria ? [] : pickWords(rounds, { focus: focus.filter((f) => pool.some((w) => w.id === f.id)), pool })));
   const total = feria ? rounds : list.length;
   const [first] = useState<Prompt | null>(() => (feria || !list.length ? null : { word: list[0], audio: false, n: 0 }));
   const [prompt, setPrompt] = useState<Prompt | null>(first);
@@ -75,6 +91,12 @@ export default function Monzon({ mode, words, focus, rounds = 8, onAnswer, onDon
     lanes: [] as number[],
     sinceTarget: 0,
     goldenNext: false,
+    /** hasta cuándo no caen gotas (tras el relámpago de un nivel) */
+    holdUntil: 0,
+    /** pregunta por la que ya se ha contado un fallo en el repaso (una vez basta) */
+    failed: -1,
+    /** veces que se ha escapado la gota buena de la pregunta actual */
+    escapes: 0,
     retry: [] as Word[],
     recent: [] as string[],
     fb: 0,
@@ -144,22 +166,32 @@ export default function Monzon({ mode, words, focus, rounds = 8, onAnswer, onDon
 
   // ——— avisos ———
 
-  const showPrompt = (p: Prompt) => {
-    g.current.prompt = p;
-    g.current.sinceTarget = 2;
-    setPrompt(p);
-    if (p.audio) later(() => say(p.word.th), 350);
+  /** Dice el aviso en voz alta: siempre en la lección (se oye lo que hay que buscar) y en los avisos de oído. */
+  const sayPrompt = (p: Prompt, ms: number) => {
+    if (!p.audio && feria) return;
+    later(() => {
+      if (g.current.prompt?.n === p.n && !g.current.ended) say(p.word.th);
+    }, ms);
   };
 
-  const nextPrompt = () => {
+  const showPrompt = (p: Prompt, sayIn = 350) => {
+    g.current.prompt = p;
+    g.current.sinceTarget = 2;
+    g.current.escapes = 0;
+    setPrompt(p);
+    sayPrompt(p, sayIn);
+  };
+
+  /** Pasa al aviso siguiente y lo devuelve (o `null` si la partida se acaba). */
+  const nextPrompt = (sayIn = 350): Prompt | null => {
     const s = g.current;
-    if (s.ended) return;
+    if (s.ended) return null;
     s.n += 1;
     if (s.n >= total) {
       // ya no hay gota buena: las que quedan caen sin contar
       s.prompt = null;
       later(() => endGame('arcoiris'), 500);
-      return;
+      return null;
     }
     let word: Word | undefined;
     if (!feria) word = list[s.n];
@@ -171,9 +203,20 @@ export default function Monzon({ mode, words, focus, rounds = 8, onAnswer, onDon
       word = retry ?? (fresh.length ? pick(fresh) : pool[0]);
       s.recent = [word.id, ...s.recent].slice(0, Math.min(5, pool.length - 1));
     }
-    if (!word) return;
-    showPrompt({ word, audio: feria && s.level >= 3 && chance(0.3), n: s.n });
+    if (!word) return null;
+    const p: Prompt = { word, audio: feria && s.level >= 3 && chance(0.3), n: s.n };
+    showPrompt(p, sayIn);
+    return p;
   };
+
+  // en la lección el primer aviso ya está puesto al empezar: se dice cuando la pantalla ha entrado
+  const sayFirst = useEffectEvent(() => {
+    if (first) sayPrompt(first, 0);
+  });
+  useEffect(() => {
+    const t = setTimeout(() => sayFirst(), 650);
+    return () => clearTimeout(t);
+  }, []);
 
   const start = () => {
     const s = g.current;
@@ -191,7 +234,13 @@ export default function Monzon({ mode, words, focus, rounds = 8, onAnswer, onDon
     setBolt((b) => b + 1);
     fx.boom();
     juice.flash('#EEF4FF');
-    juice.banner(`¡Nivel ${s.level}!`, s.level === 3 ? 'Más rápido… ¡y a veces solo se oye!' : '¡Más rápido!', color.cieloHondo);
+    // el relámpago despeja el cielo: las gotas que caían revientan sin contar y no cae ninguna mientras el letrero
+    // está delante (así no tapa nada que haya que tocar)
+    putDrops((l) => l.map((d) => (d.state === 'fall' ? { ...d, state: 'pop' } : d)));
+    later(() => putDrops((l) => l.filter((d) => d.state !== 'pop')), 260);
+    s.holdUntil = clock() + 1300;
+    const sub = s.level === 3 ? 'Más rápido… ¡y a veces solo se oye!' : s.level === 2 && reads ? 'Más rápido… ¡y sin transcripción!' : '¡Más rápido!';
+    juice.banner(`¡Nivel ${s.level}!`, sub, color.cieloHondo);
     later(() => fx.levelup(), 260);
   };
 
@@ -204,10 +253,16 @@ export default function Monzon({ mode, words, focus, rounds = 8, onAnswer, onDon
     removeDrop(id);
     if (d.state !== 'fall' || s.ended) return;
     juice.burst({ x: s.ox + d.x + DROP_W / 2, y: s.oy + fallTo + DROP_H * 0.85 }, 'gotas', 7, 60);
-    if (!s.prompt || d.word.id !== s.prompt.word.id) return;
-    // se ha escapado la gota buena
-    score.hit(false);
-    onAnswer(false, d.word.id);
+    // una gota de relleno que ya caía cuando su palabra pasó a ser la buena no cuenta: no dio tiempo a verla
+    if (!s.prompt || d.word.id !== s.prompt.word.id || d.goal !== s.prompt.n) return;
+    // se ha escapado la gota buena: cuenta una vez por aviso (en la lección vuelve a caer hasta que se toque) y solo
+    // baja la palabra en el repaso si hubo tiempo de sobra para leerla
+    if (s.failed !== s.prompt.n) {
+      s.failed = s.prompt.n;
+      score.hit(false);
+      if (d.dur >= SLOW_MS) onAnswer(false, d.word.id);
+    } else fx.bad();
+    s.escapes += 1;
     if (!s.retry.some((w) => w.id === d.word.id)) s.retry.push(d.word);
     tell('missed', d.word);
     say(d.word.th);
@@ -226,10 +281,15 @@ export default function Monzon({ mode, words, focus, rounds = 8, onAnswer, onDon
     s.lanes = [lane, ...s.lanes].slice(0, Math.min(2, lanes - 1));
     const step = (s.w - DROP_W - 8) / Math.max(1, lanes - 1);
     const x = Math.max(4, Math.min(s.w - DROP_W - 4, 4 + lane * step + rand(-6, 6)));
-    const golden = !!s.prompt && word.id === s.prompt.word.id && s.goldenNext;
+    const isTarget = !!s.prompt && word.id === s.prompt.word.id;
+    const golden = isTarget && s.goldenNext;
     const dur = durFor(feria, s.level) * rand(0.92, 1.08);
     s.id += 1;
-    const d: Drop = { id: s.id, word, x, dur, golden, state: 'fall' };
+    // (sabiendo leer, una transcripción que no cabe en la gota sobra: se lee el thai)
+    const rom = romFor(reads, { feria, level: s.level, review: !fresh.has(word.id) }) && (!reads || word.rom.length <= ROM_MAX);
+    // en la lección, si la gota buena ya se escapó, vuelve señalada con un halo
+    const hint = !feria && isTarget && s.escapes >= 1;
+    const d: Drop = { id: s.id, word, x, dur, golden, state: 'fall', goal: isTarget && s.prompt ? s.prompt.n : -1, rom, hint };
     putDrops((l) => [...l, d]);
     later(() => land(d.id), dur);
   };
@@ -237,6 +297,7 @@ export default function Monzon({ mode, words, focus, rounds = 8, onAnswer, onDon
   const spawnTick = useEffectEvent((): number => {
     const s = g.current;
     if (s.ended || !s.prompt || s.w === 0) return 400;
+    if (clock() < s.holdUntil) return 200;
     const falling = s.drops.filter((d) => d.state === 'fall');
     const max = feria ? Math.min(6, 3 + Math.floor((s.level - 1) / 2)) : 3;
     const gap = feria ? Math.max(620, 1500 - (s.level - 1) * 140) : 1900;
@@ -272,7 +333,6 @@ export default function Monzon({ mode, words, focus, rounds = 8, onAnswer, onDon
     if (d.word.id === target.id) {
       const combo = score.hit(true);
       onAnswer(true, d.word.id);
-      say(d.word.th);
       fx.plip();
       const gain = 10 * multFor(combo) * (d.golden ? 3 : 1);
       s.points += gain;
@@ -293,18 +353,24 @@ export default function Monzon({ mode, words, focus, rounds = 8, onAnswer, onDon
         if (feria && s.lives < LIVES) {
           s.lives += 1;
           setLives(s.lives);
-          juice.banner('¡Paraguas extra!', 'la gota dorada te protege', color.buatong);
+          toast.show('¡Paraguas extra!', 'la gota dorada te protege', color.buatongHondo);
         }
       } else if (combo > 0 && combo % 5 === 0) {
         s.goldenNext = true;
-        juice.banner(`¡Racha ×${combo}!`, 'la próxima gota buena será dorada', color.buatong);
+        toast.show(`¡Racha ×${combo}!`, 'la próxima gota buena será dorada', color.buatongHondo);
       }
       if (feria && s.hits % PER_LEVEL === 0) levelUp();
-      nextPrompt();
+      // se oye la palabra acertada y, después, el aviso nuevo (en la lección espera a que termine)
+      const nx = nextPrompt(feria ? 350 : 1000);
+      if (!(feria && nx?.audio)) say(d.word.th);
       return;
     }
     score.hit(false);
-    onAnswer(false, target.id);
+    // tocar otra gota es confundir la palabra: baja en el repaso, pero una sola vez por aviso
+    if (s.failed !== s.prompt.n) {
+      s.failed = s.prompt.n;
+      onAnswer(false, target.id);
+    }
     if (!s.retry.some((w) => w.id === target.id)) s.retry.push(target);
     setDropState(d.id, 'bad');
     later(() => removeDrop(d.id), 560);
@@ -359,12 +425,13 @@ export default function Monzon({ mode, words, focus, rounds = 8, onAnswer, onDon
           {field.w > 0 ? <Arcoiris width={field.w} show={rainbow} /> : null}
           {field.w > 0 ? <Arrozal width={field.w} grow={rainbow ? 1 : grow} ripe={rainbow} /> : null}
           {drops.map((d) => (
-            <Gota key={d.id} word={d.word} x={d.x} fallTo={fallTo} dur={d.dur} state={d.state} golden={d.golden} onPress={(e) => tap(d, e)} />
+            <Gota key={d.id} word={d.word} x={d.x} fallTo={fallTo} dur={d.dur} state={d.state} golden={d.golden} rom={d.rom} hint={d.hint} onPress={(e) => tap(d, e)} />
           ))}
           <View pointerEvents="none" style={styles.noi}>
             <Noi pose={phase === 'end' ? 'celebra' : 'feliz'} size={64} jump={jump} />
           </View>
           {field.w > 0 ? <Rayo n={bolt} width={field.w} /> : null}
+          <ToastRibbon toast={toast.now} style={{ top: 6 }} />
         </View>
       </Animated.View>
       {phase === 'count' && !tooFew ? <Countdown onDone={start} /> : null}
@@ -414,13 +481,14 @@ function Cartel({ prompt, fb }: { prompt: Prompt | null; fb: Feedback | null }) 
         ) : (
           <View style={{ alignItems: 'center' }}>
             <Text style={styles.cartelSmall}>Toca la gota de…</Text>
-            <Text numberOfLines={2} style={[styles.cartelBig, w.es.length > 18 ? { fontSize: 19, lineHeight: 23 } : null]}>
+            <Text numberOfLines={2} style={[styles.cartelBig, w.es.length > 30 ? { fontSize: 16, lineHeight: 20 } : w.es.length > 18 ? { fontSize: 19, lineHeight: 23 } : null]}>
               {w.emoji ? `${w.emoji} ` : ''}«{w.es}»
             </Text>
           </View>
         )}
       </Pop>
-      <View style={{ minHeight: 34, alignItems: 'center', marginTop: 4 }}>{fb ? <FeedbackPill key={fb.n} fb={fb} /> : null}</View>
+      {/* alto fijo: ni el aviso ni la respuesta cambian el tamaño del campo donde caen las gotas */}
+      <View style={styles.pillSlot}>{fb ? <FeedbackPill key={fb.n} fb={fb} /> : null}</View>
     </View>
   );
 }
@@ -429,13 +497,17 @@ function FeedbackPill({ fb }: { fb: Feedback }) {
   const ok = fb.kind === 'ok';
   return (
     <Animated.View entering={ZoomIn.springify().damping(14)} style={[styles.pill, { borderColor: ok ? '#2DBE78' : '#FF8A5B' }]}>
-      <Th size={16} bold style={{ lineHeight: 23 }}>
-        {fb.word.th}
-      </Th>
-      <Rom rom={fb.word.rom} size={11.5} />
-      <Text numberOfLines={1} style={[styles.pillText, { color: ok ? color.arrozalHondo : color.lacaHondo }]}>
-        {ok ? `= ${fb.word.es}` : fb.kind === 'missed' ? `= ${fb.word.es} · ¡se escapó!` : `= ${fb.word.es}`}
-      </Text>
+      <View style={styles.pillRow}>
+        <Th size={16} bold numberOfLines={1} style={{ lineHeight: 23, flexShrink: 1 }}>
+          {fb.word.th}
+        </Th>
+        <View style={styles.pillRom}>
+          <Rom rom={fb.word.rom} size={11.5} />
+        </View>
+        <Text numberOfLines={1} style={[styles.pillText, { color: ok ? color.arrozalHondo : color.lacaHondo }]}>
+          {ok ? `= ${fb.word.es}` : fb.kind === 'missed' ? `= ${fb.word.es} · ¡se escapó!` : `= ${fb.word.es}`}
+        </Text>
+      </View>
       {fb.tapped ? (
         <Text numberOfLines={1} style={styles.pillSub}>
           {fb.tapped.th} es «{fb.tapped.es}»
@@ -446,13 +518,13 @@ function FeedbackPill({ fb }: { fb: Feedback }) {
 }
 
 const styles = StyleSheet.create({
-  hud: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44, paddingHorizontal: 14, paddingTop: 4 },
+  hud: { flexDirection: 'row', alignItems: 'center', gap: 8, height: 48, paddingHorizontal: 14, paddingTop: 4 },
   hudMid: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   prog: { height: 36, paddingHorizontal: 12, borderRadius: 999, justifyContent: 'center', backgroundColor: 'rgba(20,30,52,0.45)', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.3)' },
   progText: { fontFamily: font.displayBold, fontSize: 19, color: '#FFFFFF' },
   cartelWrap: { paddingHorizontal: 22, marginTop: -2 },
   cartel: {
-    minHeight: 76,
+    height: 84,
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
@@ -468,9 +540,12 @@ const styles = StyleSheet.create({
   cartelHint: { fontFamily: font.uiBold, fontSize: 11.5, color: '#7A4A22', textAlign: 'center' },
   cartelBig: { fontFamily: font.displayBold, fontSize: 25, color: '#3A1F0B', textAlign: 'center' },
   speaker: { width: 46, height: 46, borderRadius: 23, backgroundColor: color.cielo, alignItems: 'center', justifyContent: 'center', borderBottomWidth: 3, borderColor: color.cieloHondo },
-  pill: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', columnGap: 6, paddingHorizontal: 12, paddingVertical: 3, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.95)', borderWidth: 2, maxWidth: '100%' },
-  pillSub: { width: '100%', textAlign: 'center', fontFamily: font.uiBold, fontSize: 12, color: color.tinta2 },
-  pillText: { fontFamily: font.uiHeavy, fontSize: 13, flexShrink: 1 },
+  pillSlot: { height: 52, alignItems: 'center', justifyContent: 'center', marginTop: 2 },
+  pill: { alignItems: 'center', paddingHorizontal: 12, paddingVertical: 2, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.95)', borderWidth: 2, maxWidth: '100%' },
+  pillRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', columnGap: 6, maxWidth: '100%' },
+  pillRom: { flexShrink: 1, maxHeight: 16, overflow: 'hidden' },
+  pillSub: { textAlign: 'center', fontFamily: font.uiBold, fontSize: 12, lineHeight: 16, color: color.tinta2 },
+  pillText: { fontFamily: font.uiHeavy, fontSize: 13, flexShrink: 2 },
   noi: { position: 'absolute', left: 6, bottom: 2 },
   rope: { position: 'absolute', top: -6, width: 3, height: 20, borderRadius: 2, backgroundColor: '#5A3A20' },
 });

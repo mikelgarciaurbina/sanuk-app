@@ -8,7 +8,7 @@ import { fx, say } from '@/lib/audio';
 import { useStore } from '@/lib/store';
 import { personalize, personalizeRom } from '@/lib/thai';
 
-/** La misión de un mes de la temporada 2: algo que hacer de verdad, con tu pareja o tu familia, en thai. */
+/** La misión de una parada o de un mes: algo que hacer de verdad, con tu pareja o tu familia, en thai, y lo que es fácil que te contesten. */
 export function MissionCard({ stop, compact }: { stop: Stop; compact?: boolean }) {
   const { p, completeMission } = useStore();
   const m = stop.mission;
@@ -22,7 +22,7 @@ export function MissionCard({ stop, compact }: { stop: Stop; compact?: boolean }
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         <Art name="farol" size={26} />
         <Txt v="eyebrow" style={{ color: done ? color.arrozal : color.farol, flex: 1, fontSize: 11 }}>
-          Misión de {stop.month?.toLowerCase()} · en la vida real
+          {stop.month ? `Misión de ${stop.month.toLowerCase()}` : `Misión de la parada ${stop.n}`} · en la vida real
         </Txt>
         {done ? <Icon name="check" size={20} color={color.arrozal} stroke={3} /> : null}
       </View>
@@ -34,6 +34,21 @@ export function MissionCard({ stop, compact }: { stop: Stop; compact?: boolean }
         </View>
         <Icon name="speaker" size={22} color={color.cieloHondo} />
       </Pressable>
+      {m.replies?.length && !compact ? (
+        <View style={{ gap: 6 }}>
+          <Txt v="eyebrow" style={{ fontSize: 10 }}>Te pueden contestar</Txt>
+          {m.replies.map((r) => (
+            <Pressable key={r.th} onPress={() => say(r.th)} accessibilityRole="button" accessibilityLabel={`Escuchar: ${r.es}`} style={styles.reply}>
+              <View style={{ flex: 1 }}>
+                <Th size={17}>{r.th}</Th>
+                <Rom rom={r.rom} size={12} />
+                <Txt v="small" style={{ fontSize: 12 }}>{r.es}</Txt>
+              </View>
+              <Icon name="speaker" size={18} color={color.cieloHondo} />
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
       {m.tip && !compact ? <Txt v="small">{m.tip}</Txt> : null}
       {done ? (
         <Txt v="small" style={{ color: color.arrozal }}>¡Misión cumplida! Ganaste 30 plátanos.</Txt>
@@ -55,4 +70,5 @@ const styles = StyleSheet.create({
   card: { backgroundColor: '#FFF6EC', borderRadius: 20, padding: 16, gap: 10, borderWidth: 2, borderColor: '#FFD9B8', ...shadow.card },
   cardDone: { backgroundColor: '#F1F8EE', borderColor: '#CFE6C6' },
   phrase: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#FFFFFF', borderRadius: 14, padding: 12 },
+  reply: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(255,255,255,0.7)', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8 },
 });

@@ -1,5 +1,5 @@
-// Piezas de «Cena familiar»: el bocadillo de quien habla (el thai se escribe solo y se traduce al tocarlo),
-// tu bocadillo, las cartas de respuesta que se reparten volteándose y el «calor familiar».
+// Piezas de «Cena familiar»: el bocadillo de quien habla (primero se oye; el thai se escribe solo y se traduce al
+// tocarlo), tu bocadillo, las cartas de respuesta (cada una con su altavoz) y el «calor familiar».
 import { useEffect, useId } from 'react';
 import { Pressable, StyleSheet, Text, View, type GestureResponderEvent } from 'react-native';
 import Animated, { FadeIn, useAnimatedStyle, useSharedValue, withDelay, withSequence, withSpring, withTiming, ZoomIn } from 'react-native-reanimated';
@@ -8,28 +8,46 @@ import Svg, { Defs, LinearGradient, Path, Stop } from 'react-native-svg';
 import { color, font } from '@/brand/tokens';
 import { Icon } from '@/components/icons';
 import { Rom, Th } from '@/components/ui';
+import { useStore } from '@/lib/store';
 
 import { Glow, Pop, Press3D } from '../fx';
-import { Typed } from '../mercado/stall';
+import { SoundWave, Typed } from '../mercado/stall';
 
 export type Said = { th: string; rom: string; es: string };
 
-/** Bocadillo de quien habla, con el pico hacia su cabeza. */
-export function SpeakerBubble({ name, tint, line, typedKey, showEs, tailX, onReveal, onSpeak, hint = 'toca para traducir' }: { name: string; tint: string; line: Said; typedKey: number; showEs: boolean; tailX: number; onReveal: () => void; onSpeak: () => void; hint?: string }) {
+/**
+ * Bocadillo de quien habla, con el pico hacia su cabeza.
+ * `veil`: aún solo se oye (onda de sonido; al tocar se ve la frase) · `showRom`: con transcripción (se quita cuando
+ * ya se lee) · `oral`: primera lección, la transcripción manda y el thai va pequeño debajo.
+ */
+export function SpeakerBubble({ name, tint, line, typedKey, showEs, showRom = true, veil, oral, tailX, onReveal, onSpeak, hint = 'toca para traducir' }: { name: string; tint: string; line: Said; typedKey: number; showEs: boolean; showRom?: boolean; veil?: boolean; oral?: boolean; tailX: number; onReveal: () => void; onSpeak: () => void; hint?: string }) {
   return (
     <Animated.View key={typedKey} entering={ZoomIn.springify().damping(14)} style={styles.bubble}>
       <View style={[styles.tail, { left: Math.max(16, tailX - 9) }]} />
-      <Pressable accessibilityRole="button" accessibilityLabel={`${name} dice: ${line.th}. Toca para ver la traducción`} onPress={onReveal} style={{ paddingRight: 34 }}>
+      <Pressable accessibilityRole="button" accessibilityLabel={veil ? `${name} está hablando. Toca para ver la frase` : `${name} dice: ${line.th}. Toca para ver la traducción`} onPress={onReveal} style={{ paddingRight: 34 }}>
         <Text style={[styles.name, { color: tint }]}>{name}</Text>
-        <Typed key={`${typedKey}-${line.th}`} text={line.th} size={18} />
-        <Rom rom={line.rom} size={12} />
-        {showEs ? (
+        {veil ? (
+          <SoundWave tint={tint} height={24} label="escucha…" />
+        ) : oral ? (
+          <>
+            <Rom rom={line.rom} size={19} />
+            <Th size={14} style={{ color: color.tinta3, lineHeight: 21 }}>
+              {line.th}
+            </Th>
+          </>
+        ) : (
+          <>
+            <Typed key={`${typedKey}-${line.th}`} text={line.th} size={18} />
+            {showRom ? <Rom rom={line.rom} size={12} /> : null}
+          </>
+        )}
+        {showEs && !veil ? (
           <Animated.View entering={FadeIn.duration(200)} style={styles.es}>
             <Text style={styles.esText}>{line.es}</Text>
           </Animated.View>
-        ) : (
-          hint ? <Text style={styles.tap}>{hint}</Text> : null
-        )}
+        ) : hint ? (
+          <Text style={styles.tap}>{hint}</Text>
+        ) : null}
       </Pressable>
       <Pressable accessibilityRole="button" accessibilityLabel="Escuchar otra vez" hitSlop={10} onPress={onSpeak} style={[styles.spk, { position: 'absolute', right: 10, top: 8 }]}>
         <Icon name="speaker" size={15} color="#FFFFFF" />
@@ -53,8 +71,15 @@ export function MyBubble({ line }: { line: Said }) {
 
 export type CardState = 'idle' | 'wrong' | 'right' | 'dim';
 
-/** Carta de respuesta: se reparte volteándose desde abajo, se inclina al tocarla y tiembla si no encaja. */
-export function AnswerCard({ th, rom, es, state, index, onPress, label, latin }: { th: string; rom: string; es?: string; state: CardState; index: number; onPress: (e: GestureResponderEvent) => void; label: string; latin?: boolean }) {
+/**
+ * Carta de respuesta: se reparte volteándose desde abajo, se inclina al tocarla y tiembla si no encaja.
+ * `rom` y `es` solo se pintan si llegan (en la feria el español se esconde; quien ya lee no lleva transcripción).
+ * `onHear`: altavoz a su lado para oírla sin elegirla · `selected`: elegida para oírla, a falta de confirmar (de oído)
+ * · `oral`: primera lección, manda la transcripción.
+ */
+export function AnswerCard({ th, rom, es, state, index, onPress, onHear, label, latin, selected, oral }: { th: string; rom?: string; es?: string; state: CardState; index: number; onPress: (e: GestureResponderEvent) => void; onHear?: () => void; label: string; latin?: boolean; selected?: boolean; oral?: boolean }) {
+  const { p } = useStore();
+  const romOn = !!rom && p.settings.romanization;
   const deal = useSharedValue(0);
   const shake = useSharedValue(0);
   useEffect(() => {
@@ -67,27 +92,45 @@ export function AnswerCard({ th, rom, es, state, index, onPress, label, latin }:
     opacity: Math.min(1, deal.value * 1.6),
     transform: [{ perspective: 800 }, { translateY: (1 - deal.value) * 70 }, { rotateX: `${(1 - deal.value) * 85}deg` }, { translateX: shake.value }],
   }));
-  const tone = state === 'wrong' ? { bg: color.lacaSuave, border: color.laca, depth: color.lacaHondo } : state === 'right' ? { bg: color.arrozalSuave, border: color.arrozalVivo, depth: color.arrozal } : { bg: '#FFFDF7', border: '#E8C98E', depth: '#C99A4E' };
+  const tone =
+    state === 'wrong'
+      ? { bg: color.lacaSuave, border: color.laca, depth: color.lacaHondo }
+      : state === 'right'
+        ? { bg: color.arrozalSuave, border: color.arrozalVivo, depth: color.arrozal }
+        : selected
+          ? { bg: color.cieloSuave, border: color.cielo, depth: color.cieloHondo }
+          : { bg: '#FFFDF7', border: '#E8C98E', depth: '#C99A4E' };
+  const ink = state === 'wrong' ? color.lacaHondo : color.tinta;
   return (
-    <Animated.View style={st}>
-      <View style={{ opacity: state === 'dim' ? 0.45 : 1 }}>
+    <Animated.View style={[{ flexDirection: 'row', alignItems: 'stretch', gap: 6 }, st]}>
+      <View style={{ flex: 1, opacity: state === 'dim' ? 0.45 : 1 }}>
         {state === 'right' ? <Glow size={260} tint={color.arrozalVivo} strength={0.35} style={{ position: 'absolute', left: '50%', top: '50%', marginLeft: -130, marginTop: -130 }} /> : null}
         <Press3D onPress={onPress} disabled={state !== 'idle'} accessibilityLabel={label} depth={10}>
           <View style={[styles.cardDepth, { backgroundColor: tone.depth }]}>
             <View style={[styles.card, { backgroundColor: tone.bg, borderColor: tone.border }]}>
-              <View style={styles.cardStripe} />
+              <View style={[styles.cardStripe, selected && state === 'idle' ? { backgroundColor: color.cielo } : null]} />
               <View style={{ flex: 1, gap: 1 }}>
                 {latin ? (
-                  <Text style={[styles.cardLatin, { color: state === 'wrong' ? color.lacaHondo : color.tinta }]}>{th}</Text>
-                ) : (
+                  <Text style={[styles.cardLatin, { color: ink }]}>{th}</Text>
+                ) : oral && romOn ? (
                   <>
-                    <Th size={18} bold style={{ color: state === 'wrong' ? color.lacaHondo : color.tinta }}>
+                    <Rom rom={rom ?? ''} size={18} />
+                    <Th size={13} style={{ color: color.tinta3, lineHeight: 19 }}>
                       {th}
                     </Th>
-                    <Text style={styles.cardSub}>
-                      <Rom rom={rom} size={12} />
-                      {es ? <Text style={styles.cardEs}>{`  ·  ${es}`}</Text> : null}
-                    </Text>
+                    {es ? <Text style={styles.cardEs}>{es}</Text> : null}
+                  </>
+                ) : (
+                  <>
+                    <Th size={18} bold style={{ color: ink }}>
+                      {th}
+                    </Th>
+                    {romOn || es ? (
+                      <Text style={styles.cardSub}>
+                        {romOn ? <Rom rom={rom ?? ''} size={12} /> : null}
+                        {es ? <Text style={styles.cardEs}>{romOn ? `  ·  ${es}` : es}</Text> : null}
+                      </Text>
+                    ) : null}
                   </>
                 )}
               </View>
@@ -100,14 +143,19 @@ export function AnswerCard({ th, rom, es, state, index, onPress, label, latin }:
           </View>
         </Press3D>
       </View>
+      {onHear ? (
+        <Pressable accessibilityRole="button" accessibilityLabel={`Escuchar: ${th}`} onPress={onHear} style={[styles.hear, { opacity: state === 'dim' ? 0.45 : 1 }]}>
+          <Icon name="speaker" size={19} color="#FFFFFF" />
+        </Pressable>
+      ) : null}
     </Animated.View>
   );
 }
 
 const HEART = 'M12 21s-7.5-4.6-9.6-9.2C.9 8.4 2.9 4.5 6.6 4.5c2.1 0 3.6 1.2 4.4 2.6.8-1.4 2.3-2.6 4.4-2.6 3.7 0 5.7 3.9 4.2 7.3C19.5 16.4 12 21 12 21z';
 
-/** «Calor familiar»: un corazón que late y una barra que se llena con cada buena respuesta. */
-export function Warmth({ value, dark }: { value: number; dark?: boolean }) {
+/** «Calor familiar» (o la alegría de Noi, la confianza de Yai…): un corazón que late y una barra que se llena con cada buena respuesta. */
+export function Warmth({ value, dark, label = 'Calor familiar' }: { value: number; dark?: boolean; label?: string }) {
   const u = `w${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
   const w = useSharedValue(value);
   useEffect(() => {
@@ -116,7 +164,7 @@ export function Warmth({ value, dark }: { value: number; dark?: boolean }) {
   const fill = useAnimatedStyle(() => ({ width: `${w.value * 100}%` }));
   const size = 26 + Math.min(1, value) * 8;
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }} accessibilityLabel={`Calor familiar: ${Math.round(value * 100)} %`}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }} accessibilityLabel={`${label}: ${Math.round(value * 100)} %`}>
       <Pop trigger={Math.round(value * 100)} scale={1.4}>
         <Svg width={size} height={size} viewBox="0 0 24 24">
           <Defs>
@@ -130,7 +178,9 @@ export function Warmth({ value, dark }: { value: number; dark?: boolean }) {
         </Svg>
       </Pop>
       <View style={{ flex: 1, gap: 2 }}>
-        <Text style={[styles.warmLabel, dark ? { color: '#FFE7C2' } : null]}>Calor familiar</Text>
+        <Text style={[styles.warmLabel, dark ? { color: '#FFE7C2' } : null]} numberOfLines={1}>
+          {label}
+        </Text>
         <View style={styles.warmTrack}>
           <Animated.View style={[styles.warmFill, fill]}>
             <View style={styles.warmShine} />
@@ -187,6 +237,7 @@ const styles = StyleSheet.create({
   cardEs: { fontFamily: font.uiBold, fontSize: 12, color: color.tinta3 },
   cardLatin: { fontFamily: font.uiHeavy, fontSize: 15, lineHeight: 20 },
   badge: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  hear: { width: 44, marginBottom: 5, borderRadius: 16, backgroundColor: color.cielo, borderBottomWidth: 4, borderBottomColor: color.cieloHondo, alignItems: 'center', justifyContent: 'center' },
   warmLabel: { fontFamily: font.uiHeavy, fontSize: 10, letterSpacing: 1, color: color.tinta3, textTransform: 'uppercase' },
   warmTrack: { height: 10, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.25)', overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)' },
   warmFill: { height: '100%', borderRadius: 10, backgroundColor: '#FF6A8A' },

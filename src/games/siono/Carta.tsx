@@ -1,6 +1,7 @@
 // Carta de ¿Sí o บ่?: se arrastra con el dedo (gesture-handler, en el hilo de la interfaz), se inclina en 3D
-// siguiendo el gesto, deja ver los sellos «ใช่» y «บ่» y sale volando con giro al soltarla. También responde
-// a los botones (orden `cmd`) y, en la feria, a su propio reloj (cae si se acaba el tiempo).
+// siguiendo el gesto, deja ver los sellos «ใช่» y «ไม่ใช่» (o «บ่», cuando ya se conoce) y sale volando con giro al
+// soltarla. También responde a los botones (orden `cmd`) y, en la feria, a su propio reloj (cae si se acaba el
+// tiempo). Puede decir su thai al aparecer, ser dorada (vale triple) o «de oído» (sin escritura: solo se escucha).
 import { useEffect, useEffectEvent, useId, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { GestureDetector, usePanGesture } from 'react-native-gesture-handler';
@@ -14,31 +15,43 @@ import { Rom, Th } from '@/components/ui';
 import type { Word } from '@/content/types';
 import { say } from '@/lib/audio';
 
+import { fitTh, useLater } from '../palabras/common';
+
 export const THRESHOLD = 110;
 export const CARD_H = 330;
 
-export type Deal = { id: number; word: Word; other: Word; truth: boolean; dir: 'th' | 'es' };
-/** `true` = ใช่ (sí), `false` = บ่ (no), `null` = se acabó el tiempo. */
+/**
+ * Una carta: ¿`word` quiere decir lo que propone `other`? (`truth`: `other` es la propia `word`).
+ * `dir`: 'th' enseña el thai y propone un significado; 'es' enseña el significado y propone un thai.
+ * `rom`: lleva transcripción · `golden`: vale triple · `audio`: de oído (el thai no se ve, se escucha).
+ */
+export type Deal = { id: number; word: Word; other: Word; truth: boolean; dir: 'th' | 'es'; rom: boolean; golden?: boolean; audio?: boolean };
+/** `true` = ใช่ (sí), `false` = ไม่ใช่ / บ่ (no), `null` = se acabó el tiempo. */
 export type Verdict = boolean | null;
 
+/** El thai que lleva la carta: el que se lee (o se oye) en ella. */
+export const thaiOf = (d: Deal) => (d.dir === 'th' ? d.word.th : d.other.th);
+
 /** Cara de la carta (también se usa, quieta, para la siguiente del mazo). */
-export function CardFace({ d, showRom = true }: { d: Deal; showRom?: boolean }) {
+export function CardFace({ d }: { d: Deal }) {
   const u = useId().replace(/[^a-zA-Z0-9]/g, '');
   const th = d.dir === 'th';
   const proposalTh = d.other.th;
-  const len = (th ? d.word.th : proposalTh).length;
-  const big = len > 10 ? 30 : len > 6 ? 38 : 46;
+  const big = fitTh(d.word.th, 250, 46, 20);
+  const prop = fitTh(proposalTh, 220, 28, 16);
+  const showRom = d.rom;
+  const gold = !!d.golden;
   return (
     <View style={styles.face}>
       <Svg width="100%" height="100%" style={StyleSheet.absoluteFill}>
         <Defs>
           <LinearGradient id={`${u}f`} x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor="#FFFFFF" />
-            <Stop offset="1" stopColor="#EEF4FF" />
+            <Stop offset="0" stopColor={gold ? '#FFFDF0' : '#FFFFFF'} />
+            <Stop offset="1" stopColor={gold ? '#FFEDB3' : '#EEF4FF'} />
           </LinearGradient>
           <LinearGradient id={`${u}h`} x1="0" y1="0" x2="1" y2="0">
-            <Stop offset="0" stopColor={th ? '#5AA9FF' : '#FFB347'} />
-            <Stop offset="1" stopColor={th ? '#3D7BFF' : '#FF8A3D'} />
+            <Stop offset="0" stopColor={gold ? '#FFD34D' : th ? '#5AA9FF' : '#FFB347'} />
+            <Stop offset="1" stopColor={gold ? '#E59A10' : th ? '#3D7BFF' : '#FF8A3D'} />
           </LinearGradient>
         </Defs>
         <Rect x={0} y={0} width="100%" height="100%" fill={`url(#${u}f)`} />
@@ -47,14 +60,24 @@ export function CardFace({ d, showRom = true }: { d: Deal; showRom?: boolean }) 
           <Circle key={f} cx={`${f * 100}%`} cy={44} r={7} fill="#FFFFFF" />
         ))}
       </Svg>
-      <Text style={styles.band}>{th ? '¿Qué significa?' : '¿Cómo se dice en thai?'}</Text>
+      <Text style={[styles.band, gold ? { color: '#5A3300' } : null]}>
+        {gold ? '★ Dorada ×3 · ' : ''}
+        {d.audio ? '¿Qué oyes?' : th ? '¿Qué significa?' : '¿Cómo se dice en thai?'}
+      </Text>
       <View style={styles.body}>
-        {th ? (
+        {d.audio ? (
           <>
-            <Th size={big} bold style={{ lineHeight: Math.round(big * 1.45), textAlign: 'center' }}>
+            <View style={styles.ear}>
+              <Icon name="speaker" size={44} color="#FFFFFF" />
+            </View>
+            <Text style={styles.earHint}>toca para oírla otra vez</Text>
+          </>
+        ) : th ? (
+          <>
+            <Th size={big.size} bold numberOfLines={big.lines} style={{ lineHeight: Math.round(big.size * 1.45), textAlign: 'center' }}>
               {d.word.th}
             </Th>
-            {showRom ? <Rom rom={d.word.rom} size={17} /> : null}
+            {showRom ? <Rom rom={d.word.rom} size={17} style={{ textAlign: 'center' }} /> : null}
           </>
         ) : (
           <Text style={[styles.esBig, d.word.es.length > 16 ? { fontSize: 24, lineHeight: 29 } : null]} numberOfLines={3}>
@@ -62,17 +85,17 @@ export function CardFace({ d, showRom = true }: { d: Deal; showRom?: boolean }) 
           </Text>
         )}
         <Text style={styles.eq}>{th ? 'quiere decir…' : 'se dice…'}</Text>
-        <View style={styles.proposal}>
+        <View style={[styles.proposal, gold ? { backgroundColor: '#FFFFFF', borderColor: '#E9A93B' } : null]}>
           {th ? (
             <Text style={styles.proposalEs} numberOfLines={2}>
               {d.other.es}
             </Text>
           ) : (
             <View style={{ alignItems: 'center' }}>
-              <Th size={28} bold style={{ lineHeight: 40, color: color.tinta }}>
+              <Th size={prop.size} bold numberOfLines={prop.lines} style={{ lineHeight: Math.round(prop.size * 1.45), color: color.tinta, textAlign: 'center' }}>
                 {proposalTh}
               </Th>
-              {showRom ? <Rom rom={d.other.rom} size={14} /> : null}
+              {showRom ? <Rom rom={d.other.rom} size={14} style={{ textAlign: 'center' }} /> : null}
             </View>
           )}
         </View>
@@ -81,13 +104,13 @@ export function CardFace({ d, showRom = true }: { d: Deal; showRom?: boolean }) 
   );
 }
 
-function Stamp({ yes }: { yes: boolean }) {
+function Stamp({ yes, noTh }: { yes: boolean; noTh: string }) {
   const c = yes ? '#16A86A' : '#E2474C';
   return (
     <View style={[styles.stamp, { borderColor: c, transform: [{ rotate: yes ? '-14deg' : '14deg' }] }]}>
       <View style={[styles.stampIn, { borderColor: c }]}>
-        <Th size={30} bold style={{ color: c, lineHeight: 40 }}>
-          {yes ? 'ใช่' : 'บ่'}
+        <Th size={noTh.length > 2 && !yes ? 24 : 30} bold style={{ color: c, lineHeight: 40 }}>
+          {yes ? 'ใช่' : noTh}
         </Th>
         <Text style={[styles.stampEs, { color: c }]}>{yes ? 'SÍ' : 'NO'}</Text>
       </View>
@@ -99,18 +122,24 @@ export function SwipeCard({
   d,
   cmd,
   timeMs,
-  showRom,
+  noTh,
+  speak,
   onDecide,
 }: {
   d: Deal;
   /** orden de los botones: cambia `n` para lanzar la carta a un lado */
   cmd: { n: number; yes: boolean };
-  /** tiempo de la carta (feria); 0 = sin reloj */
+  /** tiempo de la carta (feria); 0 = sin reloj (también mientras hay un letrero delante) */
   timeMs: number;
-  showRom: boolean;
+  /** cómo se dice «no» en el sello: ไม่ใช่, o บ่ cuando ya se ha aprendido */
+  noTh: string;
+  /** dice su thai al llegar arriba (lecciones y cartas de oído) */
+  speak: boolean;
   onDecide: (v: Verdict) => void;
 }) {
   const { width } = useWindowDimensions();
+  // temporizadores que mueren con la carta: si se cierra el juego a media respuesta, ya no cuenta ni suena
+  const later = useLater();
   const x = useSharedValue(0);
   const y = useSharedValue(0);
   const lift = useSharedValue(0);
@@ -134,7 +163,7 @@ export function SwipeCard({
       x.set(withTiming((v ? 1 : -1) * width * 1.4, { duration: 300, easing: Easing.in(Easing.quad) }));
       spin.set(withTiming(v ? 30 : -30, { duration: 300 }));
     }
-    setTimeout(() => onDecide(v), v === null ? 380 : 210);
+    later(() => onDecide(v), v === null ? 380 : 210);
   };
 
   const flyLater = useEffectEvent((v: Verdict) => fly(v));
@@ -157,8 +186,16 @@ export function SwipeCard({
 
   const decideFromGesture = (yes: boolean) => {
     cancelAnimation(clock);
-    setTimeout(() => onDecide(yes), 180);
+    later(() => onDecide(yes), 180);
   };
+
+  // al llegar arriba dice su thai (cuando ya ha entrado, para no pisar el final de la carta anterior)
+  const voice = thaiOf(d);
+  useEffect(() => {
+    if (!speak) return;
+    const t = setTimeout(() => say(voice), 260);
+    return () => clearTimeout(t);
+  }, [speak, voice]);
 
   // la distancia se mide desde donde se apoyó el dedo (más fiable que esperar a que el gesto se active)
   const sx = useSharedValue(0);
@@ -236,23 +273,34 @@ export function SwipeCard({
     <GestureDetector gesture={pan}>
       <Animated.View
         accessible
-        accessibilityLabel={d.dir === 'th' ? `${d.word.th}, ¿quiere decir ${d.other.es}? Desliza a la derecha si es correcto o a la izquierda si no.` : `«${d.word.es}», ¿se dice ${d.other.th}? Desliza a la derecha si es correcto o a la izquierda si no.`}
+        accessibilityLabel={
+          d.audio
+            ? `Carta de oído: lo que suena, ¿quiere decir ${d.other.es}? Desliza a la derecha si es correcto o a la izquierda si no.`
+            : d.dir === 'th'
+              ? `${d.word.th}, ¿quiere decir ${d.other.es}? Desliza a la derecha si es correcto o a la izquierda si no.`
+              : `«${d.word.es}», ¿se dice ${d.other.th}? Desliza a la derecha si es correcto o a la izquierda si no.`
+        }
         style={[styles.card, card]}>
-        <CardFace d={d} showRom={showRom} />
+        <CardFace d={d} />
         <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { borderRadius: 28 }, tint]} />
         {timeMs ? (
           <View style={styles.timer}>
             <Animated.View style={[styles.timerFill, bar]} />
           </View>
         ) : null}
-        <Pressable accessibilityRole="button" accessibilityLabel="Escuchar" onPress={() => say(d.dir === 'th' ? d.word.th : d.other.th)} style={styles.speaker}>
-          <Icon name="speaker" size={20} color="#FFFFFF" />
-        </Pressable>
+        {d.audio ? (
+          // carta de oído: toda la mitad de arriba (el altavoz grande) repite la palabra
+          <Pressable accessibilityRole="button" accessibilityLabel="Escuchar otra vez" onPress={() => say(voice)} style={styles.earPress} />
+        ) : (
+          <Pressable accessibilityRole="button" accessibilityLabel="Escuchar" onPress={() => say(voice)} style={styles.speaker}>
+            <Icon name="speaker" size={20} color="#FFFFFF" />
+          </Pressable>
+        )}
         <Animated.View pointerEvents="none" style={[styles.stampPos, { left: 16 }, yesSt]}>
-          <Stamp yes />
+          <Stamp yes noTh={noTh} />
         </Animated.View>
         <Animated.View pointerEvents="none" style={[styles.stampPos, { right: 16 }, noSt]}>
-          <Stamp yes={false} />
+          <Stamp yes={false} noTh={noTh} />
         </Animated.View>
       </Animated.View>
     </GestureDetector>
@@ -292,6 +340,9 @@ const styles = StyleSheet.create({
   proposalEs: { fontFamily: font.displayBold, fontSize: 24, lineHeight: 29, color: color.tinta, textAlign: 'center' },
   timer: { position: 'absolute', left: 18, right: 18, bottom: 10, height: 7, borderRadius: 4, backgroundColor: 'rgba(29,35,71,0.1)', overflow: 'hidden' },
   timerFill: { height: '100%', borderRadius: 4 },
+  ear: { width: 88, height: 88, borderRadius: 44, backgroundColor: color.cielo, alignItems: 'center', justifyContent: 'center', borderBottomWidth: 5, borderColor: color.cieloHondo, shadowColor: color.cielo, shadowOpacity: 0.45, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 5 },
+  earHint: { fontFamily: font.uiBold, fontSize: 12, color: color.tinta3, marginTop: 4 },
+  earPress: { position: 'absolute', left: 16, right: 16, top: 50, height: 150 },
   speaker: { position: 'absolute', right: 12, top: 56, width: 36, height: 36, borderRadius: 18, backgroundColor: color.cielo, alignItems: 'center', justifyContent: 'center', borderBottomWidth: 3, borderColor: color.cieloHondo },
   stampPos: { position: 'absolute', top: 60 },
   stamp: { borderWidth: 4, borderRadius: 14, padding: 3, backgroundColor: 'rgba(255,255,255,0.75)' },

@@ -111,13 +111,13 @@ describe('lecciones: nada se pregunta antes de presentarse', async () => {
     const b = buildLesson(app.LESSONS[0], p);
     assert.equal(b.firstCurve, true);
     assert.deepEqual(
-      b.steps.map((s) => (s.kind === 'intro' ? `ficha:${s.word.id}` : s.game)),
-      ['ficha:sawatdii', 'ficha:khopkhun', 'oido', 'eco', 'cena'],
+      b.steps.map((s) => (s.kind === 'intro' ? `ficha:${s.word.id}` : s.kind === 'game' ? s.game : s.kind)),
+      ['beat', 'ficha:sawatdii', 'ficha:khopkhun', 'oido', 'eco', 'cena'],
     );
     for (const s of b.steps) if (s.kind === 'game') assert.deepEqual((s.words ?? []).map((w) => w.id).sort(), ['khopkhun', 'sawatdii']);
   });
 
-  test('recorriendo las 164 lecciones en orden, cada juego solo usa palabras ya presentadas', () => {
+  test('recorriendo todas las lecciones en orden, cada juego solo usa palabras ya presentadas', () => {
     const words: Record<string, { s: number; intro?: boolean }> = { sawatdii: { s: 1, intro: true } };
     const completed: Record<string, { stars: number; best: number; at: string }> = {};
     const p = { words, completed, profile: { startStop: 1 } };
@@ -129,6 +129,8 @@ describe('lecciones: nada se pregunta antes de presentarse', async () => {
           shown.add(s.word.id);
           continue;
         }
+        // el momento de la historia y la gramática en un minuto no preguntan nada
+        if (s.kind !== 'game') continue;
         const usados = [...(s.words ?? b.words), ...(s.focus ?? b.focus)];
         const sinFicha = usados.filter((w) => !shown.has(w.id)).map((w) => w.id);
         assert.deepEqual(sinFicha, [], `${l.id} · ${s.game}: usa palabras sin ficha`);
@@ -307,12 +309,20 @@ describe('feria y repaso: solo palabras con ficha', async () => {
     assert.equal(abierto('noidice', leccion('p3l5')), true);
     assert.equal(abierto('mercado', leccion('p2l1') - 1), false);
     assert.equal(abierto('mercado', leccion('p2l1')), true);
-    assert.equal(abierto('cueva', leccion('p6l1') - 1), false);
-    assert.equal(abierto('cueva', leccion('p6l1')), true);
-    assert.equal(abierto('silabas', leccion('p6l5') - 1), false);
-    assert.equal(abierto('cuentos', leccion('p13l2') - 1), false);
-    const shelf = feriaSetup('cuentos', progressAfter(leccion('p13l2')));
-    assert.ok(!('needMore' in shelf) && shelf.extra?.kind === 'cuento' && shelf.extra.shelf?.join() === 'st2');
+    // los puestos de letras y de cuentos se abren con la primera lección que los trae, esté donde esté
+    const primera = (es: (l: (typeof app.LESSONS)[number]) => boolean) => app.LESSONS.findIndex(es) + 1;
+    const medias = primera((l) => l.extra?.kind === 'letras' && l.extra.set === 'media');
+    assert.equal(abierto('cueva', medias - 1), false);
+    assert.equal(abierto('cueva', medias), true);
+    assert.equal(abierto('traza', medias), true);
+    const silabas = primera((l) => l.extra?.kind === 'letras' && l.extra.set === 'silabas');
+    assert.equal(abierto('silabas', silabas - 1), false);
+    assert.equal(abierto('silabas', silabas), true);
+    const cuento = primera((l) => l.extra?.kind === 'cuento');
+    const primerCuento = app.LESSONS[cuento - 1].extra;
+    assert.equal(abierto('cuentos', cuento - 1), false);
+    const shelf = feriaSetup('cuentos', progressAfter(cuento));
+    assert.ok(!('needMore' in shelf) && shelf.extra?.kind === 'cuento' && primerCuento?.kind === 'cuento' && shelf.extra.shelf?.join() === primerCuento.id);
   });
 
   test('el repaso solo trae palabras con ficha y no se abre con muy pocas', () => {

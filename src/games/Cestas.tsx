@@ -1,11 +1,13 @@
 // Juego 12 · Cestas del mercado. En thai las cosas se cuentan con su clasificador: แมว สาม ตัว = «gato tres ‹de
 // animal›». En el puesto del mercado nocturno, la cinta trae bandejas con cosas: tócalas a su cesta o lánzalas con
 // el dedo. La cesta rebota, saltan monedas y suena la frase entera. Las cestas no se mueven del puesto, así que cada
-// vez se va más rápido. Feria: la cinta corre más en cada nivel, se abre una cesta nueva por nivel, bandejas de oro
-// (×3), y lo que se cae o se falla vuelve más tarde. Usa el banco de clasificadores y las palabras aprendidas que
-// tienen clasificador.
+// vez se va más rápido. Feria: la cinta corre más en cada nivel (y no espera aunque tengas la bandeja en la mano),
+// se abre una cesta nueva por nivel, bandejas de oro (×3), y lo que se cae o se falla vuelve más tarde. Desde el
+// nivel 2 las cestas ya no enseñan dibujos: hay que leer el clasificador. อัน es el comodín: vale para las cosas
+// pequeñas («vale, pero mejor คัน») y no cuenta como fallo. Usa el banco de clasificadores y las palabras
+// aprendidas que tienen clasificador; al repaso le llega el clasificador (la palabra que de verdad se practica).
 import { useEffect, useId, useRef, useState, type ComponentRef } from 'react';
-import { Pressable, StyleSheet, Text, View, type GestureResponderEvent } from 'react-native';
+import { Pressable, StyleSheet, Text, View, useWindowDimensions, type GestureResponderEvent } from 'react-native';
 import Animated, { Easing, FadeInDown, cancelAnimation, useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 import Svg, { Defs, Ellipse, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
 
@@ -15,7 +17,7 @@ import { Noi } from '@/components/Noi';
 import { Btn, Rom, SpeakBtn, Th } from '@/components/ui';
 import { knownForms } from '@/content';
 import { CLASSIFIERS, classifierItemsFor } from '@/content/drills';
-import type { Word } from '@/content/types';
+import type { Category, Word } from '@/content/types';
 import { fx, say } from '@/lib/audio';
 import { randInt, shuffle } from '@/lib/random';
 import { thaiNumber, thaiNumberRom } from '@/lib/thai';
@@ -28,56 +30,101 @@ import type { GameProps } from './types';
 
 // ——— Clasificadores y cosas ———
 
-type Clf = { clf: string; rom: string; es: string; icons: string; core: boolean };
+type Clf = { clf: string; rom: string; es: string; icons: string[]; core: boolean };
 
-const ICONS: Record<string, string> = { ตัว: '🐱👕', คน: '🧒👩‍🏫', ใบ: '🍃🍽️', ลูก: '🥭⚽', อัน: '🧸🧽', คัน: '🚗☂️', เล่ม: '📕🔪', หลัง: '🏠🛖' };
+/** Lo que asoma por cada cesta (pista del primer nivel). Tres por cesta: nunca se enseña el mismo dibujo de la bandeja. */
+const ICONS: Record<string, string[]> = {
+  ตัว: ['🐱', '👕', '🐟'],
+  คน: ['🧒', '👩‍🏫', '👵'],
+  ใบ: ['🍃', '🍽️', '🎟️'],
+  ลูก: ['🥭', '⚽', '🍊'],
+  อัน: ['🧸', '🧽', '🔑'],
+  คัน: ['🚗', '☂️', '🥄'],
+  เล่ม: ['📕', '🔪', '🕯️'],
+  หลัง: ['🏠', '🛖', '🏡'],
+  ดอก: ['🌸', '🔑', '🌼'],
+  ต้น: ['🌳', '🌱', '🎋'],
+  ฟอง: ['🥚', '🍳'],
+  ผืน: ['🧣', '🧵', '🛏️'],
+};
 
 /** Los del banco (drills.ts) y algunos más que llevan las palabras del temario. */
 const CLFS: Clf[] = [
-  ...CLASSIFIERS.map((c) => ({ ...c, icons: ICONS[c.clf] ?? '📦', core: true })),
-  { clf: 'แก้ว', rom: 'gɛ̂ɛo', es: 'bebidas en vaso', icons: '☕🥤', core: false },
-  { clf: 'ลำ', rom: 'lam', es: 'barcos y aviones', icons: '⛵✈️', core: false },
-  { clf: 'ดอก', rom: 'dɔ̀ɔk', es: 'flores, incienso, llaves', icons: '🌸🔑', core: false },
-  { clf: 'ต้น', rom: 'tôn', es: 'árboles y plantas', icons: '🌳🌱', core: false },
-  { clf: 'แห่ง', rom: 'hɛ̀ng', es: 'lugares: templos, pueblos', icons: '🛕🌉', core: false },
-  { clf: 'คู่', rom: 'khûu', es: 'pares (zapatos…)', icons: '👟', core: false },
-  { clf: 'ฟอง', rom: 'fɔɔng', es: 'huevos', icons: '🥚', core: false },
-  { clf: 'ผืน', rom: 'phʉ̌ʉn', es: 'telas, esterillas, mantas', icons: '🧣', core: false },
-  { clf: 'บาน', rom: 'baan', es: 'puertas y ventanas', icons: '🚪🪟', core: false },
-  { clf: 'รูป', rom: 'rûup', es: 'monjes y novicios', icons: '🧘', core: false },
+  ...CLASSIFIERS.map((c) => ({ ...c, icons: ICONS[c.clf] ?? ['📦'], core: true })),
+  { clf: 'แก้ว', rom: 'gɛ̂ɛo', es: 'bebidas en vaso', icons: ['☕', '🥤', '🍵'], core: false },
+  { clf: 'ลำ', rom: 'lam', es: 'barcos y aviones', icons: ['⛵', '✈️', '🛶'], core: false },
+  { clf: 'แห่ง', rom: 'hɛ̀ng', es: 'lugares: templos, pueblos', icons: ['🛕', '🌉', '🏘️'], core: false },
+  { clf: 'คู่', rom: 'khûu', es: 'pares (zapatos…)', icons: ['👟', '🧦', '🥢'], core: false },
+  { clf: 'บาน', rom: 'baan', es: 'puertas y ventanas', icons: ['🚪', '🪟'], core: false },
+  { clf: 'รูป', rom: 'rûup', es: 'monjes y novicios', icons: ['🧘', '🙇‍♂️'], core: false },
 ];
 const CLF_BY: Record<string, Clf> = Object.fromEntries(CLFS.map((c) => [c.clf, c]));
 
-type Thing = { th: string; rom: string; es: string; emoji: string; clf: string; alts: string[]; id?: string; learned: boolean };
+/** `soft`: se puede contar con อัน aunque tenga un clasificador mejor · `clfId`: la palabra del clasificador, para el repaso. */
+type Thing = { th: string; rom: string; es: string; emoji: string; clf: string; alts: string[]; id?: string; learned: boolean; soft: boolean };
+
+/** Nombres que hacen de clasificador sin que su ficha lo diga: เพื่อนสองคน, รองเท้าสองคู่. */
+const NOUN_CLF = new Set(['คน', 'คู่']);
+
+/**
+ * La palabra que enseña cada clasificador *como clasificador*: su ficha (o su nota) lo dice, o es un nombre que
+ * cuenta lo suyo. Que se conozca la misma escritura con otro sentido no basta: ลำ «rico», บาน «florecer» o
+ * รูป «foto» no abren las cestas de barcos, puertas o monjes. Es también la palabra que va al repaso.
+ */
+function taughtClassifiers(words: Word[]): Map<string, Word> {
+  const m = new Map<string, Word>();
+  for (const w of words) {
+    if (!CLF_BY[w.th]) continue;
+    const says = /clasificador/i.test(`${w.es} ${w.note ?? ''}`);
+    if ((says || NOUN_CLF.has(w.th)) && (!m.has(w.th) || (says && !/clasificador/i.test(m.get(w.th)!.es)))) m.set(w.th, w);
+  }
+  return m;
+}
+
+/**
+ * อัน es el comodín de las cosas pequeñas («si no sabes el clasificador, อัน te saca del apuro»): se acepta para
+ * objetos de mano, nunca para personas, animales, ropa, vehículos, casas, lugares, plantas, telas, bebidas o libros.
+ */
+const AN = 'อัน';
+const NO_AN_CLF = new Set(['คน', 'ตัว', 'หลัง', 'แห่ง', 'ต้น', 'ลำ', 'แก้ว', 'รูป', 'ผืน']);
+const NO_AN_CAT = new Set<Category>(['animal', 'transporte', 'familia', 'lugar', 'naturaleza', 'bebida']);
+const NO_AN_TH = new Set(['หนังสือ', 'สมุด', 'อัลบั้ม', 'เกวียน']);
+const anOk = (th: string, clf: string, cat?: Category) => clf !== AN && !NO_AN_CLF.has(clf) && !NO_AN_TH.has(th) && !(cat && NO_AN_CAT.has(cat));
 type Item = { key: string; thing: Thing; n: number; level: number; gold: boolean; retry: boolean };
 
 const firstEs = (es: string) => es.split(/[;,(]/)[0].trim();
 
-/** Plural español de lo que se cuenta: gato → gatos, pez → peces, camión → camiones, goma de borrar → gomas de borrar. */
+/** Plural español de lo que se cuenta: gato → gatos, pez → peces, camión → camiones, goma de borrar → gomas de borrar,
+ *  hermana pequeña → hermanas pequeñas (el adjetivo que va detrás también concuerda). */
+function pluralWord(f: string): string {
+  const plain = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '');
+  if (/[aeiouáéó]$/.test(f)) return `${f}s`;
+  if (/[íú]$/.test(f)) return `${f}es`;
+  if (/z$/.test(f)) return `${f.slice(0, -1)}ces`;
+  if (/[sx]$/.test(f)) return /[áéíóú][sx]$/.test(f) ? `${f.slice(0, -2)}${plain(f.slice(-2, -1))}${f.slice(-1)}es` : f;
+  // préstamos acabados en consonante rara (songthaew, tuk-tuk, wok): solo una -s
+  if (/(ng|[kptbgmwhcf])$/.test(f)) return `${f}s`;
+  return /[áéíóú][nrlsdj]?$/.test(f.slice(-2)) ? `${f.replace(/([áéíóú])([nrlsdj]?)$/, (_, v: string, c: string) => plain(v) + c)}es` : `${f}es`;
+}
 function plural(es: string): string {
   const [f, ...rest] = es.split(' ');
-  const plain = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '');
-  let p: string;
-  if (/[aeiouáéó]$/.test(f)) p = `${f}s`;
-  else if (/[íú]$/.test(f)) p = `${f}es`;
-  else if (/z$/.test(f)) p = `${f.slice(0, -1)}ces`;
-  else if (/[sx]$/.test(f)) p = /[áéíóú][sx]$/.test(f) ? `${f.slice(0, -2)}${plain(f.slice(-2, -1))}${f.slice(-1)}es` : f;
-  else if (/(ng|[kptbgm])$/.test(f)) p = `${f}s`;
-  else p = /[áéíóú][nrlsdj]?$/.test(f.slice(-2)) ? `${f.replace(/([áéíóú])([nrlsdj]?)$/, (_, v: string, c: string) => plain(v) + c)}es` : `${f}es`;
-  return [p, ...rest].join(' ');
+  const adjective = rest.length === 1 && !/^(de|del|con|para|a|al|en|sin|y|o)$/.test(rest[0]);
+  return [pluralWord(f), ...(adjective ? [pluralWord(rest[0])] : rest)].join(' ');
 }
 const NUM_ES = ['', 'un', 'dos', 'tres', 'cuatro', 'cinco'];
 
-/** Cosas para contar: solo las presentadas, y solo con clasificadores presentados. */
-function collect(words: Word[], focus: Word[]): Thing[] {
+/** Cosas para contar: solo las presentadas, y solo con clasificadores que ya se han enseñado como tales. */
+function collect(words: Word[], focus: Word[], taught: Map<string, Word>): Thing[] {
   const known = knownForms([...words, ...focus]);
   const map = new Map<string, Thing>();
   for (const it of classifierItemsFor(known)) {
-    map.set(it.th, { th: it.th, rom: it.rom, es: it.es, emoji: it.emoji ?? '📦', clf: it.clf, alts: [], id: WORD_BY_TH.get(it.th)?.id, learned: true });
+    if (!taught.has(it.clf)) continue;
+    const w = WORD_BY_TH.get(it.th);
+    map.set(it.th, { th: it.th, rom: it.rom, es: it.es, emoji: it.emoji ?? '📦', clf: it.clf, alts: [], id: w?.id, learned: true, soft: anOk(it.th, it.clf, w?.cat) });
   }
   const learned = new Set([...words, ...focus].map((w) => w.id));
   for (const w of [...focus, ...words]) {
-    if (!w.clf || !w.emoji || !CLF_BY[w.clf] || w.clf === w.th || !known.has(w.clf)) continue;
+    if (!w.clf || !w.emoji || !CLF_BY[w.clf] || w.clf === w.th || !taught.has(w.clf)) continue;
     const have = map.get(w.th);
     if (have) {
       if (have.clf !== w.clf && !have.alts.includes(w.clf)) have.alts.push(w.clf);
@@ -87,7 +134,7 @@ function collect(words: Word[], focus: Word[]): Thing[] {
     }
     const es = firstEs(w.es);
     if (es.length > 18) continue;
-    map.set(w.th, { th: w.th, rom: w.rom, es, emoji: w.emoji, clf: w.clf, alts: [], id: w.id, learned: learned.has(w.id) });
+    map.set(w.th, { th: w.th, rom: w.rom, es, emoji: w.emoji, clf: w.clf, alts: [], id: w.id, learned: learned.has(w.id), soft: anOk(w.th, w.clf, w.cat) });
   }
   return [...map.values()];
 }
@@ -100,7 +147,8 @@ function basketSets(things: Thing[], first: string[], start: number, levels: num
 }
 
 function makeGame(mode: GameProps['mode'], words: Word[], focus: Word[], n: number) {
-  const things = collect(words, focus);
+  const taught = taughtClassifiers([...focus, ...words]);
+  const things = collect(words, focus, taught);
   const focusTh = new Set(focus.map((w) => w.th));
   const focusClfs = [...new Set(things.filter((t) => focusTh.has(t.th)).map((t) => t.clf))];
   const learnedClfs = shuffle([...new Set(things.filter((t) => t.learned).map((t) => t.clf))]);
@@ -133,7 +181,7 @@ function makeGame(mode: GameProps['mode'], words: Word[], focus: Word[], n: numb
       j++;
     }
   }
-  return { items, sets };
+  return { items, sets, taught };
 }
 
 const phraseOf = (it: Item) => `${it.thing.th} ${thaiNumber(it.n)} ${it.thing.clf}`;
@@ -142,33 +190,35 @@ const esOf = (it: Item) => `${NUM_ES[it.n]} ${plural(it.thing.es)}`;
 
 // ——— Juego ———
 
-type Phase = 'intro' | 'play' | 'fly' | 'result';
+/** `enter`: la bandeja aún no está en la cinta (empieza la partida, sube el nivel): las cestas no aceptan nada. */
+type Phase = 'intro' | 'enter' | 'play' | 'fly';
 type Geo = { beltY: number; xStart: number; xMid: number; xEnd: number; rootX: number; rootY: number; w: number };
 const BELT_MS = [0, 7600, 6200, 5200, 4400];
 type Clock = { start: number; ms: number };
 /** Reloj de la cinta (se lee en manejadores; la cinta animada es solo para verla). */
 const clockFrom = (delay: number, ms: number): Clock => ({ start: Date.now() + delay, ms });
 const left = (c: Clock) => clamp(1 - (Date.now() - c.start) / c.ms, 0, 1);
-const DUMMY: Item = { key: 'vacio', thing: { th: '', rom: '', es: '', emoji: '', clf: 'ตัว', alts: [], learned: false }, n: 2, level: 1, gold: false, retry: false };
+const DUMMY: Item = { key: 'vacio', thing: { th: '', rom: '', es: '', emoji: '', clf: 'ตัว', alts: [], learned: false, soft: false }, n: 2, level: 1, gold: false, retry: false };
 const TRAY_W = 124;
 const TRAY_H = 104;
 
-export default function Cestas({ mode, words, focus, rounds, onAnswer, onDone }: GameProps) {
+export default function Cestas({ mode, words, focus, rounds, reads, onAnswer, onDone }: GameProps) {
   const feria = mode === 'feria';
   const score = useScore(mode);
   const juice = useJuice();
   const later = useLater();
   const reduced = useReducedMotion();
+  const win = useWindowDimensions();
   const [setup] = useState(() => makeGame(mode, words, focus, rounds ?? (feria ? 14 : 5)));
   const [items, setItems] = useState(setup.items);
   const [i, setI] = useState(0);
-  const [phase, setPhase] = useState<Phase>(feria ? 'intro' : 'play');
+  const [phase, setPhase] = useState<Phase>(feria ? 'intro' : 'enter');
   const [points, setPoints] = useState(0);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [bumps, setBumps] = useState<Record<string, number>>({});
   const [bad, setBad] = useState<string | null>(null);
   const [glow, setGlow] = useState<string | null>(null);
-  const [answered, setAnswered] = useState<null | { ok: boolean; clf: string }>(null);
+  const [answered, setAnswered] = useState<null | { ok: boolean; clf: string; soft?: boolean }>(null);
   const [pose, setPose] = useState<NoiPose>('feliz');
   const [jump, setJump] = useState(0);
   const rootRef = useRef<ViewRef>(null);
@@ -223,7 +273,11 @@ export default function Cestas({ mode, words, focus, rounds, onAnswer, onDone }:
 
   const measureGeo = async (): Promise<Geo | null> => {
     const [root, belt] = await Promise.all([measureBox(rootRef), measureBox(beltRef)]);
-    if (!root || !belt || !root.w) return game.current.geo;
+    if (!root || !belt || !root.w) {
+      // sin medidas (la pantalla aún no se ha pintado): una cinta aproximada, para que la partida nunca se quede parada
+      game.current.geo ??= { rootX: 0, rootY: 0, w: win.width, beltY: 230, xStart: win.width - TRAY_W / 2 - 14, xMid: win.width / 2, xEnd: TRAY_W / 2 + 14 };
+      return game.current.geo;
+    }
     const g: Geo = {
       rootX: root.x,
       rootY: root.y,
@@ -256,6 +310,8 @@ export default function Cestas({ mode, words, focus, rounds, onAnswer, onDone }:
       iop.set(1);
       iy.set(geo.beltY);
       ix.set(geo.w + TRAY_W);
+      // ahora sí hay bandeja: las cestas empiezan a aceptar
+      setPhase('play');
       if (!feria) {
         ix.set(withSpring(geo.xMid, { damping: 14, stiffness: 120 }));
         irot.set(withSequence(withTiming(-14, { duration: 260 }), withSpring(0, { damping: 8, stiffness: 180 })));
@@ -271,12 +327,14 @@ export default function Cestas({ mode, words, focus, rounds, onAnswer, onDone }:
   };
 
   const begin = () => {
-    setPhase('play');
+    setPhase('enter');
     startItem(0);
   };
 
   const clfInfo = CLF_BY[item.thing.clf];
   const okFor = (c: string) => c === item.thing.clf || item.thing.alts.includes(c);
+  /** Lo que se practica aquí es el clasificador: al repaso va su palabra, no la de la cosa. */
+  const clfId = (c: string) => setup.taught.get(c)?.id;
 
   // ——— Resolver ———
 
@@ -285,7 +343,12 @@ export default function Cestas({ mode, words, focus, rounds, onAnswer, onDone }:
   const flyTo = (clf: string, done: (mouth: Point) => void) => {
     const ref = { current: basketRefs.current[clf] ?? null };
     Promise.all([measureBox(rootRef), measureBox(ref)]).then(([root, b]) => {
-      if (!root || !b) return;
+      if (!root || !b) {
+        // sin medidas no hay vuelo, pero la respuesta se resuelve igual
+        const geo = game.current.geo;
+        later(() => done({ x: (geo?.rootX ?? 0) + (geo?.xMid ?? win.width / 2), y: (geo?.rootY ?? 0) + (geo?.beltY ?? 230) + 150 }), 80);
+        return;
+      }
       const mouth = { x: b.x - root.x + b.w / 2, y: b.y - root.y + b.w * 0.2 };
       // la bandeja sale de donde esté ahora (en la cinta, en la mano o rebotando)
       cancelAnimation(ix);
@@ -325,7 +388,26 @@ export default function Cestas({ mode, words, focus, rounds, onAnswer, onDone }:
     setPhase('fly');
     const ok = okFor(clf);
     const rem = remaining();
-    onAnswer(ok, item.thing.id);
+    if (!ok && clf === AN && item.thing.soft) {
+      // el comodín: vale, pero hay uno mejor. Ni fallo ni acierto (el repaso no se entera) y vuelve más tarde.
+      flyTo(clf, (at) => {
+        land(clf, at, false);
+        juice.float({ x: at.x, y: at.y - 30 }, `${AN} vale… ¡mejor ${item.thing.clf}!`, color.buatong, 22);
+        if (feria) {
+          g.points += 5;
+          setPoints(g.points);
+        }
+        setGlow(item.thing.clf);
+        setPose('feliz');
+        setJump((j) => j + 1);
+        setAnswered({ ok: true, clf, soft: true });
+        say(phraseOf(item));
+        if (feria) later(() => api.current.next(), 1900);
+      });
+      requeue();
+      return;
+    }
+    onAnswer(ok, clfId(ok ? clf : item.thing.clf));
     if (ok) {
       flyTo(clf, (at) => {
         const combo = score.hit(true);
@@ -356,7 +438,7 @@ export default function Cestas({ mode, words, focus, rounds, onAnswer, onDone }:
       juice.float({ x: at.x, y: at.y - 24 }, '¡Esa no!', '#FFB4A8', 22);
       setPose('ups');
       isc.set(withTiming(0.7, { duration: 200 }));
-      iy.set(withTiming(at.y - game.current.geo!.rootY - 90, { duration: 260, easing: Easing.out(Easing.quad) }));
+      iy.set(withTiming(at.y - (game.current.geo?.rootY ?? 0) - 90, { duration: 260, easing: Easing.out(Easing.quad) }));
       setGlow(item.thing.clf);
       later(() => {
         flyTo(item.thing.clf, (at2) => {
@@ -373,10 +455,13 @@ export default function Cestas({ mode, words, focus, rounds, onAnswer, onDone }:
   const miss = () => {
     const g = game.current;
     g.token += 1;
+    // si la tenías en la mano, se te cae igual: la cinta no espera
+    g.drag.active = false;
     setPhase('fly');
-    onAnswer(false, item.thing.id);
+    // que se acabe el tiempo no demuestra que no se sepa el clasificador: cuenta en la partida, no en el repaso
     score.hit(false);
     fx.boom();
+    isc.set(withSpring(1, { damping: 12, stiffness: 260 }));
     iy.set(withTiming(iy.get() + 140, { duration: 520, easing: Easing.in(Easing.quad) }));
     irot.set(withTiming(-110, { duration: 520 }));
     iop.set(withDelay(300, withTiming(0, { duration: 220 })));
@@ -416,19 +501,20 @@ export default function Cestas({ mode, words, focus, rounds, onAnswer, onDone }:
     setBad(null);
     setGlow(null);
     setPose('feliz');
-    setPhase('play');
+    setPhase('enter');
     const up = feria && nx.level > item.level;
     const delay = up ? 1500 : 0;
     if (up) {
       const fresh = setup.sets[nx.level - 1].find((c) => !setup.sets[item.level - 1].some((x) => x.clf === c.clf));
-      juice.banner(`¡Nivel ${nx.level}!`, fresh ? `Cesta nueva: ${fresh.clf} · ${fresh.es}` : 'La cinta va más rápido', color.farol);
+      const sub = nx.level === 2 ? `${fresh ? `Cesta nueva: ${fresh.clf}. ` : ''}Ya sin dibujos: ¡a leer!` : fresh ? `Cesta nueva: ${fresh.clf} · ${fresh.es}` : 'La cinta va más rápido';
+      juice.banner(`¡Nivel ${nx.level}!`, sub, color.farol);
       fx.levelup();
     } else if (nx.gold) {
       juice.banner('¡Bandeja de oro!', 'Puntos ×3', color.buatongHondo);
       fx.sparkle();
     }
     iop.set(0);
-    if (delay) later(() => startItem(i + 1), delay);
+    if (delay) later(() => api.current.start(i + 1), delay);
     else startItem(i + 1);
   };
 
@@ -453,7 +539,7 @@ export default function Cestas({ mode, words, focus, rounds, onAnswer, onDone }:
     const d = game.current.drag;
     const { pageX, pageY, timestamp } = e.nativeEvent;
     Object.assign(d, { x0: pageX, y0: pageY, lx: pageX, ly: pageY, lt: timestamp, vx: 0, vy: 0, moved: false, active: true });
-    game.current.token += 1; // la cinta se para mientras la tienes en la mano
+    // la bandeja sigue al dedo, pero el reloj de la cinta no se para: si se acaba el tiempo, se cae de la mano
     cancelAnimation(ix);
     isc.set(withSpring(1.08, { damping: 12, stiffness: 260 }));
   };
@@ -513,18 +599,11 @@ export default function Cestas({ mode, words, focus, rounds, onAnswer, onDone }:
       }
     });
   };
-  /** La cinta sigue (feria) desde donde se quedó la bandeja. */
+  /** La bandeja vuelve a la cinta (feria) y llega al final justo cuando se acaba su tiempo, que no se ha parado. */
   const resume = () => {
-    const geo = game.current.geo;
-    if (!feria || phase !== 'play' || !geo) return;
-    const frac = clamp((ix.get() - geo.xEnd) / (geo.xStart - geo.xEnd), 0, 1);
-    const ms = Math.max(400, (BELT_MS[level] ?? 5000) * frac);
-    game.current.token += 1;
-    const token = game.current.token;
-    ix.set(withTiming(geo.xEnd, { duration: ms, easing: Easing.linear }));
-    later(() => {
-      if (token === game.current.token) api.current.miss();
-    }, ms + 200);
+    const g = game.current;
+    if (!feria || phase !== 'play' || !g.geo) return;
+    ix.set(withTiming(g.geo.xEnd, { duration: Math.max(1, left(g.clock) * g.clock.ms), easing: Easing.linear }));
   };
 
   const cols = baskets.length <= 4 ? 2 : 3;
@@ -540,8 +619,16 @@ export default function Cestas({ mode, words, focus, rounds, onAnswer, onDone }:
     }, 350);
     return () => clearTimeout(t);
   }, [feria, items.length]);
+  // Pistas del primer nivel (y de la lección): qué cuenta cada cesta, en español y con dibujos. Desde el nivel 2
+  // de la feria solo queda el clasificador escrito: hay que leerlo.
   const showHint = !feria || level <= 1;
-  const wrongText = answered && !answered.ok ? `${item.thing.th} se cuenta con ${item.thing.clf}: ${clfInfo?.es ?? ''}` : null;
+  // Transcripción: siempre mientras no se sabe leer; después, solo en el primer nivel y en la primera pasada.
+  const showRom = !reads || (feria ? level <= 1 : !item.retry);
+  const wrongText = answered?.soft
+    ? `${AN} vale para salir del paso, pero ${item.thing.th} se cuenta con ${item.thing.clf}: ${clfInfo?.es ?? ''}`
+    : answered && !answered.ok
+      ? `${item.thing.th} se cuenta con ${item.thing.clf}: ${clfInfo?.es ?? ''}`
+      : null;
 
   if (!items.length) return <View style={{ flex: 1 }} />;
 
@@ -559,10 +646,10 @@ export default function Cestas({ mode, words, focus, rounds, onAnswer, onDone }:
               <Th size={26} bold style={{ color: '#3A2410' }}>
                 {`${item.thing.th} ${thaiNumber(item.n)}`}
               </Th>
-              <View style={[styles.slot, answered ? (answered.ok ? styles.slotOk : styles.slotBad) : null]}>
+              <View style={[styles.slot, answered ? (answered.soft ? styles.slotSoft : answered.ok ? styles.slotOk : styles.slotBad) : null]}>
                 {answered ? (
                   <Pop trigger={answered}>
-                    <Th size={24} bold style={{ color: answered.ok ? color.arrozalHondo : color.lacaHondo }}>
+                    <Th size={24} bold style={{ color: answered.soft ? color.buatongHondo : answered.ok ? color.arrozalHondo : color.lacaHondo }}>
                       {item.thing.clf}
                     </Th>
                   </Pop>
@@ -571,7 +658,7 @@ export default function Cestas({ mode, words, focus, rounds, onAnswer, onDone }:
                 )}
               </View>
             </View>
-            <Rom rom={answered ? romOf(item) : `${item.thing.rom} ${thaiNumberRom(item.n)} …`} size={13} />
+            {answered || showRom ? <Rom rom={answered ? romOf(item) : `${item.thing.rom} ${thaiNumberRom(item.n)} …`} size={13} /> : null}
             <Text style={styles.orderEs}>{esOf(item)}</Text>
           </View>
           <View style={{ alignItems: 'center', gap: 2, marginTop: 8 }}>
@@ -583,10 +670,10 @@ export default function Cestas({ mode, words, focus, rounds, onAnswer, onDone }:
         {/* la cinta */}
         <View ref={beltRef} collapsable={false} style={styles.beltArea}>
           <Belt stripeStyle={stripeStyle} />
-          {wrongText && !feria ? (
-            <Animated.View entering={FadeInDown.springify().damping(14)} style={styles.explain}>
-              <Text style={styles.explainText}>{wrongText}</Text>
-              <Btn label="Siguiente" height={40} style={{ width: 120 }} onPress={next} />
+          {wrongText && (!feria || answered?.soft) ? (
+            <Animated.View entering={FadeInDown.springify().damping(14)} style={[styles.explain, answered?.soft ? styles.explainSoft : null]}>
+              <Text style={[styles.explainText, answered?.soft ? { color: '#5A3A00' } : null]}>{wrongText}</Text>
+              {feria ? null : <Btn label="Siguiente" height={40} style={{ width: 120 }} onPress={next} />}
             </Animated.View>
           ) : null}
         </View>
@@ -598,6 +685,8 @@ export default function Cestas({ mode, words, focus, rounds, onAnswer, onDone }:
             <View key={c.clf} style={{ width: cols === 2 ? '46%' : '31%' }}>
               <Basket
                 info={c}
+                icons={showHint ? c.icons.filter((e) => e !== item.thing.emoji).slice(0, 2).join('') : ''}
+                rom={showRom}
                 count={counts[c.clf] ?? 0}
                 bump={bumps[c.clf] ?? 0}
                 bad={bad === c.clf}
@@ -740,7 +829,7 @@ function Tray({ item }: { item: Item }) {
   );
 }
 
-function Basket({ info, count, bump, bad, glow, showHint, disabled, onPress, setRef }: { info: Clf; count: number; bump: number; bad: boolean; glow: boolean; showHint: boolean; disabled: boolean; onPress: () => void; setRef: (v: ComponentRef<typeof View> | null) => void }) {
+function Basket({ info, icons, rom, count, bump, bad, glow, showHint, disabled, onPress, setRef }: { info: Clf; icons: string; rom: boolean; count: number; bump: number; bad: boolean; glow: boolean; showHint: boolean; disabled: boolean; onPress: () => void; setRef: (v: ComponentRef<typeof View> | null) => void }) {
   const u = `bk${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
   const sy = useSharedValue(1);
   const rot = useSharedValue(0);
@@ -763,10 +852,12 @@ function Basket({ info, count, bump, bad, glow, showHint, disabled, onPress, set
       <View ref={setRef} collapsable={false} style={{ width: '100%', alignItems: 'center' }}>
         {glow ? <Glow size={170} tint={color.arrozalVivo} strength={0.75} style={{ position: 'absolute', top: -40, alignSelf: 'center' }} /> : null}
         <Animated.View style={[{ width: '100%', aspectRatio: W / H, transformOrigin: '50% 100%' }, st]}>
-          {/* lo que asoma por la boca de la cesta */}
-          <Text style={styles.peek} numberOfLines={1}>
-            {info.icons}
-          </Text>
+          {/* lo que asoma por la boca de la cesta (solo como pista, y nunca lo mismo que hay en la bandeja) */}
+          {icons ? (
+            <Text style={styles.peek} numberOfLines={1}>
+              {icons}
+            </Text>
+          ) : null}
           <Svg width="100%" height="100%" viewBox={`0 0 ${W} ${H}`} style={StyleSheet.absoluteFill}>
             <Defs>
               <LinearGradient id={`${u}b`} x1="0" y1="0" x2="0" y2="1">
@@ -801,7 +892,7 @@ function Basket({ info, count, bump, bad, glow, showHint, disabled, onPress, set
           ) : null}
         </Animated.View>
       </View>
-      <Text style={styles.basketRom}>{info.rom}</Text>
+      {rom ? <Rom rom={info.rom} size={12} mono="#FFE3B8" style={styles.basketRom} /> : null}
       {showHint ? (
         <Text style={styles.basketHint} numberOfLines={2}>
           {info.es}
@@ -832,6 +923,7 @@ const styles = StyleSheet.create({
   slot: { minWidth: 52, height: 38, paddingHorizontal: 6, borderRadius: 10, borderWidth: 2.5, borderStyle: 'dashed', borderColor: '#D9A54A', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,214,90,0.25)' },
   slotOk: { borderStyle: 'solid', borderColor: color.arrozalVivo, backgroundColor: color.arrozalSuave },
   slotBad: { borderStyle: 'solid', borderColor: color.laca, backgroundColor: color.lacaSuave },
+  slotSoft: { borderStyle: 'solid', borderColor: color.buatong, backgroundColor: '#FFF2C2' },
   slotQ: { fontFamily: font.displayBold, fontSize: 22, color: '#C98F00' },
   beltArea: { height: 150, justifyContent: 'flex-end', paddingBottom: 18 },
   belt: { marginHorizontal: 6, height: 40 },
@@ -856,6 +948,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: color.laca,
   },
+  explainSoft: { borderColor: color.buatong, backgroundColor: 'rgba(255,248,214,0.97)' },
   explainText: { flex: 1, fontFamily: font.uiBold, fontSize: 14, lineHeight: 18, color: '#5A1A1A' },
   baskets: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', alignContent: 'flex-start', columnGap: 10, rowGap: 6, paddingTop: 4 },
   counter: { position: 'absolute', left: 0, right: 0, top: 44, bottom: -60, borderTopLeftRadius: 10, borderTopRightRadius: 10, overflow: 'hidden' },
@@ -866,7 +959,7 @@ const styles = StyleSheet.create({
   label: { position: 'absolute', left: '22%', right: '22%', top: '42%', paddingVertical: 1, borderRadius: 9, backgroundColor: '#FFF4DE', borderWidth: 1.5, borderColor: '#8A5820', alignItems: 'center' },
   count: { position: 'absolute', right: '6%', top: '6%', minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 5, backgroundColor: color.buatong, borderWidth: 2, borderColor: color.buatongHondo, alignItems: 'center', justifyContent: 'center' },
   countText: { fontFamily: font.displayBold, fontSize: 12, color: '#5A3A00' },
-  basketRom: { fontFamily: font.uiHeavy, fontSize: 12, color: '#FFE3B8', marginTop: 2 },
+  basketRom: { fontFamily: font.uiHeavy, marginTop: 2 },
   basketHint: { fontFamily: font.uiBold, fontSize: 11, lineHeight: 14, color: '#F2D8C8', textAlign: 'center' },
   item: { position: 'absolute', left: 0, top: 0, width: TRAY_W, height: TRAY_H, zIndex: 40 },
   thing: { position: 'absolute', width: 34, fontSize: 28, lineHeight: 34, textAlign: 'center' },

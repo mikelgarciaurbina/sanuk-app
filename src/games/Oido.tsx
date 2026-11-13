@@ -1,9 +1,12 @@
 // Juego 6 · Oído de elefante: al amanecer suena una palabra, Noi se inclina con su gran oreja para
 // escucharla y tú eliges la carta que has oído. En la feria hay niveles (tres cartas con dibujo,
 // cuatro cartas y, al final, en thai escrito), ronda dorada, bonus por rapidez y racha.
+// En las rondas escritas las otras cartas SUENAN parecido (misma rima, misma consonante o solo otro
+// tono): no vale reconocer la palabra de lejos, hay que escucharla. Quien ya lee (`reads`) las ve sin
+// transcripción hasta responder. Después de responder, cada carta se puede tocar para oírla.
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { StyleSheet, Text, View, useWindowDimensions, type GestureResponderEvent } from 'react-native';
-import Animated, { Easing, ZoomIn, cancelAnimation, useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withRepeat, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, FadeIn, ZoomIn, cancelAnimation, useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withRepeat, withSpring, withTiming } from 'react-native-reanimated';
 
 import { color, font } from '@/brand/tokens';
 import { Icon } from '@/components/icons';
@@ -13,7 +16,7 @@ import type { NoiPose } from '@/brand/noi-art';
 import type { Word } from '@/content/types';
 import { fx } from '@/lib/audio';
 import { shuffle } from '@/lib/random';
-import { syllables } from '@/lib/thai';
+import { soundCloseness, syllables } from '@/lib/thai';
 
 import { Backdrop } from './Backdrop';
 import { Flip3D, Glow, Pop, Press3D, tapPoint, useJuice } from './fx';
@@ -36,6 +39,9 @@ const LEVELS: { name: string; sub: string; kind: Kind; n: number; base: number }
   { name: '¡Nivel 3!', sub: 'En thai escrito', kind: 'thai', n: 4, base: 20 },
 ];
 
+/** Lo que anuncia cada nivel: quien ya lee juega el último sin transcripción. */
+const subOf = (level: number, reads: boolean) => (level === 2 && reads ? 'En thai, sin transcripción' : LEVELS[level].sub);
+
 const sylCount = (w: Word) => syllables(w.rom).length;
 
 /** Lo que pone en la carta: la primera acepción («montaña; él» → «montaña»). */
@@ -45,8 +51,12 @@ const STOP = new Set(['de', 'del', 'la', 'el', 'los', 'las', 'un', 'una', 'unos'
 /** Palabras con significado de una traducción (para no poner juntas «él, ella» y «usted; él, ella»). */
 const keys = (es: string) => es.toLowerCase().split(/[^a-záéíóúüñ]+/).filter((t) => t.length > 1 && !STOP.has(t));
 
-/** Opciones verosímiles pero sin dudas: nunca dos con la misma traducción (ni que se pisen), el mismo thai o el mismo dibujo. */
-function optionsFor(target: Word, words: Word[], focus: Word[], n: number, kind: Kind): Word[] {
+/**
+ * Opciones verosímiles pero sin dudas: nunca dos con la misma traducción (ni que se pisen), el mismo thai, el mismo
+ * dibujo o el mismo sonido. `ear` (0–1) dice cuánto pesan las que suenan parecido a la buena (misma rima, misma
+ * consonante inicial, solo otro tono): con las cartas escritas es lo que manda, para que haya que escuchar de verdad.
+ */
+function optionsFor(target: Word, words: Word[], focus: Word[], n: number, kind: Kind, ear: number, reads = false): Word[] {
   const focusIds = new Set(focus.map((w) => w.id));
   const scored = words
     .filter((w) => w.id !== target.id)
@@ -55,9 +65,11 @@ function optionsFor(target: Word, words: Word[], focus: Word[], n: number, kind:
       s:
         Math.random() +
         (focusIds.has(w.id) ? 1.2 : 0) +
-        (w.cat && w.cat === target.cat ? 0.7 : 0) +
-        (kind === 'thai' && sylCount(w) === sylCount(target) ? 0.8 : 0) +
-        (kind === 'thai' && w.th[0] === target.th[0] ? 0.5 : 0),
+        (w.cat && w.cat === target.cat ? (kind === 'thai' ? 0.3 : 0.7) : 0) +
+        (kind === 'thai' && sylCount(w) === sylCount(target) ? 0.6 : 0) +
+        // quien ya lee: además, letras que se parecen a la vista
+        (kind === 'thai' && reads && w.th[0] === target.th[0] ? 0.4 : 0) +
+        (ear > 0 ? ear * 3 * soundCloseness(target.rom, w.rom) : 0),
     }))
     .sort((a, b) => b.s - a.s);
   const out: Word[] = [];
@@ -71,6 +83,8 @@ function optionsFor(target: Word, words: Word[], focus: Word[], n: number, kind:
           c.es === w.es ||
           label(c) === label(w) ||
           c.th === w.th ||
+          // dos palabras que suenan igual (ไม่ y ไหม้, รถ y รด) no pueden ser opciones de una misma pregunta de oído
+          c.rom === w.rom ||
           (kind === 'imagen' && c.emoji === w.emoji) ||
           (strict && keys(c.es).some((k) => keys(w.es).includes(k))),
       );
@@ -82,7 +96,10 @@ function optionsFor(target: Word, words: Word[], focus: Word[], n: number, kind:
   return shuffle([target, ...out]);
 }
 
-function plan(mode: GameProps['mode'], words: Word[], focus: Word[], rounds: number, oral = false): Round[] {
+/** Cuánto oído pide cada nivel: las cartas escritas, todo; en la feria, las de cuatro dibujos, un poco. */
+const earOf = (mode: GameProps['mode'], level: number) => (level === 2 ? 1 : mode === 'feria' && level === 1 ? 0.35 : 0);
+
+function plan(mode: GameProps['mode'], words: Word[], focus: Word[], rounds: number, oral = false, reads = false): Round[] {
   const seen = new Set<string>();
   const order: Word[] = [];
   for (const w of [...shuffle(focus), ...shuffle(words)]) {
@@ -93,16 +110,19 @@ function plan(mode: GameProps['mode'], words: Word[], focus: Word[], rounds: num
   if (order.length < 2) return [];
   const n = Math.max(1, rounds);
   const golden = mode === 'feria' && n >= 6 ? 3 + Math.floor(Math.random() * (n - 4)) : -1;
+  // quien ya lee pasa antes (y más rondas) a las cartas escritas
+  const cut = reads ? [0.2, 0.45] : [0.3, 0.6];
+  const written = reads ? 2 : 1;
   return Array.from({ length: n }, (_, i) => {
     const target = order[i % order.length];
-    const level = mode === 'feria' ? (i < Math.round(n * 0.3) ? 0 : i < Math.round(n * 0.6) ? 1 : 2) : !oral && n >= 3 && i === n - 1 ? 2 : 1;
+    const level = mode === 'feria' ? (i < Math.round(n * cut[0]) ? 0 : i < Math.round(n * cut[1]) ? 1 : 2) : !oral && n >= 3 && i >= n - written ? 2 : 1;
     const L = LEVELS[level];
-    return { target, kind: L.kind, level, options: optionsFor(target, words, focus, L.n, L.kind), golden: i === golden };
+    return { target, kind: L.kind, level, options: optionsFor(target, words, focus, L.n, L.kind, earOf(mode, level), reads), golden: i === golden };
   });
 }
 
 /** Juego 6 · Oído de elefante: escucha y elige lo que has oído. */
-export default function Oido({ mode, words, focus, rounds = 4, oral = false, onAnswer, onDone }: GameProps) {
+export default function Oido({ mode, words, focus, rounds = 4, oral = false, reads = false, onAnswer, onDone }: GameProps) {
   const feria = mode === 'feria';
   const score = useScore(mode);
   const juice = useJuice();
@@ -111,7 +131,7 @@ export default function Oido({ mode, words, focus, rounds = 4, oral = false, onA
   const { height: winH } = useWindowDimensions();
   const compact = winH < 760;
 
-  const [queue, setQueue] = useState(() => plan(mode, words, focus, rounds, oral));
+  const [queue, setQueue] = useState(() => plan(mode, words, focus, rounds, oral, reads));
   const [i, setI] = useState(0);
   const [phase, setPhase] = useState<Phase>('deal');
   const [shown, setShown] = useState(0);
@@ -121,6 +141,10 @@ export default function Oido({ mode, words, focus, rounds = 4, oral = false, onA
   const [pose, setPose] = useState<NoiPose>('escucha');
   const [jump, setJump] = useState(0);
   const [grid, setGrid] = useState({ w: 0, h: 0 });
+  // tras responder: la carta que está sonando y si se ha parado a escuchar (entonces no se avanza solo)
+  const [playing, setPlaying] = useState<number | null>(null);
+  const [linger, setLinger] = useState(false);
+  const replay = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pointsRef = useRef(0);
   const retries = useRef(0);
   const finished = useRef(false);
@@ -154,7 +178,7 @@ export default function Oido({ mode, words, focus, rounds = 4, oral = false, onA
       wait = 650;
       timers.later(() => {
         if (i > 0) fx.levelup();
-        juice.banner(i === 0 ? '¡A escuchar!' : LEVELS[r.level].name, i === 0 ? `${LEVELS[r.level].name.replace(/[¡!]/g, '')} · ${LEVELS[r.level].sub}` : LEVELS[r.level].sub, color.cieloHondo);
+        juice.banner(i === 0 ? '¡A escuchar!' : LEVELS[r.level].name, i === 0 ? `${LEVELS[r.level].name.replace(/[¡!]/g, '')} · ${subOf(r.level, reads)}` : subOf(r.level, reads), color.cieloHondo);
       }, 80);
     } else if (r.golden) {
       wait = 650;
@@ -224,17 +248,32 @@ export default function Oido({ mode, words, focus, rounds = 4, oral = false, onA
         const p = Math.min(i + 3, queue.length);
         const lv = feria ? (queue[p] ?? queue[queue.length - 1]).level : r.level;
         const L = LEVELS[lv];
-        const again: Round = { ...r, retry: true, golden: false, level: lv, kind: L.kind, options: lv === r.level ? shuffle(r.options) : optionsFor(r.target, words, focus, L.n, L.kind) };
+        const again: Round = { ...r, retry: true, golden: false, level: lv, kind: L.kind, options: lv === r.level ? shuffle(r.options) : optionsFor(r.target, words, focus, L.n, L.kind, earOf(mode, lv), reads) };
         setQueue([...queue.slice(0, p), again, ...queue.slice(p)]);
       }
     }
-    timers.later(() => voice.speak(r.target.th, { rom: r.target.rom }), ok ? 420 : 560);
+    // Noi repite la buena (se anula si antes se toca otra carta o se pasa de ronda)
+    const k0 = r.options.findIndex((o) => o.id === r.target.id);
+    replay.current = timers.later(() => hear(k0, false), ok ? 420 : 560);
+  };
+
+  /** Después de responder, cualquier carta suena al tocarla: así se compara la buena con las que se parecen. */
+  const hear = (k: number, byHand = true) => {
+    const w = r.options[k];
+    if (!w) return;
+    timers.cancel(replay.current);
+    replay.current = null;
+    if (byHand) setLinger(true);
+    setPlaying(k);
+    voice.speak(w.th, { rom: w.rom, onEnd: () => setPlaying((p) => (p === k ? null : p)) });
   };
 
   const finish = () => {
     if (finished.current) return;
     finished.current = true;
     voice.stop();
+    // nada de lo pendiente (repetir la palabra, un cartel) suena ya sobre la despedida
+    timers.clear();
     if (!feria) {
       onDone(score.result());
       return;
@@ -253,10 +292,15 @@ export default function Oido({ mode, words, focus, rounds = 4, oral = false, onA
       return;
     }
     voice.stop();
+    // lo que quedara pendiente de esta ronda (Noi repitiendo la palabra, un cartel) no se cuela en la siguiente
+    timers.clear();
+    replay.current = null;
+    setPlaying(null);
     setPhase('out');
     timers.later(() => {
       setShown(0);
       setPick(null);
+      setLinger(false);
       setPose('escucha');
       setPhase('deal');
       setI((v) => v + 1);
@@ -294,7 +338,7 @@ export default function Oido({ mode, words, focus, rounds = 4, oral = false, onA
           </Animated.View>
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
             {answered ? (
-              <Reveal word={r.target} ok={ok} onReplay={() => play(false)} />
+              <Reveal word={r.target} ok={ok} onReplay={() => hear(target)} />
             ) : (
               <View style={{ alignItems: 'center', marginTop: -8 }}>
                 <AudioOrb onPress={() => play(false)} talking={voice.talking} size={compact ? 76 : 88} gold={r.golden} />
@@ -314,9 +358,9 @@ export default function Oido({ mode, words, focus, rounds = 4, oral = false, onA
           ) : r.golden ? (
             <Tag text="Ronda dorada ×2" tint={color.buatongHondo} bg="#FFF6D6" />
           ) : feria ? (
-            <Tag text={LEVELS[r.level].sub} tint={color.cieloHondo} />
+            <Tag text={subOf(r.level, reads)} tint={color.cieloHondo} />
           ) : r.kind === 'thai' ? (
-            <Tag text="En thai escrito" tint={color.cieloHondo} />
+            <Tag text={subOf(2, reads)} tint={color.cieloHondo} />
           ) : null}
         </View>
 
@@ -332,8 +376,12 @@ export default function Oido({ mode, words, focus, rounds = 4, oral = false, onA
                   height={cardH}
                   state={stateOf(k)}
                   faceUp={k < shown && phase !== 'out'}
-                  disabled={phase !== 'play'}
-                  onPress={(e) => answer(k, e)}
+                  // quien ya lee no ve la transcripción hasta responder: si no, sería casar lo oído con las tildes
+                  rom={!reads || answered}
+                  listen={phase === 'done'}
+                  playing={phase === 'done' && playing === k}
+                  disabled={phase !== 'play' && phase !== 'done'}
+                  onPress={(e) => (phase === 'play' ? answer(k, e) : hear(k))}
                 />
               ))}
             </View>
@@ -342,7 +390,7 @@ export default function Oido({ mode, words, focus, rounds = 4, oral = false, onA
 
         <View style={styles.footer}>
           {phase === 'done' ? (
-            <NextButton label={i + 1 >= queue.length ? (feria ? '¡Ver puntos!' : 'Terminar') : 'Siguiente'} kind={ok ? 'ok' : 'primary'} auto={feria && ok ? 1500 : undefined} onPress={next} />
+            <NextButton label={i + 1 >= queue.length ? (feria ? '¡Ver puntos!' : 'Terminar') : 'Siguiente'} kind={ok ? 'ok' : 'primary'} auto={feria && ok && !linger ? 1500 : undefined} onPress={next} />
           ) : (
             <Text style={styles.hint}>{phase === 'play' ? (feria ? 'Cuanto antes aciertes, más puntos' : 'Toca la carta que has oído') : ' '}</Text>
           )}
@@ -360,6 +408,9 @@ function Card({
   height,
   state,
   faceUp,
+  rom,
+  listen,
+  playing,
   disabled,
   onPress,
 }: {
@@ -369,6 +420,11 @@ function Card({
   height: number;
   state: CardState;
   faceUp: boolean;
+  /** enseña la transcripción bajo el thai */
+  rom: boolean;
+  /** ya se ha respondido: la carta suena al tocarla */
+  listen: boolean;
+  playing: boolean;
   disabled: boolean;
   onPress: (e: GestureResponderEvent) => void;
 }) {
@@ -377,18 +433,23 @@ function Card({
   const long = text.length > 22;
   const medal = Math.round(Math.min(height * (long ? 0.44 : 0.52), width * 0.5, 88));
   const thSize = word.th.length <= 4 ? 32 : word.th.length <= 8 ? 27 : word.th.length <= 12 ? 22 : 18;
+  const lit = state === 'ok' || playing;
   return (
     <View style={{ width, height }}>
-      {state === 'ok' ? <Glow size={width * 1.2} tint={color.arrozalVivo} strength={0.55} style={{ position: 'absolute', left: -width * 0.1, top: height / 2 - width * 0.6 }} /> : null}
-      <Pop trigger={state} scale={state === 'ok' ? 1.08 : 1} style={{ flex: 1 }}>
-        <Press3D onPress={onPress} disabled={disabled} style={{ flex: 1 }} accessibilityLabel={kind === 'thai' ? `${word.th}, ${word.rom}` : text}>
+      {lit ? <Glow size={width * 1.2} tint={playing ? '#BFD6FF' : color.arrozalVivo} strength={playing ? 0.75 : 0.55} style={{ position: 'absolute', left: -width * 0.1, top: height / 2 - width * 0.6 }} /> : null}
+      <Pop trigger={`${state}${playing ? 1 : 0}`} scale={lit ? 1.08 : 1} style={{ flex: 1 }}>
+        <Press3D
+          onPress={onPress}
+          disabled={disabled}
+          style={{ flex: 1 }}
+          accessibilityLabel={`${kind === 'thai' ? (rom ? `${word.th}, ${word.rom}` : word.th) : text}${listen ? '. Toca para oírla' : ''}`}>
           <Flip3D
             flipped={!faceUp}
             duration={420}
             style={{ flex: 1 }}
             front={
               <CardSkin skin={skin}>
-                <View style={{ alignItems: 'center', opacity: state === 'dim' ? 0.4 : 1 }}>
+                <View style={{ alignItems: 'center', opacity: state === 'dim' && !playing ? 0.5 : 1 }}>
                   {kind === 'imagen' ? (
                     <>
                       <Medallion emoji={word.emoji} size={medal} tint={medalOf(word.id)} />
@@ -401,10 +462,24 @@ function Card({
                       <Th size={thSize} bold numberOfLines={1} style={{ textAlign: 'center' }}>
                         {word.th}
                       </Th>
-                      <Rom rom={word.rom} size={15} style={{ textAlign: 'center' }} />
+                      {rom ? (
+                        <Animated.View entering={listen ? FadeIn.duration(260) : undefined}>
+                          <Rom rom={word.rom} size={15} style={{ textAlign: 'center' }} />
+                        </Animated.View>
+                      ) : null}
+                      {listen ? (
+                        <Text numberOfLines={1} style={styles.cardGloss}>
+                          {text}
+                        </Text>
+                      ) : null}
                     </>
                   )}
                 </View>
+                {listen ? (
+                  <Animated.View entering={ZoomIn.springify().damping(12)} style={[styles.ear, playing && { backgroundColor: color.cielo }]}>
+                    <Icon name="speaker" size={15} color={playing ? '#FFFFFF' : color.tinta3} />
+                  </Animated.View>
+                ) : null}
               </CardSkin>
             }
             back={<LannaBack />}
@@ -478,6 +553,8 @@ const styles = StyleSheet.create({
   titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 34, marginBottom: 6 },
   title: { fontFamily: font.displayBold, fontSize: 22, color: color.tinta, textShadowColor: 'rgba(255,255,255,0.9)', textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 8 },
   cardEs: { fontFamily: font.uiHeavy, color: color.tinta, textAlign: 'center', marginTop: 4, lineHeight: 20 },
+  cardGloss: { fontFamily: font.uiBold, fontSize: 12.5, color: color.tinta3, textAlign: 'center', marginTop: 1 },
+  ear: { position: 'absolute', left: 8, top: 8, width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(29,35,71,0.07)', alignItems: 'center', justifyContent: 'center' },
   footer: { height: 82, justifyContent: 'center', paddingBottom: 10 },
   hint: { textAlign: 'center', fontFamily: font.uiBold, fontSize: 14, color: '#FFFFFF', textShadowColor: 'rgba(29,35,71,0.55)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 },
   bubble: {

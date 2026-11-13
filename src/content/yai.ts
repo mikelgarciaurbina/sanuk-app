@@ -5,8 +5,9 @@ const t = (th: string, rom: string, es: string, ...w: string[]): LetterToken => 
 
 export const YAI_LETTER: { tokens: LetterToken[]; es: string }[] = [
   {
-    tokens: [t('สวัสดี', 'sà-wàt-dii', 'hola', 'sawatdii'), t('จ้ะ', 'jâ', '(cariño)', 'ja'), t('หลาน', 'lǎan', 'nieto', 'laan'), t('รัก', 'rák', 'querido', 'rak')],
-    es: 'Hola, querido nieto.',
+    // หลาน vale para nieto y nieta: la traducción no le pone género a quien aprende
+    tokens: [t('สวัสดี', 'sà-wàt-dii', 'hola', 'sawatdii'), t('จ้ะ', 'jâ', '(con cariño)', 'ja'), t('หลาน', 'lǎan', 'nieto, nieta (así te llama Yai)', 'laan'), t('รัก', 'rák', 'a quien quiero', 'rak')],
+    es: 'Hola, cariño mío.',
   },
   {
     tokens: [

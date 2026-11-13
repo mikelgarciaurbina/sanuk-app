@@ -6,11 +6,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { color } from '@/brand/tokens';
 import { Art } from '@/components/icons';
+import { LessonBeat } from '@/components/LessonBeat';
+import { stopIsDark } from '@/components/stopLook';
 import { LessonDone } from '@/components/LessonDone';
 import { Noi } from '@/components/Noi';
+import { PatternCard } from '@/components/PatternCard';
 import { Btn, Hud, Txt } from '@/components/ui';
 import { WordIntro } from '@/components/WordIntro';
-import { canReview, curvesFor, dueWords, lessonById, letterProgress, stopDone } from '@/content';
+import { afterToneRules, canRead, canReview, curvesFor, dueWords, lessonById, letterProgress, stopDone } from '@/content';
 import { GameFrame } from '@/games/fx';
 import { GAME_BG, GAME_COMPONENTS, GAME_DARK } from '@/games/registry';
 import type { GameResult } from '@/games/types';
@@ -31,6 +34,8 @@ export default function Leccion() {
   const [reviewOpen] = useState(() => !!lesson || canReview(p));
   const [built] = useState(() => (lesson ? buildLesson(lesson, p) : buildReview(dueWords(p), p)));
   const [letterBefore] = useState(() => letterProgress(p).pct);
+  // con el alfabeto ya aprendido, los juegos van quitando la transcripción
+  const [reads] = useState(() => canRead(p));
   const [i, setI] = useState(0);
   const [done, setDone] = useState(false);
   const [hudH, setHudH] = useState(0);
@@ -91,7 +96,7 @@ export default function Leccion() {
 
   const Game = step.kind === 'game' ? GAME_COMPONENTS[step.game] : null;
   const bg = step.kind === 'game' ? (GAME_BG[step.game] ?? color.niebla) : color.niebla;
-  const dark = step.kind === 'game' && !!GAME_DARK[step.game];
+  const dark = step.kind === 'game' ? !!GAME_DARK[step.game] : step.kind === 'beat' && !!lesson && stopIsDark(lesson.stop);
 
   return (
     <View style={{ flex: 1, backgroundColor: bg }}>
@@ -110,7 +115,11 @@ export default function Leccion() {
       </View>
       <GameFrame.Provider value={{ top: hudH, bottom: insets.bottom }}>
       <Animated.View key={i} entering={FadeInRight.springify().damping(18)} style={{ flex: 1, zIndex: 1, overflow: 'visible' }}>
-        {step.kind === 'intro' ? (
+        {step.kind === 'beat' ? (
+          lesson ? <LessonBeat lesson={lesson} newWords={introTotal} onNext={() => advance()} /> : null
+        ) : step.kind === 'patron' ? (
+          <PatternCard pattern={step.pattern} gender={p.profile.gender} onNext={() => advance()} />
+        ) : step.kind === 'intro' ? (
           <WordIntro
             word={step.word}
             example={example}
@@ -118,6 +127,7 @@ export default function Leccion() {
             n={introN}
             total={introTotal}
             writing={!built.firstCurve}
+            toneRule={!!lesson && afterToneRules(lesson)}
             onNext={() => {
               store.seeWords([step.word.id]);
               advance();
@@ -132,6 +142,8 @@ export default function Leccion() {
             extra={lesson?.extra}
             rounds={step.rounds}
             oral={built.firstCurve}
+            reads={reads}
+            review={!lesson}
             gender={p.profile.gender}
             onAnswer={(ok, wordId) => {
               if (wordId) store.answer(wordId, ok);

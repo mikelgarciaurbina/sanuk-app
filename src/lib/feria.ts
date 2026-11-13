@@ -1,7 +1,8 @@
 import { LESSONS, SENTENCES, WORDS, knownForms } from '@/content';
-import { CLASSIFIERS, bodyCommandsFor, classifierItemsFor, minimalSetsFor, toneBankFor } from '@/content/drills';
-import type { GameId, LessonExtra, Sentence, Word } from '@/content/types';
+import { CLASSIFIERS, bodyCommandsFor, classifierItemsFor, toneBankFor } from '@/content/drills';
+import type { GameId, LessonExtra, LetterSet, Sentence, Word } from '@/content/types';
 import { MIN_MARKET_NUMBERS, marketNumbers } from '@/games/mercado/logic';
+import { toneFamilies } from '@/games/tonos/familias';
 import { introducedIds } from '@/lib/lesson';
 import { pick, shuffle } from '@/lib/random';
 import { syllables } from '@/lib/thai';
@@ -41,7 +42,15 @@ function enoughBaskets(words: Word[], forms: Set<string>) {
  * (pares de tonos, cestas, mercado, «Noi dice»), solo lo ya presentado. Nunca rellena con lo que vendrá:
  * si aún falta, lo dice.
  */
-export function feriaSetup(id: GameId, p: ProgressLike): FeriaSetup {
+/** Grupos de letras con los que juega cada puesto de letras. */
+const LETTER_GAMES: Partial<Record<GameId, LetterSet[]>> = {
+  cueva: ['media', 'baja', 'alta', 'raras', 'vocales', 'cortas', 'compuestas'],
+  traza: ['media', 'baja', 'alta', 'raras'],
+  silabas: ['silabas', 'vocales', 'cortas', 'compuestas', 'reglas'],
+};
+
+/** `last`: lo que tocó en la partida anterior, para que «Otra partida» traiga otra conversación u otro cuento. */
+export function feriaSetup(id: GameId, p: ProgressLike, last?: LessonExtra): FeriaSetup {
   const words = shuffle(feriaWords(p));
   if (words.length < MIN_FERIA_WORDS)
     return { needMore: 'Aún sabes pocas palabras. Termina las primeras lecciones del camino y la feria se llenará con lo que aprendas.' };
@@ -51,7 +60,7 @@ export function feriaSetup(id: GameId, p: ProgressLike): FeriaSetup {
   if (SENTENCE_GAMES.includes(id) && sentences.length < 2) return { needMore: 'Este juego necesita frases que ya entiendas. Sigue unas lecciones más por el camino y vuelve.' };
 
   // ejercicios con vocabulario propio: solo si lo ya presentado da para una partida
-  if (id === 'tigre' && minimalSetsFor(forms).length < 2)
+  if (id === 'tigre' && toneFamilies(words).length < 2)
     return { needMore: 'Aún no conoces bastantes palabras que solo cambien de tono. Sigue el camino y este puesto se abrirá.' };
   if (id === 'tonos' && words.filter((w) => syllables(w.rom).length === 1).length + toneBankFor(forms).length < 4)
     return { needMore: 'Este juego necesita más palabras cortas que ya conozcas. Sigue unas lecciones más por el camino.' };
@@ -64,7 +73,8 @@ export function feriaSetup(id: GameId, p: ProgressLike): FeriaSetup {
   if (id === 'cena') {
     const dialogues = seenExtras(p, 'dialogo').map((x) => x.id);
     if (!dialogues.length) return { needMore: 'La cena familiar se abre cuando termines tu primera conversación en el camino.' };
-    extra = { kind: 'dialogo', id: pick(dialogues) };
+    const other = dialogues.filter((d) => !(last?.kind === 'dialogo' && last.id === d));
+    extra = { kind: 'dialogo', id: pick(other.length ? other : dialogues) };
   }
   if (id === 'cuentos') {
     // la estantería solo tiene los cuentos ya leídos en el camino
@@ -72,12 +82,19 @@ export function feriaSetup(id: GameId, p: ProgressLike): FeriaSetup {
     if (!read.length) return { needMore: 'La estantería de Yai se abre cuando leas tu primer cuento en el camino.' };
     extra = { kind: 'cuento', id: pick(read), shelf: read };
   }
-  if (id === 'cueva' || id === 'traza') {
-    const sets = [...new Set(seenExtras(p, 'letras').map((x) => x.set))].filter((s) => s === 'media' || s === 'baja' || s === 'alta');
-    if (!sets.length) return { needMore: 'Este puesto se abre cuando aprendas tus primeras letras en el camino.' };
-    extra = { kind: 'letras', set: pick(sets) };
+  const letters = LETTER_GAMES[id];
+  if (letters) {
+    // solo los grupos de letras de lecciones ya hechas; el juego los mezcla (`pool`)
+    const seen = new Set(seenExtras(p, 'letras').map((x) => x.set));
+    const pool = letters.filter((s) => seen.has(s));
+    if (id === 'silabas') {
+      if (!pool.includes('silabas')) return { needMore: 'Los bloques de sílabas se abren cuando aprendas a juntar letras en el camino.' };
+      extra = { kind: 'letras', set: 'silabas', pool };
+    } else {
+      const consonants = pool.filter((s) => s === 'media' || s === 'baja' || s === 'alta' || s === 'raras');
+      if (!consonants.length) return { needMore: 'Este puesto se abre cuando aprendas tus primeras letras en el camino.' };
+      extra = { kind: 'letras', set: pick(consonants), pool };
+    }
   }
-  if (id === 'silabas' && !seenExtras(p, 'letras').some((x) => x.set === 'silabas'))
-    return { needMore: 'Los bloques de sílabas se abren cuando aprendas a juntar letras en el camino.' };
   return { words, sentences, extra };
 }

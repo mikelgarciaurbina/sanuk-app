@@ -1,21 +1,24 @@
 // Farolillos de Yi Peng: papel con luz cálida por dentro (degradado radial desde la llama), costillas de bambú
-// y una llama que tiembla. El farolillo flota esperando; si es de la categoría sube al cielo con estela,
-// si no, se balancea y se apaga. En el cielo quedan los que se han soltado, titilando.
+// y una llama que tiembla. El farolillo flota esperando con su palabra thai (y su transcripción mientras no se
+// sabe leer); si es de la categoría sube al cielo con estela, si no, se balancea y se apaga. Al acabar la ronda,
+// los que nadie tocó se apagan despacio y enseñan lo que significaban. En el cielo quedan los soltados, titilando.
 import { useEffect, useId, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, type GestureResponderEvent } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 import Svg, { Defs, Ellipse, G, LinearGradient, Path, RadialGradient, Stop } from 'react-native-svg';
 
 import { font } from '@/brand/tokens';
-import { Th } from '@/components/ui';
+import { Rom, Th } from '@/components/ui';
 import type { Word } from '@/content/types';
 
 import { Glow } from '../fx';
+import { fitTh } from '../palabras/common';
 
 export const LW = 84;
 export const LH = 106;
 
-export type LanternState = 'float' | 'ok' | 'bad' | 'lost';
+/** `rest`: no era de la categoría y nadie lo tocó: al acabar la ronda se apaga y enseña su significado. */
+export type LanternState = 'float' | 'ok' | 'bad' | 'lost' | 'rest';
 
 const BODY = 'M9 22 Q42 6 75 22 L68 84 Q42 96 16 84 Z';
 
@@ -84,6 +87,7 @@ export function Farol({
   state,
   delay,
   showEs,
+  rom,
   onPress,
 }: {
   word: Word;
@@ -92,6 +96,8 @@ export function Farol({
   state: LanternState;
   delay: number;
   showEs: boolean;
+  /** transcripción bajo el thai (siempre mientras no se sabe leer) */
+  rom: boolean;
   onPress: (e: GestureResponderEvent) => void;
 }) {
   const u = useId().replace(/[^a-zA-Z0-9]/g, '');
@@ -120,6 +126,11 @@ export function Farol({
       glow.value = withTiming(0, { duration: 400 });
       sway.value = withSequence(withTiming(-14, { duration: 120 }), withTiming(11, { duration: 160 }), withTiming(-7, { duration: 160 }), withTiming(4, { duration: 150 }), withTiming(0, { duration: 150 }));
       sink.value = withTiming(1, { duration: 900, easing: Easing.out(Easing.quad) });
+    } else if (state === 'rest') {
+      // se apaga sin susto: solo baja la luz y da un pequeño vaivén
+      glow.value = withTiming(0, { duration: 500 });
+      sway.value = withSequence(withTiming(-5, { duration: 160 }), withTiming(4, { duration: 180 }), withTiming(0, { duration: 180 }));
+      sink.value = withTiming(0.35, { duration: 700, easing: Easing.out(Easing.quad) });
     }
   }, [state, rise, glow, sway, sink]);
 
@@ -139,9 +150,11 @@ export function Farol({
   const halo = useAnimatedStyle(() => ({ opacity: glow.value * 0.9, transform: [{ scale: 0.85 + 0.25 * glow.value }] }));
   const trail = useAnimatedStyle(() => ({ opacity: Math.min(1, rise.value * 3) * (1 - rise.value * 0.6), transform: [{ scaleY: 0.3 + rise.value * 1.4 }] }));
 
-  const lit = state !== 'bad';
-  const len = word.th.length;
-  const size = len > 12 ? 11 : len > 9 ? 12.5 : len > 7 ? 14 : len > 4 ? 16 : 20;
+  const lit = state !== 'bad' && state !== 'rest';
+  // el papel se estrecha hacia abajo: con transcripción el thai va en una línea y algo más pequeño
+  const fit = fitTh(word.th, 66, rom ? 17 : 20, rom ? 10 : 11);
+  const romSize = Math.max(8.5, Math.min(11, 66 / (0.54 * word.rom.length)));
+  const ink = lit ? '#4A1A05' : '#C9D0EE';
   return (
     <Animated.View pointerEvents={state === 'float' ? 'auto' : 'none'} style={[styles.wrap, { left: x, top: y }, st]}>
       <Animated.View pointerEvents="none" style={[styles.trail, trail]} />
@@ -152,9 +165,14 @@ export function Farol({
         <LanternArt lit={lit} u={u} />
         <Flame lit={lit && state !== 'lost'} />
         <View style={styles.label}>
-          <Th size={size} bold numberOfLines={2} style={{ color: lit ? '#4A1A05' : '#C9D0EE', lineHeight: Math.round(size * 1.4), textAlign: 'center' }}>
+          <Th size={fit.size} bold numberOfLines={fit.lines} style={{ color: ink, lineHeight: Math.round(fit.size * 1.4), textAlign: 'center' }}>
             {word.th}
           </Th>
+          {rom ? (
+            <View style={{ maxHeight: Math.ceil(romSize * 1.3) + 1, overflow: 'hidden' }}>
+              <Rom rom={word.rom} size={romSize} mono={ink} />
+            </View>
+          ) : null}
         </View>
       </Pressable>
       {showEs ? (
@@ -220,7 +238,7 @@ const styles = StyleSheet.create({
   halo: { position: 'absolute', left: -35, top: LH / 2 - (LW + 70) / 2 + 6, width: LW + 70, height: LW + 70 },
   trail: { position: 'absolute', left: LW / 2 - 7, top: LH - 6, width: 14, height: 120, borderRadius: 7, backgroundColor: 'rgba(255,210,120,0.55)', shadowColor: '#FFC15A', shadowOpacity: 1, shadowRadius: 10, shadowOffset: { width: 0, height: 0 } },
   flame: { position: 'absolute', left: LW / 2 - 8, top: 70, width: 16, height: 22 },
-  label: { position: 'absolute', left: 3, right: 3, top: 28, height: 48, alignItems: 'center', justifyContent: 'center' },
+  label: { position: 'absolute', left: 3, right: 3, top: 26, height: 52, alignItems: 'center', justifyContent: 'center' },
   es: { position: 'absolute', left: -30, right: -30, top: LH + 2, textAlign: 'center', fontFamily: font.uiHeavy, fontSize: 13, color: '#FFE7B0', textShadowColor: 'rgba(0,0,0,0.6)', textShadowRadius: 6, textShadowOffset: { width: 0, height: 1 } },
   skyGlow: { position: 'absolute', left: -40, top: -28, width: LW + 80, height: LW + 80 },
 });

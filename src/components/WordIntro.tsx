@@ -8,12 +8,15 @@ import { Noi } from '@/components/Noi';
 import { Btn, Rom, Speech, Sticker, Th, ToneChip, Txt, mainTone } from '@/components/ui';
 import type { Sentence, Word } from '@/content/types';
 import { say } from '@/lib/audio';
-import { firstLetterNote, spell } from '@/lib/spell';
+import { ToneRuleLine } from '@/games/letras/tono';
+import { firstLetterNote, spell, toneRuleOf } from '@/lib/spell';
 import { personalize, personalizeRom, syllables, joinThai, type Gender } from '@/lib/thai';
 
 /** Tarjeta de «Palabra nueva»: imagen, thai grande, tono, audio, cómo se escribe y un ejemplo.
- *  `writing = false` en la primera curva: allí se aprende de oído y la escritura llega después. */
-export function WordIntro({ word, example, gender, n, total, writing = true, onNext }: { word: Word; example?: Sentence; gender: Gender; n: number; total: number; writing?: boolean; onNext: () => void }) {
+ *  `writing = false` en la primera curva: allí se aprende de oído y la escritura llega después.
+ *  `toneRule`: quien ya ha estudiado las reglas del tono ve, en las palabras de una sílaba, la regla que da el suyo
+ *  («ม baja + ◌้ = tono alto»). */
+export function WordIntro({ word, example, gender, n, total, writing = true, toneRule = false, onNext }: { word: Word; example?: Sentence; gender: Gender; n: number; total: number; writing?: boolean; toneRule?: boolean; onNext: () => void }) {
   useEffect(() => {
     const t = setTimeout(() => say(word.th), 380);
     return () => clearTimeout(t);
@@ -21,7 +24,8 @@ export function WordIntro({ word, example, gender, n, total, writing = true, onN
   const ex = example ? joinThai(example.th.map((t) => personalize(t, gender))) : null;
   const oneSyllable = syllables(word.rom).length === 1;
   const glyphs = writing ? spell(word.th, word.rom) : null;
-  const letterNote = writing ? firstLetterNote(word.th) : null;
+  const letterNote = writing ? firstLetterNote(word.th, word.rom) : null;
+  const rule = writing && toneRule && oneSyllable ? toneRuleOf(word.th, word.rom) : null;
   return (
     <View style={{ flex: 1 }}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 10, paddingBottom: 12, gap: 14 }}>
@@ -60,6 +64,12 @@ export function WordIntro({ word, example, gender, n, total, writing = true, onN
               </View>
             ))}
           </View>
+          {rule ? (
+            <View accessible accessibilityLabel={`Por qué suena así: ${rule.letter}, clase ${rule.cls}, ${rule.mark ? `con ${rule.mark.rom}` : `sílaba ${rule.ending}`}, tono ${mainToneName(word.rom)}`} style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', columnGap: 8, rowGap: 4, marginTop: 2 }}>
+              <Txt v="small" style={{ fontSize: 12 }}>Su tono:</Txt>
+              <ToneRuleLine letter={rule.letter} cls={rule.cls} silent={rule.silent} ending={rule.ending} mark={rule.mark} tone={rule.tone} />
+            </View>
+          ) : null}
           {letterNote ? <Txt v="small" style={{ fontSize: 13 }}>{letterNote}</Txt> : null}
         </Animated.View>
       ) : null}

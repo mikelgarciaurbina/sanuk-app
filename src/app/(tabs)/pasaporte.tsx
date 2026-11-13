@@ -155,10 +155,10 @@ export default function Pasaporte() {
               );
             })}
           </View>
-          {SEASON_2_STOPS.filter((s) => p.stamps.includes(s.id) && s.mission).length ? (
+          {STOPS.filter((s) => p.stamps.includes(s.id) && s.mission).length ? (
             <View style={{ gap: 10 }}>
               <Txt v="eyebrow" style={{ color: color.farol }}>Misiones en la vida real</Txt>
-              {SEASON_2_STOPS.filter((s) => p.stamps.includes(s.id) && s.mission).map((s) => (
+              {STOPS.filter((s) => p.stamps.includes(s.id) && s.mission).map((s) => (
                 <MissionCard key={s.id} stop={s} compact />
               ))}
             </View>
@@ -173,6 +173,15 @@ export default function Pasaporte() {
         <Stat v={lessons} l="lecciones" />
         <Stat v={answered ? `${Math.round((ok / answered) * 100)} %` : '—'} l="precisión" tint={color.arrozal} />
       </View>
+
+      <Pressable onPress={() => router.push('/diario')} accessibilityRole="button" style={[styles.card, { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFDF7' }]}>
+        <Art name="diario" size={40} />
+        <View style={{ flex: 1 }}>
+          <Txt v="h3">Diario del viaje</Txt>
+          <Txt v="small">{lessons ? `La historia hasta hoy: ${lessons} ${lessons === 1 ? 'página' : 'páginas'}` : 'Se escribe solo, lección a lección'}</Txt>
+        </View>
+        <Icon name="arrow" size={22} />
+      </Pressable>
 
       <Pressable onPress={() => router.push('/carta')} accessibilityRole="button" style={[styles.card, { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFDF7' }]}>
         <Art name="carta" size={40} />

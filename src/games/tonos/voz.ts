@@ -21,12 +21,28 @@ export function useTimers() {
     const l = list.current;
     return () => {
       l.forEach(clearTimeout);
+      l.length = 0;
     };
   }, []);
   return {
-    later(fn: () => void, ms: number) {
-      list.current.push(setTimeout(fn, ms));
+    /** Programa algo; devuelve el temporizador por si hay que anularlo con `cancel`. */
+    later(fn: () => void, ms: number): Timer {
+      const t = setTimeout(() => {
+        const k = list.current.indexOf(t);
+        if (k >= 0) list.current.splice(k, 1);
+        fn();
+      }, ms);
+      list.current.push(t);
+      return t;
     },
+    /** Anula uno de los programados (si ya saltó, no pasa nada). */
+    cancel(t: Timer | null | undefined) {
+      if (t == null) return;
+      clearTimeout(t);
+      const k = list.current.indexOf(t);
+      if (k >= 0) list.current.splice(k, 1);
+    },
+    /** Anula todo lo pendiente: lo que quedara de una ronda no se cuela en la siguiente. */
     clear() {
       list.current.forEach(clearTimeout);
       list.current.length = 0;

@@ -67,6 +67,7 @@ function Root() {
         <Stack.Screen name="leccion/[id]" options={{ animation: 'slide_from_bottom', gestureEnabled: false }} />
         <Stack.Screen name="juego/[id]" options={{ animation: 'slide_from_bottom', gestureEnabled: false }} />
         <Stack.Screen name="carta" options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="diario" options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="respuesta" options={{ animation: 'slide_from_bottom' }} />
       </Stack>
       </View>

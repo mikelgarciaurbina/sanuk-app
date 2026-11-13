@@ -1,11 +1,127 @@
 import type { Dialogue } from './types';
 
-/** Conversaciones de las paradas 11–15. {P}/{PQ}/{I} se adaptan a quien aprende. */
+/** Conversaciones de las paradas 9–15. {P}/{PQ}/{I} se adaptan a quien aprende. */
 export const DIALOGUES_B: Dialogue[] = [
+  {
+    id: 'd8',
+    title: 'Mae al teléfono',
+    scene: 'Tu pareja te llama desde la casa de teca y, antes de que digas nada, le pasa el móvil a su madre. En la montaña, la cobertura va y viene.',
+    place: 'telefono',
+    lines: [
+      {
+        who: 'Mae',
+        th: 'ฮัลโหล ได้ยินไหมลูก',
+        rom: 'han-lǒo, dâi-yin mǎi lûuk',
+        es: '¿Diga? ¿Me oyes, cariño?',
+        options: [
+          { th: 'ได้ยิน{P} สวัสดี{P}แม่', rom: 'dâi-yin {P}, sà-wàt-dii {P} mɛ̂ɛ', es: 'Te oigo. ¡Hola, mamá!', ok: true, reply: { th: 'สวัสดีจ้ะ ถึงไหนแล้วจ๊ะ', rom: 'sà-wàt-dii jâ, thʉ̌ng nǎi lɛ́ɛo já', es: 'Hola, cariño. ¿Por dónde vais?' } },
+          { th: 'เสียงไม่ชัด{P} พูดอีกทีได้ไหม{PQ}', rom: 'sǐang mâi chát {P}, phûut ìik-thii dâi mǎi {PQ}', es: 'No se oye bien. ¿Puedes repetirlo?', ok: true, reply: { th: 'ได้ยินไหม… ถึงไหนแล้วจ๊ะ', rom: 'dâi-yin mǎi… thʉ̌ng nǎi lɛ́ɛo já', es: '¿Me oyes ahora…? ¿Por dónde vais?' } },
+          { th: 'ถอดรองเท้า{P}', rom: 'thɔ̀ɔt rɔɔng-tháao {P}', es: 'Quitarse los zapatos', ok: false },
+        ],
+      },
+      {
+        who: 'Mae',
+        th: 'ถึงไหนแล้วจ๊ะ',
+        rom: 'thʉ̌ng nǎi lɛ́ɛo já',
+        es: '¿Por dónde vais, cariño?',
+        options: [
+          { th: 'ถึงแม่ฮ่องสอนแล้ว{P}', rom: 'thʉ̌ng mɛ̂ɛ-hɔ̂ng-sɔ̌ɔn lɛ́ɛo {P}', es: 'Ya hemos llegado a Mae Hong Son', ok: true, reply: { th: 'ดีจ้ะ ใกล้ถึงบ้านแล้วนะ', rom: 'dii jâ, glâi thʉ̌ng bâan lɛ́ɛo ná', es: '¡Qué bien! Ya casi estáis en casa.' } },
+          { th: 'อยู่ที่วัดจองคำ{P}', rom: 'yùu thîi wát jɔɔng-kham {P}', es: 'Estamos en el templo de Chong Kham', ok: true, reply: { th: 'ดีมากจ้ะ ไหว้พระแล้วใช่ไหม', rom: 'dii mâak jâ, wâi phrá lɛ́ɛo châi mǎi', es: '¡Muy bien! Ya habéis presentado vuestros respetos, ¿verdad?' } },
+          { th: 'ตีห้า{P}', rom: 'tii hâa {P}', es: 'Las cinco de la madrugada', ok: false },
+        ],
+      },
+      {
+        who: 'Mae',
+        th: 'กินข้าวหรือยังลูก',
+        rom: 'gin khâao rʉ̌ʉ yang lûuk',
+        es: '¿Has comido ya, cariño?',
+        options: [
+          { th: 'กินแล้ว{P}', rom: 'gin lɛ́ɛo {P}', es: 'Sí, ya he comido', ok: true, reply: { th: 'ดีแล้วจ้ะ', rom: 'dii lɛ́ɛo jâ', es: 'Así me gusta.' } },
+          { th: 'ยังไม่ได้กิน{P}', rom: 'yang mâi dâi gin {P}', es: 'Todavía no he comido', ok: true, reply: { th: 'ไปกินข้าวก่อนนะลูก', rom: 'pai gin khâao gɔ̀ɔn ná lûuk', es: 'Pues ve a comer primero, cariño.' } },
+          { th: 'ไม่กิน{P}', rom: 'mâi gin {P}', es: 'No pienso comer', ok: false },
+        ],
+      },
+      {
+        who: 'Mae',
+        th: 'จะถึงบ้านเมื่อไหร่จ๊ะ',
+        rom: 'jà thʉ̌ng bâan mʉ̂a-rài já',
+        es: '¿Cuándo llegáis a casa?',
+        options: [
+          { th: 'พรุ่งนี้ตอนเย็น{P}', rom: 'phrûng-níi tɔɔn-yen {P}', es: 'Mañana por la tarde', ok: true, reply: { th: 'ได้จ้ะ แม่จะทำข้าวซอยรอนะ', rom: 'dâi jâ, mɛ̂ɛ jà tham khâao-sɔɔi rɔɔ ná', es: 'Muy bien. Mamá os espera con khao soi.' } },
+          { th: 'ยังไม่รู้{P} {I}จะโทรไป{P}', rom: 'yang mâi rúu {P}, {I} jà thoo pai {P}', es: 'Aún no lo sé. Ya te llamo yo.', ok: true, reply: { th: 'ได้จ้ะ ส่งไลน์มานะ', rom: 'dâi jâ, sòng lai maa ná', es: 'Vale. Mándame un LINE.' } },
+          { th: 'เมื่อวาน{P}', rom: 'mʉ̂a-waan {P}', es: 'Ayer', ok: false },
+        ],
+      },
+      {
+        who: 'Mae',
+        th: 'ขับรถช้าๆ นะลูก แม่รออยู่',
+        rom: 'khàp-rót cháa-cháa ná lûuk, mɛ̂ɛ rɔɔ yùu',
+        es: 'Conducid despacito, cariño. Mamá os espera.',
+        options: [
+          { th: '{P}แม่ แล้วเจอกัน{P}', rom: '{P} mɛ̂ɛ, lɛ́ɛo jəə gan {P}', es: 'Sí, mamá. ¡Hasta pronto!', ok: true, reply: { th: 'จ้ะ แล้วเจอกันนะ', rom: 'jâ, lɛ́ɛo jəə gan ná', es: 'Hasta pronto, cariño.' } },
+          { th: 'ขอบคุณ{P}แม่ พรุ่งนี้เจอกัน{P}', rom: 'khɔ̀ɔp-khun {P} mɛ̂ɛ, phrûng-níi jəə gan {P}', es: 'Gracias, mamá. ¡Nos vemos mañana!', ok: true, reply: { th: 'จ้ะลูก', rom: 'jâ lûuk', es: 'Sí, cariño.' } },
+          { th: 'ฮัลโหล ได้ยินไหม{PQ}', rom: 'han-lǒo, dâi-yin mǎi {PQ}', es: '¿Diga? ¿Me oyes?', ok: false },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'd9',
+    title: 'Té con Nong',
+    scene: 'Una casa de té de adobe frente al lago de Ban Rak Thai. Antes de comprar el encargo de Mae, Nong quiere que pruebes el té… y que le hagas una foto.',
+    place: 'cafe',
+    lines: [
+      {
+        who: 'Nong',
+        th: 'พี่ชอบชาหรือกาแฟมากกว่ากันคะ',
+        rom: 'phîi chɔ̂ɔp chaa rʉ̌ʉ gaa-fɛɛ mâak gwàa gan khá',
+        es: '¿Qué te gusta más, el té o el café?',
+        options: [
+          { th: 'ชอบชามากกว่า{P}', rom: 'chɔ̂ɔp chaa mâak gwàa {P}', es: 'Me gusta más el té', ok: true, reply: { th: 'ดีเลยค่ะ ชาที่นี่หอมที่สุด', rom: 'dii ləəi khâ, chaa thîi-nîi hɔ̌ɔm thîi-sùt', es: '¡Perfecto! El té de aquí es el más aromático.' } },
+          { th: 'ชอบกาแฟมากกว่า{P}', rom: 'chɔ̂ɔp gaa-fɛɛ mâak gwàa {P}', es: 'Me gusta más el café', ok: true, reply: { th: 'แต่ชาที่นี่หอมกว่ากาแฟนะคะ', rom: 'tɛ̀ɛ chaa thîi-nîi hɔ̌ɔm gwàa gaa-fɛɛ ná khá', es: 'Pues el té de aquí huele mejor que el café, ¿eh?' } },
+          { th: 'ร่มสองคัน{P}', rom: 'rôm sɔ̌ɔng khan {P}', es: 'Dos paraguas', ok: false },
+        ],
+      },
+      {
+        who: 'Nong',
+        th: 'เอาชาร้อนกี่แก้วดีคะ',
+        rom: 'ao chaa rɔ́ɔn gìi gɛ̂ɛo dii khá',
+        es: '¿Cuántos tés calientes pedimos?',
+        options: [
+          { th: 'สองแก้ว{P}', rom: 'sɔ̌ɔng gɛ̂ɛo {P}', es: 'Dos vasos', ok: true, reply: { th: 'ได้ค่ะ ขอชาร้อนสองแก้วค่ะ', rom: 'dâi khâ, khɔ̌ɔ chaa rɔ́ɔn sɔ̌ɔng gɛ̂ɛo khâ', es: 'Vale. (A la camarera:) Dos tés calientes, por favor.' } },
+          { th: 'สามแก้ว{P} ให้น้อยด้วย', rom: 'sǎam gɛ̂ɛo {P}, hâi nɔ́ɔi dûay', es: 'Tres: uno para Noi también', ok: true, reply: { th: 'ได้ค่ะ น้อยชอบชาเหมือนกัน', rom: 'dâi khâ, nɔ́ɔi chɔ̂ɔp chaa mʉ̌an-gan', es: 'Vale. A Noi también le gusta el té.' } },
+          { th: 'สองเล่ม{P}', rom: 'sɔ̌ɔng lêm {P}', es: 'Dos… libros (clasificador equivocado)', ok: false },
+        ],
+      },
+      {
+        who: 'Nong',
+        th: 'ช่วยถ่ายรูปให้หนูหน่อยได้ไหมคะ',
+        rom: 'chûay thàai-rûup hâi nǔu nɔ̀i dâi mǎi khá',
+        es: '¿Me haces una foto, porfa?',
+        options: [
+          { th: 'ได้{P} สวยมาก', rom: 'dâi {P}, sǔay mâak', es: 'Claro. ¡Qué bonita!', ok: true, reply: { th: 'ขอบคุณค่ะ ส่งไลน์ให้หนูด้วยนะคะ', rom: 'khɔ̀ɔp-khun khâ, sòng lai hâi nǔu dûay ná khá', es: '¡Gracias! Mándamela por LINE, ¿vale?' } },
+          { th: 'ได้{P} ขออีกรูปนะ', rom: 'dâi {P}, khɔ̌ɔ ìik rûup ná', es: 'Claro. ¡Otra más!', ok: true, reply: { th: 'ได้ค่ะ รูปนี้ต้องสวยกว่านะคะ', rom: 'dâi khâ, rûup níi tɔ̂ng sǔay gwàa ná khá', es: 'Vale, pero esta tiene que salir mejor, ¿eh?' } },
+          { th: 'ห้ามถ่ายรูป{P}', rom: 'hâam thàai-rûup {P}', es: 'Prohibido hacer fotos', ok: false },
+        ],
+      },
+      {
+        who: 'Nong',
+        th: 'แม่ฝากซื้อใบชา ซื้อกี่ถุงดีคะ',
+        rom: 'mɛ̂ɛ fàak sʉ́ʉ bai-chaa, sʉ́ʉ gìi thǔng dii khá',
+        es: 'Mamá ha encargado hojas de té. ¿Cuántas bolsas compramos?',
+        options: [
+          { th: 'สองถุง{P} ไปฝากแม่กับยาย', rom: 'sɔ̌ɔng thǔng {P}, pai fàak mɛ̂ɛ gàp yaai', es: 'Dos: una para mamá y otra para Yai', ok: true, reply: { th: 'ดีค่ะ ยายชอบชามาก', rom: 'dii khâ, yaai chɔ̂ɔp chaa mâak', es: '¡Bien! A Yai le encanta el té.' } },
+          { th: 'ซื้อถุงใหญ่ที่สุดเลย{P}', rom: 'sʉ́ʉ thǔng yài thîi-sùt ləəi {P}', es: '¡La bolsa más grande que haya!', ok: true, reply: { th: 'พี่ใจดีจัง แม่จะดีใจมากค่ะ', rom: 'phîi jai-dii jang, mɛ̂ɛ jà dii-jai mâak khâ', es: '¡Qué detalle! Mamá se va a poner muy contenta.' } },
+          { th: 'ตีสอง{P}', rom: 'tii sɔ̌ɔng {P}', es: 'Las dos de la madrugada', ok: false },
+        ],
+      },
+    ],
+  },
   {
     id: 'd3',
     title: 'Llegada a la casa de teca',
-    scene: 'Tras 1.864 curvas, la casa de teca aparece entre la niebla. Mae sale a la terraza a recibirte.',
+    scene: 'Tras 1.864 curvas, la casa de teca. Antes de que sueltes la mochila ya estás en la mesa: Mae sirve, Yai te mira y Pho quiere enseñarte tu cuarto. Toda la familia a la vez.',
+    place: 'mesa',
     lines: [
       {
         who: 'Mae',
@@ -14,7 +130,7 @@ export const DIALOGUES_B: Dialogue[] = [
         es: '¡Ya estás aquí! ¿Mucho cansancio, cariño?',
         options: [
           { th: 'นิดหน่อย{P} แต่ดีใจมาก', rom: 'nít-nɔ̀i {P}, tɛ̀ɛ dii-jai mâak', es: 'Un poco, ¡pero qué alegría!', ok: true, reply: { th: 'เข้ามาสิ ยายรออยู่', rom: 'khâo maa sì, yaai rɔɔ yùu', es: '¡Pasa, pasa, que Yai te está esperando!' } },
-          { th: 'ไม่เหนื่อย{P} สบายดี', rom: 'mâi nʉ̀ay {P}, sà-baai-dii', es: 'Nada, estoy bien', ok: true, reply: { th: 'ดีจ้ะ อาบน้ำก่อนนะ แล้วกินข้าวกัน', rom: 'dii jâ, àap-náam gɔ̀ɔn ná, lɛ́ɛo gin khâao gan', es: 'Me alegro. Dúchate primero y luego comemos todos juntos.' } },
+          { th: 'ไม่เหนื่อย{P} สบายดี', rom: 'mâi nʉ̀ay {P}, sà-baai-dii', es: 'Nada, estoy bien', ok: true, reply: { th: 'ดีจ้ะ มากินข้าวกันก่อนนะ', rom: 'dii jâ, maa gin khâao gan gɔ̀ɔn ná', es: 'Me alegro. Ven, que lo primero es comer.' } },
           { th: 'ตีห้า{P}', rom: 'tii hâa {P}', es: 'Las cinco de la madrugada', ok: false },
         ],
       },
@@ -30,24 +146,24 @@ export const DIALOGUES_B: Dialogue[] = [
         ],
       },
       {
+        who: 'Mae',
+        th: 'กินเยอะๆ นะลูก เอาข้าวอีกไหม',
+        rom: 'gin yə́-yə́ ná lûuk, ao khâao ìik mǎi',
+        es: 'Come mucho, cariño. ¿Te pongo más arroz?',
+        options: [
+          { th: 'เอา{P} อร่อยมาก', rom: 'ao {P}, à-rɔ̀i mâak', es: 'Sí, ¡está buenísimo!', ok: true, reply: { th: 'ดีใจจัง กินเยอะๆ นะ', rom: 'dii-jai jang, gin yə́-yə́ ná', es: '¡Qué alegría! Come, come.' } },
+          { th: 'ไม่ไหวแล้ว{P} อิ่มมาก', rom: 'mâi wǎi lɛ́ɛo {P}, ìm mâak', es: 'Ya no puedo más. ¡Qué bien he comido!', ok: true, reply: { th: 'กินน้อยจัง พรุ่งนี้กินอีกนะ', rom: 'gin nɔ́ɔi jang, phrûng-níi gin ìik ná', es: '¡Qué poco comes! Mañana, más.' } },
+          { th: 'ราคาสองล้านบาท', rom: 'raa-khaa sɔ̌ɔng láan bàat', es: 'Cuesta dos millones de baht', ok: false },
+        ],
+      },
+      {
         who: 'Pho',
         th: 'นี่ห้องของลูกนะ',
         rom: 'nîi hɔ̂ng khɔ̌ɔng lûuk ná',
         es: 'Esta es tu habitación.',
         options: [
-          { th: 'ขอบคุณ{P} ห้องสวยมาก', rom: 'khɔ̀ɔp-khun {P}, hɔ̂ng sǔay mâak', es: 'Gracias, ¡qué habitación tan bonita!', ok: true, reply: { th: 'บ้านไม้สักหลังนี้อายุร้อยปีแล้วนะ', rom: 'bâan máai-sàk lǎng níi aa-yú rɔ́ɔi pii lɛ́ɛo ná', es: 'Esta casa de teca ya tiene cien años, ¿sabes?' } },
+          { th: 'ขอบคุณ{P}พ่อ ห้องสวยมาก', rom: 'khɔ̀ɔp-khun {P} phɔ̂ɔ, hɔ̂ng sǔay mâak', es: 'Gracias, papá. ¡Qué habitación tan bonita!', ok: true, reply: { th: 'บ้านไม้สักหลังนี้อายุร้อยปีแล้วนะ', rom: 'bâan máai-sàk lǎng níi aa-yú rɔ́ɔi pii lɛ́ɛo ná', es: 'Esta casa de teca ya tiene cien años, ¿sabes?' } },
           { th: 'ห้องน้ำอยู่ที่ไหน{PQ}', rom: 'hɔ̂ng-náam yùu thîi-nǎi {PQ}', es: '¿Dónde está el baño?', ok: true, reply: { th: 'อยู่ใกล้ครัว ตรงไปแล้วเลี้ยวซ้าย', rom: 'yùu glâi khrua, trong pai lɛ́ɛo líao sáai', es: 'Cerca de la cocina: todo recto y luego a la izquierda.' } },
-          { th: 'ราคาสองล้านบาท', rom: 'raa-khaa sɔ̌ɔng láan bàat', es: 'Cuesta dos millones de baht', ok: false },
-        ],
-      },
-      {
-        who: 'Mae',
-        th: 'พรุ่งนี้ตื่นกี่โมงจ๊ะ',
-        rom: 'phrûng-níi tʉ̀ʉn gìi moong já',
-        es: '¿A qué hora te levantas mañana?',
-        options: [
-          { th: 'หกโมงเช้า{P}', rom: 'hòk moong cháao {P}', es: 'A las seis de la mañana', ok: true, reply: { th: 'ดีจ้ะ ตอนเช้ามีทะเลหมอกสวยมาก', rom: 'dii jâ, tɔɔn-cháao mii thá-lee-mɔ̀ɔk sǔay mâak', es: '¡Muy bien! Por la mañana hay un mar de niebla precioso.' } },
-          { th: 'แปดโมง{P} ตื่นสายหน่อย', rom: 'pɛ̀ɛt moong {P}, tʉ̀ʉn sǎai nɔ̀i', es: 'A las ocho; me gusta dormir un poco más', ok: true, reply: { th: 'ได้จ้ะ นอนหลับฝันดีนะ', rom: 'dâi jâ, nɔɔn làp fǎn dii ná', es: 'Vale, cariño. ¡Que duermas bien!' } },
           { th: 'วันจันทร์{P}', rom: 'wan-jan {P}', es: 'El lunes', ok: false },
         ],
       },
@@ -57,6 +173,7 @@ export const DIALOGUES_B: Dialogue[] = [
     id: 'd4',
     title: 'Cocinando con Mae',
     scene: 'Huele a jengibre y a leña. Mae te llama a la cocina: hoy toca khao soi.',
+    place: 'cocina',
     lines: [
       {
         who: 'Mae',
@@ -71,12 +188,12 @@ export const DIALOGUES_B: Dialogue[] = [
       },
       {
         who: 'Mae',
-        th: 'ชอบเผ็ดไหม',
-        rom: 'chɔ̂ɔp phèt mǎi',
-        es: '¿Te gusta el picante?',
+        th: 'กินเผ็ดได้ไหมลูก',
+        rom: 'gin phèt dâi mǎi lûuk',
+        es: '¿Aguantas el picante, cariño?',
         options: [
-          { th: 'ชอบมาก{P} ใส่พริกเยอะๆ เลย', rom: 'chɔ̂ɔp mâak {P}, sài phrík yə́-yə́ ləəi', es: '¡Me encanta! Échale muchas guindillas.', ok: true, reply: { th: 'เก่งจัง เหมือนคนเหนือเลย', rom: 'gèng jang, mʉ̌an khon nʉ̌a ləəi', es: '¡Qué valiente! Pareces del norte.' } },
-          { th: 'เผ็ดนิดหน่อยพอ{P}', rom: 'phèt nít-nɔ̀i phɔɔ {P}', es: 'Solo un poquito picante', ok: true, reply: { th: 'ได้จ้ะ แม่ใส่พริกเม็ดเดียว', rom: 'dâi jâ, mɛ̂ɛ sài phrík mét diao', es: 'Vale, le pongo una sola guindilla.' } },
+          { th: 'ได้{P} ชอบมาก ใส่พริกเยอะๆ เลย', rom: 'dâi {P}, chɔ̂ɔp mâak, sài phrík yə́-yə́ ləəi', es: '¡Sí, me encanta! Échale muchas guindillas.', ok: true, reply: { th: 'เก่งจัง เหมือนคนเหนือเลย', rom: 'gèng jang, mʉ̌an khon nʉ̌a ləəi', es: '¡Qué valiente! Pareces del norte.' } },
+          { th: 'ได้นิดหน่อย{P}', rom: 'dâi nít-nɔ̀i {P}', es: 'Un poquito', ok: true, reply: { th: 'ได้จ้ะ แม่ใส่พริกนิดหน่อยนะ', rom: 'dâi jâ, mɛ̂ɛ sài phrík nít-nɔ̀i ná', es: 'Vale, mamá le pone solo un poquito.' } },
           { th: 'ทอดไข่{P}', rom: 'thɔ̂ɔt khài {P}', es: 'Freír un huevo', ok: false },
         ],
       },
@@ -93,8 +210,8 @@ export const DIALOGUES_B: Dialogue[] = [
       },
       {
         who: 'Mae',
-        th: 'ดื่มกาแฟร้อนไหมจ๊ะ',
-        rom: 'dʉ̀ʉm gaa-fɛɛ rɔ́ɔn mǎi já',
+        th: 'เอากาแฟร้อนไหมจ๊ะ',
+        rom: 'ao gaa-fɛɛ rɔ́ɔn mǎi já',
         es: '¿Te apetece un café caliente?',
         options: [
           { th: 'เอา{P} ขอบคุณ{P}', rom: 'ao {P}, khɔ̀ɔp-khun {P}', es: 'Sí, gracias', ok: true, reply: { th: 'รอแป๊บนึงนะจ๊ะ', rom: 'rɔɔ pɛ́p nʉng ná já', es: 'Espera un momentito, cariño.' } },
@@ -108,6 +225,7 @@ export const DIALOGUES_B: Dialogue[] = [
     id: 'd5',
     title: 'Junto al fuego',
     scene: 'Es de noche y hace frío. La familia se sienta alrededor del fuego y Yai empieza a contar.',
+    place: 'fuego',
     lines: [
       {
         who: 'Yai',
@@ -159,6 +277,7 @@ export const DIALOGUES_B: Dialogue[] = [
     id: 'd6',
     title: 'La ceremonia del hilo blanco',
     scene: 'En la sala hay un baisi de hojas de plátano del que cuelgan hilos blancos. La familia se sienta en el suelo y Yai te llama a su lado.',
+    place: 'sala',
     lines: [
       {
         who: 'Yai',
@@ -209,37 +328,38 @@ export const DIALOGUES_B: Dialogue[] = [
   {
     id: 'd7',
     title: 'Yai habla kham mueang',
-    scene: 'Última mañana en el pueblo. Yai se despide de ti en kham mueang, el habla del norte.',
+    scene: 'Última mañana en el pueblo. En la sala donde ayer te ató el hilo, Yai se despide de ti en kham mueang, el habla del norte.',
+    place: 'sala',
     lines: [
       {
         who: 'Yai',
-        th: 'หลาน กิ๋นข้าวเน้อ ลำแต้ๆ',
-        rom: 'lǎan, gǐn khâao nə́ə, lam tɛ̂ɛ-tɛ̂ɛ',
+        th: 'หลาน กิ๋นข้าวเน้อ ลำแต๊ๆ',
+        rom: 'lǎan, gǐn khâao nə́ə, lam tɛ́ɛ-tɛ́ɛ',
         es: 'Come, cariño, ¡que está riquísimo!',
         options: [
-          { th: 'ลำแต้ๆ{P}', rom: 'lam tɛ̂ɛ-tɛ̂ɛ {P}', es: '¡Riquísimo de verdad!', ok: true, reply: { th: 'อู้กำเมืองเก่งแต้', rom: 'ûu gam-mʉang gèng tɛ̂ɛ', es: '¡Qué bien hablas kham mueang!' } },
-          { th: 'ยินดี{P}', rom: 'yin-dii {P}', es: 'Gracias (en el norte)', ok: true, reply: { th: 'บ่เป็นหยังเน้อ', rom: 'bɔ̀ɔ pen yǎng nə́ə', es: 'No hay de qué, cariño.' } },
+          { th: 'ลำแต๊ๆ{P}', rom: 'lam tɛ́ɛ-tɛ́ɛ {P}', es: '¡Riquísimo de verdad!', ok: true, reply: { th: 'อู้กำเมืองเก่งแต๊', rom: 'ûu gam-mʉang gèng tɛ́ɛ', es: '¡Qué bien hablas kham mueang!' } },
+          { th: 'ยินดี{P}', rom: 'yin-dii {P}', es: 'Gracias (en el norte)', ok: true, reply: { th: 'บ่เป๋นหยังเน้อ', rom: 'bɔ̀ɔ pěn yǎng nə́ə', es: 'No hay de qué, cariño.' } },
           { th: 'บ่ลำ', rom: 'bɔ̀ɔ lam', es: 'No está rico', ok: false },
         ],
       },
       {
         who: 'Yai',
-        th: 'ยายดีใจแต้ๆ ที่หลานมาแอ่ว',
-        rom: 'yaai dii-jai tɛ̂ɛ-tɛ̂ɛ thîi lǎan maa ɛ̀ɛo',
+        th: 'ยายดีใจแต๊ๆ ที่หลานมาแอ่ว',
+        rom: 'yaai dii-jai tɛ́ɛ-tɛ́ɛ thîi lǎan maa ɛ̀ɛo',
         es: 'La abuela está contentísima de que hayas venido a vernos.',
         options: [
-          { th: 'ม่วนแต้ๆ{P}', rom: 'mûan tɛ̂ɛ-tɛ̂ɛ {P}', es: '¡Me lo he pasado genial!', ok: true, reply: { th: 'ปิ๊กมาแอ่วบ้านเฮาเน้อ', rom: 'pík maa ɛ̀ɛo bâan hao nə́ə', es: 'Vuelve a visitarnos, ¿eh?' } },
+          { th: 'ม่วนแต๊ๆ{P}', rom: 'mûan tɛ́ɛ-tɛ́ɛ {P}', es: '¡Me lo he pasado genial!', ok: true, reply: { th: 'ปิ๊กมาแอ่วบ้านเฮาเน้อ', rom: 'pík maa ɛ̀ɛo bâan hao nə́ə', es: 'Vuelve a visitarnos, ¿eh?' } },
           { th: '{I}ก็ดีใจ{P}', rom: '{I} gɔ̂ɔ dii-jai {P}', es: '¡Y yo también me alegro!', ok: true, reply: { th: 'ยายฮักหลานเน้อ', rom: 'yaai hák lǎan nə́ə', es: 'La abuela te quiere, ¿eh?' } },
           { th: 'บ่ม่วน', rom: 'bɔ̀ɔ mûan', es: 'No ha sido divertido', ok: false },
         ],
       },
       {
         who: 'Yai',
-        th: 'กึ๊ดเติงหลานเน้อ',
-        rom: 'gʉ́t-təəng lǎan nə́ə',
-        es: 'Te voy a echar de menos, cariño.',
+        th: 'ยายกึ๊ดเติงหาหลานเน้อ',
+        rom: 'yaai gʉ́t-təəng-hǎa lǎan nə́ə',
+        es: 'La abuela te va a echar de menos, cariño.',
         options: [
-          { th: 'กึ๊ดเติงยายเหมือนกัน{P}', rom: 'gʉ́t-təəng yaai mʉ̌an-gan {P}', es: 'Yo también te echaré de menos, abuela', ok: true, reply: { th: 'ยายจะรอเน้อ', rom: 'yaai jà rɔɔ nə́ə', es: 'La abuela te esperará, ¿eh?' } },
+          { th: 'กึ๊ดเติงหายายเหมือนกัน{P}', rom: 'gʉ́t-təəng-hǎa yaai mʉ̌an-gan {P}', es: 'Yo también te echaré de menos, abuela', ok: true, reply: { th: 'ยายจะรอเน้อ', rom: 'yaai jà rɔɔ nə́ə', es: 'La abuela te esperará, ¿eh?' } },
           { th: 'ปีหน้า{I}จะปิ๊กมาแอ่ว{P}', rom: 'pii nâa {I} jà pík maa ɛ̀ɛo {P}', es: 'El año que viene volveré a veros', ok: true, reply: { th: 'สัญญาเน้อ', rom: 'sǎn-yaa nə́ə', es: '¡Prometido, eh!' } },
           { th: 'บ่ปิ๊ก', rom: 'bɔ̀ɔ pík', es: 'No vuelvo', ok: false },
         ],
@@ -251,8 +371,8 @@ export const DIALOGUES_B: Dialogue[] = [
         es: 'Buen viaje de vuelta, ¿eh?',
         options: [
           { th: '{I}รักยาย{P}', rom: '{I} rák yaai {P}', es: 'Te quiero, abuela', ok: true, reply: { th: 'ยายก็ฮักหลานเน้อ', rom: 'yaai gɔ̂ɔ hák lǎan nə́ə', es: 'La abuela también te quiere, ¿eh?' } },
-          { th: 'ขอบคุณสำหรับทุกอย่าง{P}', rom: 'khɔ̀ɔp-khun sǎm-ràp thúk-yàang {P}', es: 'Gracias por todo', ok: true, reply: { th: 'ไปดีมาดีเน้อ', rom: 'pai dii maa dii nə́ə', es: '¡Ve con bien y vuelve con bien!' } },
-          { th: 'บ่เป็นหยัง', rom: 'bɔ̀ɔ pen yǎng', es: 'No pasa nada', ok: false },
+          { th: '{I}จะกลับมาหายายอีก{P}', rom: '{I} jà glàp maa hǎa yaai ìik {P}', es: 'Volveré a verte, abuela', ok: true, reply: { th: 'ไปดีมาดีเน้อ', rom: 'pai dii maa dii nə́ə', es: '¡Ve con bien y vuelve con bien!' } },
+          { th: 'บ่เป๋นหยัง', rom: 'bɔ̀ɔ pěn yǎng', es: 'No pasa nada', ok: false },
         ],
       },
     ],

@@ -10,13 +10,15 @@ import { Art, Icon } from '@/components/icons';
 import { Noi } from '@/components/Noi';
 import { MistBand } from '@/components/Scenery';
 import { Bar, Speech, Txt } from '@/components/ui';
+import { VoiceWarning } from '@/components/VoiceWarning';
 import { HAS_SEASON_2, LESSONS, SEASON_2_STOPS, currentLesson, isUnlocked, letterProgress, moonOf, moonsDone, seasonOf, TOTAL_CURVES, type LessonRef, type Stop } from '@/content';
 import { fx } from '@/lib/audio';
 import { fmt } from '@/lib/format';
 import { streakStatus, useStore } from '@/lib/store';
 
 const STEP = 112;
-const TOP = 120;
+/** Aire entre la cabecera y la última curva: ahí caben el bocadillo de «Empezar» y el cartel del final del camino. */
+const HEAD_ROOM = 150;
 
 /** Paisaje de cada temporada: la carretera entre montañas verdes y el año en el pueblo, entre arrozales. */
 const LOOK = {
@@ -28,11 +30,15 @@ const stopLabel = (s: Stop) => (seasonOf(s) === 2 ? `Luna ${moonOf(s)} · ${s.mo
 
 /** El camino: en la temporada 1 cada lección es una curva de la carretera; en la 2, un paso del año en el pueblo. */
 export default function Camino() {
-  const { p } = useStore();
+  const { p, dismissNews } = useStore();
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const scroll = useRef<ScrollViewInstance>(null);
   const [hint, setHint] = useState<string | null>(null);
+  // la cabecera flota sobre el mapa y su alto cambia (avisos, textos en dos líneas): el camino empieza por debajo de ella,
+  // para que las últimas curvas de cada temporada no queden tapadas
+  const [headH, setHeadH] = useState(insets.top + 240);
+  const TOP = headH + HEAD_ROOM;
 
   const cur = currentLesson(p);
   const curSeason = seasonOf(cur.stop);
@@ -76,7 +82,7 @@ export default function Camino() {
     const y = TOP + (N - 1 - k) * STEP;
     const t = setTimeout(() => scroll.current?.scrollTo({ y: Math.max(0, y - height * 0.45), animated: false }), 60);
     return () => clearTimeout(t);
-  }, [curK, seasonPassed, N, height, season]);
+  }, [curK, seasonPassed, N, height, season, TOP]);
 
   const trees = useMemo(() => {
     const out: { x: number; y: number; r: number }[] = [];
@@ -85,7 +91,7 @@ export default function Camino() {
       out.push({ x: cx + side * (amp + 34 + ((i * 37) % 30)), y: TOP + (N - 1 - i) * STEP + ((i * 53) % 60) - 30, r: 12 + ((i * 7) % 8) });
     }
     return out;
-  }, [N, cx, amp]);
+  }, [N, cx, amp, TOP]);
 
   const open = (l: LessonRef) => {
     if (!isUnlocked(p, l)) {
@@ -138,6 +144,11 @@ export default function Camino() {
           const isCur = l.id === cur.id;
           const firstInStop = l.inStop === 0;
           const stopSide = Math.sin(k * 1.1) > 0 ? -1 : 1;
+          // Noi acompaña a la curva actual por fuera del camino; si ahí no cabe entera, se pone por dentro
+          // (y, si en ese lado está el cartel de la parada, un poco más abajo)
+          const outer = stopSide > 0 ? pt.x - 150 : pt.x + 46;
+          const fits = outer >= 0 && outer + 104 <= W;
+          const noi = { left: fits ? outer : stopSide > 0 ? pt.x + 46 : pt.x - 150, top: !fits && firstInStop ? pt.y + 26 : pt.y - 64 };
           return (
             <View key={l.id}>
               {firstInStop ? (
@@ -178,7 +189,7 @@ export default function Camino() {
                       <Txt v="small" numberOfLines={1}>{l.title}</Txt>
                     </Speech>
                   </Animated.View>
-                  <View style={{ position: 'absolute', left: pt.x + (stopSide > 0 ? -150 : 46), top: pt.y - 64 }}>
+                  <View pointerEvents="none" style={{ position: 'absolute', left: noi.left, top: noi.top }}>
                     <Noi pose="feliz" size={104} />
                   </View>
                 </>
@@ -193,23 +204,29 @@ export default function Camino() {
             </View>
           );
         })}
-        <View style={[styles.village, { top: TOP - 110, left: pos[N - 1].x - 70 }]}>
-          <Art name={season === 2 ? 'farol' : 'carta'} size={34} />
-          <Txt v="small" style={{ textAlign: 'center' }}>
-            {season === 2 ? `${last.stop.month} · ${last.stop.title}` : `El pueblo en la niebla · curva ${fmt(TOTAL_CURVES)}`}
-          </Txt>
-        </View>
+        {/* el cartel del final del camino cede el sitio al bocadillo de «Empezar» cuando toca la última curva */}
+        {curK === N - 1 ? null : (
+          <View style={[styles.village, { top: TOP - 110, left: pos[N - 1].x - 70 }]}>
+            <Art name={season === 2 ? 'farol' : 'carta'} size={34} />
+            <Txt v="small" style={{ textAlign: 'center' }}>
+              {season === 2 ? `${last.stop.month} · ${last.stop.title}` : 'Tu carta a Yai · fin de la temporada 1'}
+            </Txt>
+          </View>
+        )}
         <View style={[styles.startSign, { top: pos[0].y + 46, left: pos[0].x - 70 }]}>
           <Txt v="small" style={{ textAlign: 'center' }}>{season === 2 ? `${first.stop.month} · ${first.stop.title}` : 'Chiang Mai · curva 0'}</Txt>
         </View>
       </ScrollView>
 
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]} pointerEvents="box-none">
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]} pointerEvents="box-none" onLayout={(e) => setHeadH(Math.round(e.nativeEvent.layout.height))}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <HudChip icon={streak.litToday ? 'farol' : 'farolOff'} label={String(streak.count)} warn={streak.atRisk} />
           <HudChip icon="platano" label={String(p.bananas)} />
           <HudChip icon="paraguas" label={String(p.streak.umbrellas)} />
           <View style={{ flex: 1 }} />
+          <Pressable onPress={() => router.push('/diario')} accessibilityRole="button" accessibilityLabel="Diario del viaje" style={[styles.chip, { backgroundColor: '#FFFDF7', paddingHorizontal: 8 }]}>
+            <Art name="diario" size={22} />
+          </Pressable>
           <Pressable onPress={() => router.push('/carta')} accessibilityRole="button" accessibilityLabel={`La carta de Yai, ${letter.pct} por ciento`} style={[styles.chip, { backgroundColor: '#FFFDF7' }]}>
             <Art name="carta" size={22} />
             <Txt v="bodyStrong" style={{ fontSize: 14 }}>{letter.pct} %</Txt>
@@ -227,7 +244,10 @@ export default function Camino() {
           </View>
           <View style={{ width: 70, gap: 4, alignItems: 'flex-end' }}>
             <Txt v="small" style={{ color: '#5A3A00', fontSize: 11 }}>hoy</Txt>
-            <Bar value={p.today.bananas / Math.max(1, p.profile.goal)} tint={color.arrozal} track="rgba(255,255,255,.5)" height={10} />
+            {/* la barra crece a lo ancho de una fila: suelta en esta columna, en iOS y Android se estiraba hacia abajo */}
+            <View style={{ flexDirection: 'row', alignSelf: 'stretch' }}>
+              <Bar value={p.today.bananas / Math.max(1, p.profile.goal)} tint={color.arrozal} track="rgba(255,255,255,.5)" height={10} />
+            </View>
             <Txt v="small" style={{ color: '#5A3A00', fontSize: 11 }}>
               {Math.min(p.today.bananas, p.profile.goal)}/{p.profile.goal}
             </Txt>
@@ -252,6 +272,22 @@ export default function Camino() {
           <View style={{ flex: 1 }} />
           {HAS_SEASON_2 ? <SeasonTabs season={season} locked2={curSeason === 1} onPick={pick} /> : null}
         </View>
+        {p.news ? (
+          <Animated.View entering={FadeIn.duration(300)}>
+            <Pressable onPress={dismissNews} accessibilityRole="button" accessibilityLabel="Entendido" style={styles.news}>
+              <Noi pose="celebra" size={54} still />
+              <View style={{ flex: 1, gap: 2 }}>
+                <Txt v="bodyStrong" style={{ fontSize: 14, color: color.tinta }}>¡El camino ha crecido!</Txt>
+                <Txt v="small" style={{ color: color.tinta }}>
+                  Hay {p.news} {p.news === 1 ? 'lección nueva' : 'lecciones nuevas'} en tramos que ya recorriste. Te llevo a la primera; tus sellos, tus plátanos y tus palabras siguen contigo.
+                </Txt>
+              </View>
+              <Icon name="close" size={18} />
+            </Pressable>
+          </Animated.View>
+        ) : null}
+        {/* si el dispositivo no tiene voz thai, toda la app sería muda: se avisa aquí, con cómo instalarla */}
+        <VoiceWarning compact />
       </View>
 
       {seasonLocked ? (
@@ -304,6 +340,7 @@ function PulseRing({ x, y }: { x: number; y: number }) {
 
 const styles = StyleSheet.create({
   header: { position: 'absolute', left: 0, right: 0, top: 0, paddingHorizontal: 16, gap: 10 },
+  news: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, borderRadius: 18, backgroundColor: '#FFFDF7', borderWidth: 2, borderColor: color.buatong, ...shadow.card },
   chip: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 36, paddingLeft: 8, paddingRight: 12, borderRadius: 999, backgroundColor: '#FFFFFF', borderWidth: 2, borderColor: color.niebla3 },
   stopCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 22, backgroundColor: color.azafran, borderBottomWidth: 5, borderBottomColor: color.azafranHondo },
   stopCard2: { backgroundColor: '#F6D77A', borderBottomColor: '#C9A43A' },

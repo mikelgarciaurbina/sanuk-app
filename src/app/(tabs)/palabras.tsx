@@ -4,6 +4,7 @@ import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { color, font, shadow } from '@/brand/tokens';
+import { GrammarList } from '@/components/GrammarList';
 import { Btn, Rom, Th, Txt } from '@/components/ui';
 import { MIN_REVIEW_WORDS, STOPS, canReview, dueWords, introducedIds, wordsOf } from '@/content';
 import type { Word } from '@/content/types';
@@ -15,6 +16,7 @@ export default function Palabras() {
   const { p } = useStore();
   const insets = useSafeAreaInsets();
   const [stop, setStop] = useState<string>('todas');
+  const [tab, setTab] = useState<'palabras' | 'gramatica'>('palabras');
   const due = dueWords(p);
   const learned = introducedIds(p).size;
   const open = canReview(p);
@@ -33,6 +35,43 @@ export default function Palabras() {
     return out;
   }, [stop]);
 
+  /** Palabras o chuletas de gramática: lo que ya has visto en el camino. */
+  const tabs = (
+    <View style={styles.tabs}>
+      {(['palabras', 'gramatica'] as const).map((t) => (
+        <Pressable
+          key={t}
+          accessibilityRole="button"
+          accessibilityState={{ selected: tab === t }}
+          onPress={() => {
+            fx.tap();
+            setTab(t);
+          }}
+          style={[styles.tab, tab === t && styles.tabOn]}>
+          <Text style={[styles.tabText, tab === t && { color: color.tinta }]}>{t === 'palabras' ? 'Palabras' : 'Gramática'}</Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+
+  if (tab === 'gramatica')
+    return (
+      <View style={{ flex: 1, backgroundColor: color.niebla }}>
+        <GrammarList
+          top={insets.top}
+          header={
+            <View style={{ paddingHorizontal: 20, gap: 12 }}>
+              <View style={{ gap: 4 }}>
+                <Txt v="h1" style={{ fontSize: 26 }}>Tus chuletas</Txt>
+                <Txt v="small">Gramática en un minuto: cómo se montan las frases en thai</Txt>
+              </View>
+              {tabs}
+            </View>
+          }
+        />
+      </View>
+    );
+
   return (
     <View style={{ flex: 1, backgroundColor: color.niebla }}>
       <FlatList
@@ -49,6 +88,7 @@ export default function Palabras() {
                 {learned} palabras vistas · cada palabra crece de semilla a flor con el repaso
               </Txt>
             </View>
+            <View style={{ paddingHorizontal: 20 }}>{tabs}</View>
             <View style={[styles.review, { marginHorizontal: 20 }]}>
               <View style={{ flex: 1, gap: 2 }}>
                 <Txt v="h3">{few ? 'El repaso se abre pronto' : due.length ? `${due.length} ${due.length === 1 ? 'palabra pide' : 'palabras piden'} repaso` : 'Todo al día'}</Txt>
@@ -120,6 +160,10 @@ function WordCard({ w, st }: { w: Word; st?: WordStat }) {
 }
 
 const styles = StyleSheet.create({
+  tabs: { flexDirection: 'row', padding: 4, borderRadius: 16, backgroundColor: color.niebla3 },
+  tab: { flex: 1, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  tabOn: { backgroundColor: '#FFFFFF', ...shadow.card },
+  tabText: { fontFamily: font.uiHeavy, fontSize: 14, color: color.tinta2 },
   review: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 22, backgroundColor: '#FFFFFF', ...shadow.card },
   filter: { height: 36, paddingHorizontal: 14, borderRadius: 999, backgroundColor: '#FFFFFF', borderWidth: 2, borderColor: color.niebla3, justifyContent: 'center' },
   filterOn: { backgroundColor: color.tinta, borderColor: color.tinta },

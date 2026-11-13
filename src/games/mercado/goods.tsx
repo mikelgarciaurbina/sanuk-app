@@ -152,6 +152,55 @@ function Art({ art, u }: { art: GoodArt; u: string }) {
           {SHINE('M21 31 C22 23 25 17 29 14')}
         </>
       );
+    case 'guindilla':
+      return (
+        <>
+          <Linear id={u} stops={[[0, '#FF7A5C'], [0.5, '#E3302B'], [1, '#A3151B']]} x2="1" />
+          <Path d="M14 22 C20 15 30 17 38 26 C47 36 53 46 58 57 C45 55 32 49 22 40 C14 33 10 27 14 22 Z" fill={`url(#${u})`} />
+          <Path d="M17 20 C12 16 9 11 10 5" stroke="#3E9A52" strokeWidth={3.6} strokeLinecap="round" fill="none" />
+          <Path d="M11 22 C13 16 19 14 24 17 C21 22 16 25 11 22 Z" fill="#4FA85A" />
+          <Path d="M50 50 C53 53 56 55 58 57" stroke="#7E0E14" strokeWidth={1.6} strokeLinecap="round" fill="none" opacity={0.6} />
+          {SHINE('M20 25 C26 25 33 30 38 36')}
+        </>
+      );
+    case 'lima':
+      return (
+        <>
+          <Radial id={u} stops={[[0, '#E4F59A'], [0.5, '#8FCB3F'], [1, '#3F8A25']]} />
+          <Path d="M10 36 C10 24 20 15 32 15 C44 15 54 24 54 36 C54 49 44 58 32 58 C20 58 10 49 10 36 Z" fill={`url(#${u})`} />
+          <Path d="M32 15 C31 12 31 10 32 8" stroke="#5B3A1A" strokeWidth={2.6} strokeLinecap="round" />
+          <Path d="M32 12 C36 5 46 5 50 9 C45 15 38 15 32 12 Z" fill="#2F8A45" />
+          <Path d="M52 38 C56 37 58 39 58 41 C56 43 53 42 52 40 Z" fill="#6FAE30" />
+          {[
+            [22, 32],
+            [36, 26],
+            [44, 40],
+            [28, 46],
+            [38, 50],
+          ].map(([x, y]) => (
+            <Circle key={`${x}${y}`} cx={x} cy={y} r={0.9} fill="#2E6B1A" opacity={0.35} />
+          ))}
+          {SHINE('M17 33 C18 27 22 22 27 20')}
+        </>
+      );
+    case 'dulce':
+      return (
+        <>
+          <Linear id={u} stops={[[0, '#FFF7E2'], [1, '#E9D3A2']]} />
+          <Linear id={`${u}g`} stops={[[0, '#9BE08A'], [1, '#4FAE5A']]} />
+          <Linear id={`${u}p`} stops={[[0, '#FFB5CF'], [1, '#EF7FA6']]} />
+          <Path d="M4 44 C14 38 50 38 60 44 C56 54 8 54 4 44 Z" fill="#3E9A52" />
+          <Path d="M10 44 C20 41 44 41 54 44" stroke="#7BC67E" strokeWidth={1.2} fill="none" />
+          <Path d="M13 39 L32 46 L51 39 V24 L32 31 L13 24 Z" fill={`url(#${u}g)`} />
+          <Path d="M13 34 L32 41 L51 34 V29 L32 36 L13 29 Z" fill={`url(#${u})`} />
+          <Path d="M13 24 L32 17 L51 24 L32 31 Z" fill={`url(#${u}p)`} />
+          <Path d="M32 31 V46" stroke="#2F7A40" strokeWidth={1} opacity={0.35} />
+          <Circle cx={32} cy={23.5} r={2.6} fill="#FFFFFF" />
+          <Circle cx={25} cy={24} r={1.4} fill="#FFE08A" />
+          <Circle cx={39} cy={24} r={1.4} fill="#FFE08A" />
+          <Path d="M17 24.5 L31 19.5" stroke="#FFFFFF" strokeWidth={2} strokeLinecap="round" opacity={0.6} />
+        </>
+      );
     case 'camisa':
       return (
         <>

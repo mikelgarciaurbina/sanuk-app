@@ -6,7 +6,7 @@ Tres órdenes, desde `app/`. Necesitan Node 22.18 o más nuevo, que ejecuta Type
 | --- | --- |
 | `npm run temario` | Revisa todo el temario que carga la app. Termina con código 1 si hay errores. Con `-- --todo` no recorta las listas largas. |
 | `npm run temario:nivel` | Informe de nivel al acabar cada temporada. Con `-- --faltan 100` lista las palabras más frecuentes que aún no enseña ninguna lección. |
-| `npm run temario:test` | Pruebas de los propios revisores y del orden de las lecciones: recorre las 164 como un alumno y comprueba que ningún juego pregunta una palabra antes de su ficha. |
+| `npm run temario:test` | Pruebas de los propios revisores y del orden de las lecciones: recorre todas como un alumno y comprueba que ningún juego pregunta una palabra antes de su ficha. |
 
 Los errores (❌) hay que arreglarlos. Los avisos (⚠️) se aceptan si tienen sentido.
 
@@ -15,7 +15,9 @@ Los errores (❌) hay que arreglarlos. Los avisos (⚠️) se aceptan si tienen 
 1. **Archivos.** Cada archivo de `src/content` que exporta `WORDS_*`, `SENTENCES_*`, `STOPS_*`, `DIALOGUES_*` o `STORIES_*` está importado en `src/content/index.ts`. Las paradas van numeradas p1, p2… y en orden de temporada.
 2. **Ids y referencias.** Nada repetido. Cada palabra tiene `th`, `rom`, `es`, `emoji` y `cat`. No hay dos palabras con el mismo thai (salvo homógrafos) ni con la misma traducción, porque los juegos ponen las traducciones como opciones. Todo lo que nombra una lección existe, cada palabra y cada frase salen en alguna lección, y los enlaces de los cuentos y de la carta de Yai apuntan a la palabra correcta.
 3. **Paradas y lecciones.** Campos de cada parada, mensaje de la familia y lecciones numeradas `p<n>l<k>` con título y objetivo. En la temporada 2 además: el mes, la misión y la conversación del mes en la última lección. Si una parada o una lección se sale del tamaño habitual, avisa.
+3b. **Historia.** Cada lección tiene su momento (`beat`) y, si lo lleva, su cierre (`after`), con un tamaño razonable.
 4. **Conversaciones y cuentos.** Tres opciones con una o dos correctas, y cada correcta con su respuesta. Cuentos con tres preguntas y con transcripción y traducción en cada palabra.
+4b. **Gramática en un minuto.** Cada patrón (`PATTERNS_*`) se explica en una sola lección, sus ejemplos son frases de esa lección o de las anteriores y las piezas que resalta salen en ellos.
 5. **Tonos y transcripción.** Lee cada sílaba desde la escritura thai (clase de la consonante, marca de tono, sílaba viva o muerta, อักษรนำ, การันต์, ๆ) y comprueba que la transcripción tiene esa inicial, esa vocal, esa final y ese tono. Lo hace en palabras, frases, mensajes, misiones, conversaciones, cuentos y la carta de Yai, con ครับ/ผม y con ค่ะ/คะ/ฉัน. En las frases, cada pieza tiene que transcribirse igual que la palabra que la enseña.
 6. **Orden de enseñanza.** Recorre las lecciones en orden, como quien aprende. Las frases, las respuestas correctas y las misiones solo pueden usar palabras ya enseñadas (si no, error). En lo que dice la familia y en sus mensajes, solo avisa.
 

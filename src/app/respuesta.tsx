@@ -1,5 +1,6 @@
 // La respuesta a Yai: cierra el arco de la carta. Eliges dos frases, las oyes, la carta sube al cielo
 // en un farolillo y Yai te contesta.
+import { router } from 'expo-router';
 import { useEffect, useEffectEvent, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import Animated, { Easing, FadeIn, FadeInDown, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
@@ -9,7 +10,7 @@ import { color, font, shadow } from '@/brand/tokens';
 import { Art, Icon } from '@/components/icons';
 import { Noi } from '@/components/Noi';
 import { Btn, Rom, Th, Txt } from '@/components/ui';
-import { SENTENCES, letterProgress } from '@/content';
+import { HAS_SEASON_2, SENTENCES, letterProgress } from '@/content';
 import type { Sentence } from '@/content/types';
 import { Backdrop } from '@/games/Backdrop';
 import { Person } from '@/games/cena/family';
@@ -73,7 +74,19 @@ export default function Respuesta() {
     );
 
   if (phase === 'enviando') return <Sending />;
-  if (phase === 'respuesta') return <YaiAnswers letter={letter} gender={g} onWriteAgain={() => setPhase('escribir')} onClose={close} />;
+  if (phase === 'respuesta')
+    return (
+      <YaiAnswers
+        letter={letter}
+        gender={g}
+        onWriteAgain={() => setPhase('escribir')}
+        onClose={close}
+        onContinue={() => {
+          stopSpeech();
+          router.replace('/(tabs)');
+        }}
+      />
+    );
 
   return (
     <View style={{ flex: 1, backgroundColor: color.niebla }}>
@@ -176,7 +189,7 @@ function Sending() {
 }
 
 /** Yai recibe la carta y contesta, con su voz. */
-function YaiAnswers({ letter, gender, onWriteAgain, onClose }: { letter: Sentence[]; gender: Gender; onWriteAgain: () => void; onClose: () => void }) {
+function YaiAnswers({ letter, gender, onWriteAgain, onClose, onContinue }: { letter: Sentence[]; gender: Gender; onWriteAgain: () => void; onClose: () => void; onContinue: () => void }) {
   const insets = useSafeAreaInsets();
   const juice = useJuice();
   const [talking, setTalking] = useState(false);
@@ -219,9 +232,16 @@ function YaiAnswers({ letter, gender, onWriteAgain, onClose }: { letter: Sentenc
             {SIGN.th}
           </Th>
         </View>
+        {HAS_SEASON_2 ? (
+          <Animated.View entering={FadeInDown.delay(900).springify()} style={[styles.answer, { alignSelf: 'stretch', backgroundColor: '#FFFBEA' }]}>
+            <Txt v="eyebrow">Continuará</Txt>
+            <Txt v="h3">Lo has prometido: volverás.</Txt>
+            <Txt v="small">Y esta vez no serán unos días. Temporada 2 · Un año en el pueblo: doce lunas con la familia, de Songkran a la cosecha del arroz.</Txt>
+          </Animated.View>
+        ) : null}
       </ScrollView>
       <View style={{ gap: 10, paddingHorizontal: 20, paddingTop: 8, paddingBottom: Math.max(insets.bottom, 16) + 8 }}>
-        <Btn label="Volver a la carta" onPress={onClose} />
+        <Btn label={HAS_SEASON_2 ? 'Seguir el camino' : 'Volver a la carta'} onPress={HAS_SEASON_2 ? onContinue : onClose} />
         <Btn v="ghost" label="Escribir otra carta" onPress={onWriteAgain} />
       </View>
       {juice.layer}

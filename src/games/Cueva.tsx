@@ -1,6 +1,9 @@
 // Cueva de las letras: una cueva a oscuras, la linterna de Noi y letras talladas en la roca que brillan cuando les
-// da la luz. Busca la consonante que te piden (ก ไก่…): al encontrarla los cristales chisporrotean, suena su nombre
-// y vuela a tu colección. En la feria, tres galerías cada vez más hondas y una pila que se gasta: cada letra la recarga.
+// da la luz. Lo que se busca se pide de memoria, nunca enseñando la letra: por su nombre («gɔɔ gài», el pollo), por
+// su sonido («una que suene kh»), por su clase («una de clase alta») o, con las vocales, por cómo suenan («aa») y
+// por la palabra en la que se oyen. Al encontrarla, los cristales chisporrotean, la letra se enseña por fin con su
+// nombre y vuela a la colección. En la feria, tres galerías cada vez más hondas, todos los grupos ya estudiados
+// mezclados y una pila que se gasta: cada letra la recarga.
 import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from 'react';
 import { StyleSheet, Text, View, useWindowDimensions, type GestureResponderEvent, type LayoutChangeEvent } from 'react-native';
 import Animated, {
@@ -22,8 +25,8 @@ import type { NoiPose } from '@/brand/noi-art';
 import { Noi } from '@/components/Noi';
 import { Icon } from '@/components/icons';
 import { Rom, Th, Txt } from '@/components/ui';
-import { COMMON_LETTERS, LETTER_EMOJI, LETTER_SETS, consonantOf, letterCall, lookalikesOf } from '@/content/letters';
-import type { Consonant } from '@/content/types';
+import { COMMON_LETTERS, FREQUENT_RARE, LETTER_EMOJI, LETTER_SETS, VOWELS, consonantOf, letterCall, lookalikesOf, vowelOn, type LetterClass, type VowelForm } from '@/content/letters';
+import type { LetterSet } from '@/content/types';
 import { fx, say } from '@/lib/audio';
 import { shuffle } from '@/lib/random';
 
@@ -31,6 +34,8 @@ import { Backdrop } from './Backdrop';
 import { Countdown, Glow, Pop, Press3D, useGameFrame, useJuice } from './fx';
 import { ComboBadge, useScore } from './kit';
 import { seeded, useClock, usePulse, useSvgId } from './letras/anim';
+import { thaiCols } from './letras/Cometa';
+import { CLASS_TINT } from './letras/tono';
 import type { GameProps } from './types';
 
 // ——— Galerías ———
@@ -42,16 +47,15 @@ const WALLS: Palette[] = [
   { top: '#22606E', bottom: '#0E2F39', slabs: ['#256571', '#205864', '#1B4B56', '#2C7180'], edge: '#5FC4C9', crack: '#081A20', gem: '#7CFFB2', deep: '#1F9A5E', mica: '#D2FFEC' },
 ];
 
-type Level = { n: number; R: number; dark: number; name: string; show: 'all' | 'rom' | 'meaning'; wall: number; size: number };
+/** `show`: cuánta ayuda lleva lo que se pide: todo · sin transcripción · solo de oído. */
+type Level = { n: number; R: number; dark: number; name: string; show: 'all' | 'norom' | 'audio'; wall: number; size: number };
 const LEVELS: Level[] = [
   { n: 6, R: 116, dark: 0.94, name: 'La entrada', show: 'all', wall: 0, size: 44 },
-  { n: 8, R: 102, dark: 0.95, name: 'Galería de cristales', show: 'rom', wall: 1, size: 40 },
-  { n: 10, R: 90, dark: 0.96, name: 'La cámara profunda', show: 'meaning', wall: 2, size: 38 },
+  { n: 8, R: 102, dark: 0.95, name: 'Galería de cristales', show: 'norom', wall: 1, size: 40 },
+  { n: 10, R: 90, dark: 0.96, name: 'La cámara profunda', show: 'audio', wall: 2, size: 38 },
 ];
 const LESSON: Level = { n: 6, R: 124, dark: 0.91, name: '', show: 'all', wall: 0, size: 46 };
 
-const FERIA_LETTERS = 12;
-const PER_LEVEL = 4;
 const FERIA_SECONDS = 80;
 const RECHARGE = 3;
 const BOTTOM = 116;
@@ -60,8 +64,63 @@ const HIT = 40;
 const MARGIN = 34;
 
 type Pt = { x: number; y: number };
-type Spot = { ch: string; x: number; y: number };
-type Round = { id: number; target: string; spots: Spot[]; gem: Pt | null };
+
+// ——— Lo que hay en la cueva: consonantes y vocales ———
+
+/** Una letra (o una vocal sobre la อ muda) que se puede tallar en la pared y buscar. */
+type Item = {
+  key: string;
+  kind: 'c' | 'v';
+  /** lo tallado en la roca: «ก», «อา» */
+  glyph: string;
+  /** lo que dice la voz: «กอ ไก่», «อา» */
+  call: string;
+  rom: string;
+  emoji: string;
+  meaning: string;
+  sound: string;
+  cls?: LetterClass;
+  set: LetterSet;
+  /** vocales: su forma sobre el círculo y una palabra de ejemplo */
+  form?: VowelForm;
+};
+
+/** Cómo se pide: por su nombre · por su sonido · por su clase · (vocales) por la palabra en la que suena. */
+type Ask = 'nombre' | 'sonido' | 'clase' | 'palabra';
+type Task = { item: Item; ask: Ask };
+type Spot = { item: Item; x: number; y: number };
+/** `accept`: las claves de la pared que valen (por sonido o por clase puede haber varias). */
+type Round = { id: number; task: Task; spots: Spot[]; accept: string[]; gem: Pt | null };
+
+const CONSONANT_SETS: LetterSet[] = ['media', 'baja', 'alta', 'raras'];
+const VOWEL_SETS: LetterSet[] = ['vocales', 'cortas', 'compuestas'];
+const isVowelSet = (s: LetterSet) => VOWEL_SETS.includes(s);
+
+function itemsOf(set: LetterSet): Item[] {
+  if (isVowelSet(set))
+    return VOWELS.filter((v) => v.set === set && v.cave).map((v) => ({ key: v.id, kind: 'v', glyph: vowelOn(v.ch), call: v.say, rom: v.rom, emoji: v.ex.emoji, meaning: v.es, sound: v.rom, set, form: v }));
+  return (LETTER_SETS[set] ?? []).flatMap((ch) => {
+    const c = consonantOf(ch);
+    return c ? [{ key: ch, kind: 'c' as const, glyph: ch, call: letterCall(c), rom: c.nameRom, emoji: LETTER_EMOJI[ch] ?? '✨', meaning: c.meaning, sound: c.sound, cls: c.cls, set }] : [];
+  });
+}
+
+const ALL_CONSONANTS: Item[] = CONSONANT_SETS.flatMap(itemsOf);
+const ALL_VOWELS: Item[] = VOWEL_SETS.flatMap(itemsOf);
+/** Con sonido propio: la อ muda no se puede pedir «por cómo suena». */
+const sounds = (x: Item) => !x.sound.startsWith('(');
+
+/** En una lección, lo que ya se ha estudiado cuando llega este grupo (para la pared y para pedir por clase). */
+function studiedWith(set: LetterSet): LetterSet[] {
+  const order = isVowelSet(set) ? VOWEL_SETS : CONSONANT_SETS;
+  return order.slice(0, order.indexOf(set) + 1);
+}
+
+/** Clases de consonante que ya se distinguen. */
+function knownClasses(sets: LetterSet[]): LetterClass[] {
+  if (sets.includes('raras')) return ['media', 'baja', 'alta'];
+  return (['media', 'baja', 'alta'] as const).filter((c) => sets.includes(c));
+}
 
 // ——— Rondas ———
 
@@ -80,29 +139,87 @@ function scatter(n: number, aspect: number): Pt[] {
   return Array.from({ length: n }, (_, k) => ({ x: ((k % 3) + 0.5) / 3, y: (Math.floor(k / 3) + 0.5) / Math.ceil(n / 3) }));
 }
 
-function makeRound(target: string, pool: string[], n: number, gem: boolean, aspect: number): Round {
-  const chosen = new Set<string>([target]);
-  for (const c of shuffle(lookalikesOf(target).filter((c) => COMMON_LETTERS.includes(c) || pool.includes(c))).slice(0, 2)) chosen.add(c);
-  for (const c of shuffle(pool)) if (chosen.size < Math.ceil(n * 0.7)) chosen.add(c);
-  for (const c of shuffle(COMMON_LETTERS)) if (chosen.size < n) chosen.add(c);
-  const list = shuffle([...chosen]);
+/** La pared de una ronda: lo que se busca, letras que se le parecen y lo ya estudiado (`sets`). */
+function makeRound(task: Task, sets: LetterSet[], n: number, gem: boolean, aspect: number): Round {
+  const { item, ask } = task;
+  const chosen = new Map<string, Item>([[item.key, item]]);
+  const add = (x: Item | undefined, max = n) => {
+    if (x && chosen.size < max && !chosen.has(x.key)) chosen.set(x.key, x);
+  };
+  if (item.kind === 'v') {
+    // vocales: ninguna otra que suene igual (◌ะ y ◌ั, ไ◌ y ใ◌), para que solo valga una
+    const other = (x: Item) => x.sound !== item.sound;
+    for (const x of shuffle(sets.filter(isVowelSet).flatMap(itemsOf).filter(other))) add(x);
+    for (const x of shuffle(ALL_VOWELS.filter(other))) add(x);
+  } else if (ask === 'clase') {
+    // por clase: solo letras cuya clase ya se conoce; otra de la misma y, sobre todo, de las demás
+    const known = shuffle(sets.filter((s) => !isVowelSet(s)).flatMap(itemsOf));
+    add(known.find((x) => x.cls === item.cls && x.key !== item.key));
+    for (const x of known.filter((y) => y.cls !== item.cls)) add(x);
+    for (const x of known) add(x);
+  } else {
+    const studied = sets.filter((s) => !isVowelSet(s)).flatMap(itemsOf);
+    const fair = (x: Item) => COMMON_LETTERS.includes(x.key) || studied.some((y) => y.key === x.key) || item.set === 'raras';
+    const looks = lookalikesOf(item.key).flatMap((ch) => ALL_CONSONANTS.filter((x) => x.key === ch && fair(x)));
+    for (const x of shuffle(looks).slice(0, 2)) add(x);
+    for (const x of shuffle(studied)) add(x, Math.ceil(n * 0.7));
+    for (const ch of shuffle(COMMON_LETTERS)) add(ALL_CONSONANTS.find((x) => x.key === ch));
+  }
+  const list = shuffle([...chosen.values()]);
+  const accept = list
+    .filter((x) => (ask === 'sonido' ? x.kind === item.kind && x.sound === item.sound : ask === 'clase' ? x.cls === item.cls : x.key === item.key))
+    .map((x) => x.key);
   const pts = scatter(list.length + (gem ? 1 : 0), aspect);
-  return { id: Date.now() + Math.random(), target, spots: list.map((ch, k) => ({ ch, ...pts[k] })), gem: gem ? pts[list.length] : null };
+  return { id: Date.now() + Math.random(), task, spots: list.map((x, k) => ({ item: x, ...pts[k] })), accept, gem: gem ? pts[list.length] : null };
 }
 
-function makePlan(pool: string[], total: number): string[] {
-  const out: string[] = [];
-  while (out.length < total) out.push(...shuffle(pool).filter((c) => c !== out[out.length - 1]));
+/** `total` letras del grupo, barajadas y sin repetir dos veces seguidas. */
+function cycle(pool: Item[], total: number): Item[] {
+  const out: Item[] = [];
+  if (pool.length === 1) return Array.from({ length: total }, () => pool[0]);
+  while (pool.length && out.length < total) out.push(...shuffle(pool).filter((c, k) => k > 0 || c !== out[out.length - 1]));
   return out.slice(0, total);
+}
+
+/** Cómo se pide una letra según lo avanzada que va la partida (0 = por su nombre). */
+function askFor(item: Item, stage: number, classes: LetterClass[]): Ask {
+  if (item.kind === 'v') return stage === 0 ? 'sonido' : 'palabra';
+  if (stage === 0) return 'nombre';
+  if (stage % 2 === 0 && classes.length >= 2) return 'clase';
+  return sounds(item) ? 'sonido' : 'nombre';
+}
+
+/** Lección: primero por su nombre; en la segunda mitad, por su sonido y por su clase. */
+function lessonTasks(set: LetterSet, n: number): Task[] {
+  const items = itemsOf(set);
+  const half = Math.ceil(n / 2);
+  const classes = knownClasses(studiedWith(set));
+  // de las raras, la lección enseña las de uso diario; las demás llegan en la feria
+  return cycle(set === 'raras' ? items.slice(0, FREQUENT_RARE) : items, n).map((item, k) => ({ item, ask: askFor(item, k < half ? 0 : k - half + 1, classes) }));
+}
+
+const FERIA_LETTERS = 12;
+const PER_LEVEL = 4;
+
+/** Feria: la mitad, del grupo de hoy; el resto, de los demás grupos estudiados (vocales, como mucho un tercio). */
+function feriaTasks(set: LetterSet, sets: LetterSet[]): Task[] {
+  const main = itemsOf(set);
+  const others = shuffle(sets.filter((s) => s !== set && !isVowelSet(s)).flatMap(itemsOf)).slice(0, 3);
+  const vowels = shuffle(sets.filter((s) => s !== set && isVowelSet(s)).flatMap(itemsOf)).slice(0, 4);
+  const bag = shuffle([...others, ...vowels, ...cycle(main, FERIA_LETTERS - others.length - vowels.length)]);
+  const classes = knownClasses(sets);
+  return bag.map((item, k) => {
+    const level = Math.floor(k / PER_LEVEL);
+    // nivel 1: por su nombre · nivel 2: nombre o sonido · nivel 3: de oído, por sonido y por clase
+    return { item, ask: askFor(item, level === 0 ? 0 : level === 1 ? k % 2 : [0, 1, 2, 1][k % 4], classes) };
+  });
 }
 
 /** Reloj (fuera del componente: el compilador de React no deja llamar a Date.now() en el cuerpo). */
 const now = () => Date.now();
 
-const callOf = (ch: string) => {
-  const c = consonantOf(ch);
-  return c ? letterCall(c) : ch;
-};
+/** Tamaño de un texto tallado según lo ancho que es («เอือ» ocupa tres letras). */
+const fit = (glyph: string, size: number) => size * (thaiCols(glyph) >= 3 ? 0.6 : thaiCols(glyph) === 2 ? 0.78 : 1);
 
 // ——— La pared de roca ———
 
@@ -196,6 +313,7 @@ function Wall({ x, y, w, h, pal, seed }: { x: number; y: number; w: number; h: n
 
 function Carved({ ch, x, y, size, R, rs, lx, ly, pal }: { ch: string; x: number; y: number; size: number; R: number; rs: SharedValue<number>; lx: SharedValue<number>; ly: SharedValue<number>; pal: Palette }) {
   const box = size * 2;
+  const fs = fit(ch, size);
   const glow = useAnimatedStyle(() => {
     const r = R * rs.value;
     const d = Math.hypot(lx.value - x, ly.value - y);
@@ -204,10 +322,10 @@ function Carved({ ch, x, y, size, R, rs, lx, ly, pal }: { ch: string; x: number;
   });
   return (
     <View pointerEvents="none" style={[styles.center, { position: 'absolute', left: x - box / 2, top: y - box / 2, width: box, height: box }]}>
-      <Text style={[styles.thai, { fontSize: size, lineHeight: size * 1.5, color: pal.bottom, textShadowColor: 'rgba(255,255,255,0.2)', textShadowOffset: { width: 0, height: 1.5 }, textShadowRadius: 0.5 }]}>{ch}</Text>
+      <Text style={[styles.thai, { fontSize: fs, lineHeight: fs * 1.5, color: pal.bottom, textShadowColor: 'rgba(255,255,255,0.2)', textShadowOffset: { width: 0, height: 1.5 }, textShadowRadius: 0.5 }]}>{ch}</Text>
       <Animated.View style={[StyleSheet.absoluteFill, styles.center, glow]}>
         <Glow size={box} tint={pal.gem} strength={0.42} pulse={false} style={{ position: 'absolute' }} />
-        <Text style={[styles.thai, { fontSize: size, lineHeight: size * 1.5, color: '#FFF3C9', textShadowColor: '#FFB300', textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 12 }]}>{ch}</Text>
+        <Text style={[styles.thai, { fontSize: fs, lineHeight: fs * 1.5, color: '#FFF3C9', textShadowColor: '#FFB300', textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 12 }]}>{ch}</Text>
       </Animated.View>
     </View>
   );
@@ -390,7 +508,7 @@ function Flyer({ ch, from, to, pal }: { ch: string; from: Pt; to: Pt; pal: Palet
     <Animated.View pointerEvents="none" style={[styles.flyer, st]}>
       <Glow size={96} tint={pal.gem} strength={0.7} style={{ position: 'absolute' }} />
       <Crystal size={50} tint={pal.gem} deep={pal.deep}>
-        <Text style={[styles.thai, styles.gemText, { fontSize: 22, lineHeight: 33 }]}>{ch}</Text>
+        <Text style={[styles.thai, styles.gemText, { fontSize: fit(ch, 22), lineHeight: 33 }]}>{ch}</Text>
       </Crystal>
     </Animated.View>
   );
@@ -403,7 +521,7 @@ function Slot({ ch, x, y, size, pal }: { ch?: string; x: number; y: number; size
       {ch ? (
         <Animated.View entering={ZoomIn.springify().damping(9)} style={StyleSheet.absoluteFill}>
           <Crystal size={size} tint={pal.gem} deep={pal.deep}>
-            <Text style={[styles.thai, styles.gemText, { fontSize: size * 0.42, lineHeight: size * 0.64 }]}>{ch}</Text>
+            <Text style={[styles.thai, styles.gemText, { fontSize: fit(ch, size * 0.42), lineHeight: size * 0.64 }]}>{ch}</Text>
           </Crystal>
         </Animated.View>
       ) : null}
@@ -424,34 +542,95 @@ function Glimmer({ x, y, tint }: { x: number; y: number; tint: string }) {
 
 // ——— Tarjeta de lo que hay que buscar ———
 
-function Prompt({ c, show, onSpeak }: { c: Consonant; show: Level['show']; onSpeak: () => void }) {
+const CLS_EMOJI: Record<LetterClass, string> = { media: '🟡', alta: '🔴', baja: '🔵' };
+
+/**
+ * Lo que se pide, siempre sin enseñar la letra: su nombre (voz, transcripción, dibujo y significado), su sonido, su
+ * clase o la palabra en la que suena. Solo al encontrarla (`found`) se enseña escrita, con su nombre thai.
+ */
+function Prompt({ task, show, found, onSpeak }: { task: Task; show: Level['show']; found: Item | null; onSpeak: () => void }) {
+  const { item, ask } = task;
+  const ex = item.form?.ex;
+  const c = found?.kind === 'c' ? consonantOf(found.key) : undefined;
+  const fex = found?.form?.ex;
   return (
-    <View style={styles.prompt}>
+    <View style={[styles.prompt, found ? styles.promptFound : null]}>
       <View style={styles.promptShine} />
-      <View style={styles.medal}>
-        <Text style={styles.emoji}>{LETTER_EMOJI[c.ch] ?? '✨'}</Text>
+      <View style={[styles.medal, !found && ask === 'clase' && item.cls ? { borderColor: CLASS_TINT[item.cls].base } : null]}>
+        <Text style={styles.emoji}>{found ? found.emoji : ask === 'clase' && item.cls ? CLS_EMOJI[item.cls] : ask === 'sonido' || show === 'audio' ? '👂' : ask === 'palabra' ? (ex?.emoji ?? '👂') : item.emoji}</Text>
       </View>
-      <View style={{ flex: 1 }}>
-        <Txt v="eyebrow" style={{ color: '#AEB8EC' }}>
-          Busca la letra de
-        </Txt>
-        <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', columnGap: 8 }}>
-          {show === 'all' ? (
-            <Th size={26} bold style={{ color: '#FFF1C4' }}>
-              {c.name}
+      {found ? (
+        <Animated.View key={`f${found.key}`} entering={FadeIn.duration(200)} style={{ flex: 1 }}>
+          <Txt v="eyebrow" style={{ color: '#FFD98A' }}>
+            ¡Aquí está!
+          </Txt>
+          <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', columnGap: 8 }}>
+            <Th size={28} bold style={{ color: '#FFF1C4' }}>
+              {found.glyph}
             </Th>
-          ) : null}
-          {show !== 'meaning' ? <Rom rom={c.nameRom} mono="#FFD98A" size={15} /> : null}
+            {c ? (
+              <Th size={20} style={{ color: '#FFFFFF' }}>
+                {c.name}
+              </Th>
+            ) : (
+              <Text style={styles.big}>«{found.rom}»</Text>
+            )}
+            {c ? <Rom rom={found.rom} mono="#FFD98A" size={14} /> : null}
+          </View>
+          <Txt v="small" style={{ color: '#FFFFFF' }} numberOfLines={1}>
+            {c ? `${found.meaning} · suena «${found.sound}» · clase ${c.cls}` : fex ? `${found.meaning} · como en ${fex.th} (${fex.es})` : found.meaning}
+          </Txt>
+        </Animated.View>
+      ) : ask === 'clase' && item.cls ? (
+        <View style={{ flex: 1, gap: 3 }}>
+          <Txt v="eyebrow" style={{ color: '#AEB8EC' }}>
+            Busca una letra de
+          </Txt>
+          <View style={[styles.clsChip, { backgroundColor: CLASS_TINT[item.cls].base }]}>
+            <Text style={[styles.clsText, { color: CLASS_TINT[item.cls].text }]}>clase {item.cls}</Text>
+          </View>
+          <Txt v="small" style={{ color: '#C9D0EE' }} numberOfLines={1}>
+            Vale cualquiera de esa clase
+          </Txt>
         </View>
-        <Txt v="bodyStrong" style={{ color: '#FFFFFF' }} numberOfLines={1}>
-          {c.meaning}
-        </Txt>
-      </View>
-      <Press3D onPress={onSpeak} style={styles.speak} accessibilityLabel="Escuchar el nombre de la letra">
-        <View style={styles.speakFace}>
-          <Icon name="speaker" size={24} color="#FFFFFF" />
+      ) : ask === 'sonido' ? (
+        <View style={{ flex: 1 }}>
+          <Txt v="eyebrow" style={{ color: '#AEB8EC' }}>
+            {item.kind === 'v' ? 'Busca la vocal que suena' : 'Busca una letra que suene'}
+          </Txt>
+          <Text style={styles.big}>{show === 'audio' && item.kind === 'v' ? '¿…?' : `«${item.sound}»`}</Text>
+          <Txt v="small" style={{ color: '#C9D0EE' }} numberOfLines={1}>
+            {item.kind === 'v' ? (show === 'audio' ? 'Escucha bien: ¿larga o corta?' : item.meaning) : 'Al empezar la sílaba · vale cualquiera'}
+          </Txt>
         </View>
-      </Press3D>
+      ) : ask === 'palabra' && ex ? (
+        <View style={{ flex: 1 }}>
+          <Txt v="eyebrow" style={{ color: '#AEB8EC' }}>
+            ¿Qué vocal suena en…?
+          </Txt>
+          {show !== 'audio' ? <Rom rom={ex.rom} mono="#FFD98A" size={18} /> : null}
+          <Txt v="bodyStrong" style={{ color: '#FFFFFF' }} numberOfLines={1}>
+            {ex.es}
+          </Txt>
+        </View>
+      ) : (
+        <View style={{ flex: 1 }}>
+          <Txt v="eyebrow" style={{ color: '#AEB8EC' }}>
+            {show === 'audio' ? 'Escucha y busca la letra' : 'Busca la letra de'}
+          </Txt>
+          {show === 'all' ? <Rom rom={item.rom} mono="#FFD98A" size={17} /> : null}
+          <Txt v="bodyStrong" style={{ color: '#FFFFFF' }} numberOfLines={1}>
+            {show === 'audio' ? 'Su nombre, de oído' : item.meaning}
+          </Txt>
+        </View>
+      )}
+      {found || ask !== 'clase' ? (
+        <Press3D onPress={onSpeak} style={styles.speak} accessibilityLabel={found ? 'Escuchar otra vez' : 'Escuchar lo que se busca'}>
+          <View style={styles.speakFace}>
+            <Icon name="speaker" size={24} color="#FFFFFF" />
+          </View>
+        </Press3D>
+      ) : null}
     </View>
   );
 }
@@ -474,7 +653,7 @@ function Battery({ value, low }: { value: number; low: boolean }) {
 // ——— El juego ———
 
 type Mark = { id: number; x: number; y: number };
-type Info = { id: number; ch: string; x: number; y: number };
+type Info = { id: number; item: Item; x: number; y: number; text: string };
 type Fly = { id: number; ch: string; from: Pt; to: Pt };
 
 export default function Cueva({ mode, extra, rounds = 4, onAnswer, onDone }: GameProps) {
@@ -483,12 +662,18 @@ export default function Cueva({ mode, extra, rounds = 4, onAnswer, onDone }: Gam
   const juice = useJuice();
   const frame = useGameFrame();
   const clock = useClock(9000);
-  const setName = extra?.kind === 'letras' && LETTER_SETS[extra.set] ? extra.set : 'media';
-  const pool = LETTER_SETS[setName];
-  const baseTotal = feria ? FERIA_LETTERS : Math.max(1, rounds);
+  // el grupo de hoy y, para la pared y las preguntas por clase, todo lo ya estudiado
+  const [setup] = useState(() => {
+    const asked: LetterSet = extra?.kind === 'letras' ? extra.set : 'media';
+    const set: LetterSet = itemsOf(asked).length ? asked : 'media';
+    const pool = (extra?.kind === 'letras' ? (extra.pool ?? []) : []).filter((x) => itemsOf(x).length);
+    const sets = feria ? [...new Set<LetterSet>([set, ...pool])] : studiedWith(set);
+    return { sets, tasks: feria ? feriaTasks(set, sets) : lessonTasks(set, Math.max(1, rounds)) };
+  });
+  const sets = setup.sets;
 
-  const [queue, setQueue] = useState<string[]>(() => makePlan(pool, baseTotal));
-  const [round, setRound] = useState<Round>(() => makeRound(queue[0], pool, (feria ? LEVELS[0] : LESSON).n, false, 0.75));
+  const [queue, setQueue] = useState<Task[]>(setup.tasks);
+  const [round, setRound] = useState<Round>(() => makeRound(setup.tasks[0], setup.sets, (feria ? LEVELS[0] : LESSON).n, false, 0.75));
   const [level, setLevel] = useState(0);
   const [phase, setPhase] = useState<'count' | 'play' | 'end'>(feria ? 'count' : 'play');
   const win = useWindowDimensions();
@@ -497,6 +682,7 @@ export default function Cueva({ mode, extra, rounds = 4, onAnswer, onDone }: Gam
   const [measured, setMeasured] = useState(false);
   const [topH, setTopH] = useState(150);
   const [found, setFound] = useState<{ ch: string; wall: number }[]>([]);
+  const [revealed, setRevealed] = useState<Item | null>(null);
   const [points, setPoints] = useState(0);
   const [secs, setSecs] = useState(FERIA_SECONDS);
   const [marks, setMarks] = useState<Mark[]>([]);
@@ -509,7 +695,7 @@ export default function Cueva({ mode, extra, rounds = 4, onAnswer, onDone }: Gam
 
   const lv = feria ? LEVELS[level] : LESSON;
   const pal = WALLS[lv.wall];
-  const consonant = consonantOf(round.target);
+  const task = round.task;
   const total = queue.length;
 
   const lx = useSharedValue(0);
@@ -555,9 +741,11 @@ export default function Cueva({ mode, extra, rounds = 4, onAnswer, onDone }: Gam
     const y0 = H - BOTTOM / 2 + 8 - ((rowsN - 1) * gap) / 2;
     return { size, at: (k: number): Pt => ({ x: x0 + (k % perRow) * gap + size / 2, y: y0 + Math.floor(k / perRow) * gap }), n };
   })();
+  /** Una de las letras que valen en la ronda (para la pista y para encender la linterna lejos de ella). */
+  const goal = (r: Round) => r.spots.find((s) => r.accept.includes(s.item.key));
   /** Dónde se enciende la linterna al empezar una ronda: lejos de la letra buscada. */
   const startLight = (r: Round, R: number): Pt => {
-    const t = r.spots.find((s) => s.ch === r.target);
+    const t = goal(r);
     const tp = t ? posOf(t) : { x: -999, y: -999 };
     const cands = [
       { x: W * 0.5, y: fy + fh * 0.8 },
@@ -588,21 +776,38 @@ export default function Cueva({ mode, extra, rounds = 4, onAnswer, onDone }: Gam
   }, []);
 
   // ——— ritmo de cada ronda ———
-  const speakTarget = (ch: string) => {
-    say(callOf(ch));
+  /** Lo que se oye al pedir: el nombre de la letra, su sonido con -ɔɔ («ขอ»), la vocal sola o la palabra de ejemplo. */
+  const voiceOf = (t: Task): string | null => {
+    if (t.ask === 'clase') return null;
+    if (t.ask === 'palabra') return t.item.form?.ex.th ?? t.item.call;
+    if (t.ask === 'sonido' && t.item.kind === 'c') return `${t.item.key}อ`;
+    return t.item.call;
+  };
+  /** Lo que se oye al encontrar (o al tocar otra): su nombre; una vocal, con su palabra de ejemplo. */
+  const nameOf = (x: Item) => (x.kind === 'v' && x.form ? `${x.call} ${x.form.ex.th}` : x.call);
+
+  const speakTask = (t: Task) => {
+    const text = voiceOf(t);
+    if (text) say(text);
     setPose('escucha');
     later(() => setPose((p) => (p === 'escucha' ? 'piensa' : p)), 1600);
+  };
+
+  /** En la lección, si a los 16 s no aparece, la letra buscada brilla un poco a través de la oscuridad. */
+  const armHint = () => {
+    const seq = live.current.seq;
+    if (!feria) later(() => live.current.seq === seq && !live.current.busy && setHint(true), 16000);
   };
 
   const begin = (r: Round) => {
     const L = live.current;
     L.seq += 1;
-    const seq = L.seq;
     L.busy = false;
     L.answered = false;
     L.wrong = 0;
     L.roundStart = now();
     setRound(r);
+    setRevealed(null);
     setHint(false);
     setMarks([]);
     setInfo(null);
@@ -610,8 +815,8 @@ export default function Cueva({ mode, extra, rounds = 4, onAnswer, onDone }: Gam
     const s = startLight(r, (feria ? LEVELS[level] : LESSON).R);
     lx.set(withTiming(s.x, { duration: 650, easing: Easing.out(Easing.cubic) }));
     ly.set(withTiming(s.y, { duration: 650, easing: Easing.out(Easing.cubic) }));
-    later(() => speakTarget(r.target), 380);
-    if (!feria) later(() => live.current.seq === seq && !live.current.busy && setHint(true), 16000);
+    later(() => speakTask(r.task), 380);
+    armHint();
   };
 
   const lightToStart = () => {
@@ -622,7 +827,10 @@ export default function Cueva({ mode, extra, rounds = 4, onAnswer, onDone }: Gam
 
   const intro = useEffectEvent(() => {
     lightToStart();
-    if (!feria) speakTarget(round.target);
+    if (!feria) {
+      speakTask(round.task);
+      armHint();
+    }
   });
   useEffect(() => {
     if (!measured) return;
@@ -636,7 +844,7 @@ export default function Cueva({ mode, extra, rounds = 4, onAnswer, onDone }: Gam
     L.roundStart = now();
     setPhase('play');
     lightToStart();
-    speakTarget(round.target);
+    speakTask(round.task);
   };
 
   // ——— final ———
@@ -692,11 +900,13 @@ export default function Cueva({ mode, extra, rounds = 4, onAnswer, onDone }: Gam
     const secsTaken = (now() - L.roundStart) / 1000;
     if (first) fx.ok(combo);
     else fx.sparkle();
-    later(() => say(callOf(s.ch)), 260);
+    later(() => say(nameOf(s.item)), 260);
     setPose('celebra');
     setJump((j) => j + 1);
     setInfo(null);
     setHint(false);
+    // ahora sí: la letra, escrita, con su nombre
+    setRevealed(s.item);
     juice.ring(scr(p), pal.gem, 120);
     juice.burst(scr(p), 'chispas', 26, 160);
     let gain = 0;
@@ -713,10 +923,10 @@ export default function Cueva({ mode, extra, rounds = 4, onAnswer, onDone }: Gam
     }
     const k = found.length;
     const to = slots.at(Math.min(k, slots.n - 1));
-    setFly({ id: now(), ch: s.ch, from: p, to });
+    setFly({ id: now(), ch: s.item.glyph, from: p, to });
     later(() => {
       setFly(null);
-      setFound((f) => [...f, { ch: s.ch, wall: lv.wall }]);
+      setFound((f) => [...f, { ch: s.item.glyph, wall: lv.wall }]);
       fx.coin();
     }, 740);
 
@@ -728,7 +938,7 @@ export default function Cueva({ mode, extra, rounds = 4, onAnswer, onDone }: Gam
         finish('done');
         return;
       }
-      const target = queue[n];
+      const nextTask = queue[n];
       let lvl = level;
       if (feria && n % PER_LEVEL === 0) {
         lvl = Math.min(LEVELS.length - 1, level + 1);
@@ -745,8 +955,8 @@ export default function Cueva({ mode, extra, rounds = 4, onAnswer, onDone }: Gam
       }
       const nextLv = feria ? LEVELS[lvl] : LESSON;
       const gem = feria && lvl > 0 && Math.random() < 0.4;
-      later(() => begin(makeRound(target, pool, nextLv.n, gem, W / Math.max(1, fh))), feria && n % PER_LEVEL === 0 ? 1300 : 0);
-    }, 1350);
+      later(() => begin(makeRound(nextTask, sets, nextLv.n, gem, W / Math.max(1, fh))), feria && n % PER_LEVEL === 0 ? 1300 : 0);
+    }, 1500);
     return gain;
   };
 
@@ -761,9 +971,12 @@ export default function Cueva({ mode, extra, rounds = 4, onAnswer, onDone }: Gam
     const id = now();
     setMarks((m) => [...m.slice(-3), { id, x: p.x, y: p.y }]);
     later(() => setMarks((m) => m.filter((x) => x.id !== id)), 700);
-    setInfo({ id, ch: s.ch, x: p.x, y: p.y });
+    // qué es la que se ha tocado, dicho como se había pedido
+    const c = s.item.kind === 'c' ? consonantOf(s.item.key) : undefined;
+    const text = task.ask === 'clase' && c ? `Esa es de clase ${c.cls}` : task.ask === 'sonido' || !c ? `Esa suena «${s.item.sound}»` : `Esa es ${c.name} · ${c.meaning}`;
+    setInfo({ id, item: s.item, x: p.x, y: p.y, text });
     later(() => setInfo((x) => (x && x.id === id ? null : x)), 2200);
-    later(() => say(callOf(s.ch)), 200);
+    later(() => say(nameOf(s.item)), 200);
     if (feria) {
       L.deadline -= 2000;
       juice.float(scr({ x: p.x + 40, y: p.y + 40 }), '−2 s', '#FF9D9D', 24);
@@ -773,7 +986,7 @@ export default function Cueva({ mode, extra, rounds = 4, onAnswer, onDone }: Gam
 
   const choose = (s: Spot, p: Pt) => {
     const L = live.current;
-    const ok = s.ch === round.target;
+    const ok = round.accept.includes(s.item.key);
     let combo = score.combo;
     const first = !L.answered;
     if (first) {
@@ -784,10 +997,10 @@ export default function Cueva({ mode, extra, rounds = 4, onAnswer, onDone }: Gam
         // lo que se falla vuelve más tarde
         if (feria) {
           const slot = Math.min(queue.length - 1, found.length + 3);
-          if (slot > found.length + 1) setQueue((q) => q.map((c, k) => (k === slot ? round.target : c)));
+          if (slot > found.length + 1) setQueue((q) => q.map((c, k) => (k === slot ? task : c)));
         } else if (L.requeued < 2) {
           L.requeued += 1;
-          setQueue((q) => [...q, round.target]);
+          setQueue((q) => [...q, task]);
         }
       }
     }
@@ -867,9 +1080,12 @@ export default function Cueva({ mode, extra, rounds = 4, onAnswer, onDone }: Gam
     }
   };
 
-  const target = round.spots.find((s) => s.ch === round.target);
+  const target = goal(round);
   const tPos = target && W ? posOf(target) : null;
   const ready = W > 0;
+  const what = task.item.kind === 'v' ? 'vocal' : 'letra';
+  const asking =
+    task.ask === 'clase' ? `Busca una letra de clase ${task.item.cls}.` : task.ask === 'sonido' ? `Busca la ${what} que suena ${task.item.sound}.` : task.ask === 'palabra' ? `Busca la vocal que suena en ${task.item.form?.ex.es}.` : `Busca la letra de ${task.item.meaning}.`;
 
   return (
     <View style={styles.root} onLayout={onRootLayout}>
@@ -878,7 +1094,7 @@ export default function Cueva({ mode, extra, rounds = 4, onAnswer, onDone }: Gam
       {ready
         ? round.spots.map((s) => {
             const p = posOf(s);
-            return <Carved key={`${round.id}-${s.ch}`} ch={s.ch} x={p.x} y={p.y} size={lv.size} R={lv.R} rs={rs} lx={lx} ly={ly} pal={pal} />;
+            return <Carved key={`${round.id}-${s.item.key}`} ch={s.item.glyph} x={p.x} y={p.y} size={lv.size} R={lv.R} rs={rs} lx={lx} ly={ly} pal={pal} />;
           })
         : null}
       {ready && round.gem && !gemTaken ? <HiddenGem key={`g${round.id}`} {...posOf(round.gem)} R={lv.R} rs={rs} lx={lx} ly={ly} /> : null}
@@ -922,28 +1138,28 @@ export default function Cueva({ mode, extra, rounds = 4, onAnswer, onDone }: Gam
         : null}
       {ready && !feria ? (
         <Txt v="small" style={[styles.ledgeText, { left: 120, top: H - BOTTOM + 14 }]}>
-          {found.length === 0 ? 'Arrastra la luz y toca la letra' : `${found.length} de ${total} letras`}
+          {found.length === 0 ? `Arrastra la luz y toca la ${what}` : `${found.length} de ${total} encontradas`}
         </Txt>
       ) : null}
 
       {info ? (
         <Animated.View key={info.id} entering={FadeIn.duration(160)} exiting={FadeOut.duration(200)} pointerEvents="none" style={[styles.info, { left: Math.max(10, Math.min(W - 210, info.x - 100)), top: Math.max(fy, info.y - 96) }]}>
-          <Text style={[styles.thai, { fontSize: 30, lineHeight: 44, color: '#FFD0D4' }]}>{info.ch}</Text>
+          <Text style={[styles.thai, { fontSize: fit(info.item.glyph, 30), lineHeight: 44, color: '#FFD0D4' }]}>{info.item.glyph}</Text>
           <View style={{ flex: 1 }}>
             <Txt v="small" style={{ color: '#FFB3BA' }}>
-              Esa es otra:
+              ไม่เป็นไร, es otra
             </Txt>
-            <Txt v="bodyStrong" style={{ color: '#FFFFFF' }} numberOfLines={1}>
-              {consonantOf(info.ch)?.name} · {consonantOf(info.ch)?.meaning}
+            <Txt v="bodyStrong" style={{ color: '#FFFFFF' }} numberOfLines={2}>
+              {info.text}
             </Txt>
           </View>
-          <Text style={styles.infoEmoji}>{LETTER_EMOJI[info.ch]}</Text>
+          <Text style={styles.infoEmoji}>{info.item.emoji}</Text>
         </Animated.View>
       ) : null}
 
       {/* lo que se busca y el marcador */}
       <View style={styles.top} onLayout={(e) => setTopH(e.nativeEvent.layout.y + e.nativeEvent.layout.height)}>
-        {consonant ? <Prompt c={consonant} show={lv.show} onSpeak={() => speakTarget(round.target)} /> : null}
+        <Prompt task={task} show={lv.show} found={revealed} onSpeak={() => (revealed ? say(nameOf(revealed)) : speakTask(task))} />
         {feria ? (
           <View style={styles.hud}>
             <View style={styles.levelChip}>
@@ -974,7 +1190,7 @@ export default function Cueva({ mode, extra, rounds = 4, onAnswer, onDone }: Gam
       {ready ? (
         <View
           accessible
-          accessibilityLabel={consonant ? `Cueva oscura. Busca la letra de ${consonant.meaning}. Arrastra para mover la linterna y toca la letra.` : 'Cueva oscura'}
+          accessibilityLabel={`Cueva oscura. ${asking} Arrastra para mover la linterna y toca la ${what}.`}
           style={{ position: 'absolute', left: 0, top: fy, width: W, height: fh }}
           onStartShouldSetResponder={() => true}
           onMoveShouldSetResponder={() => true}
@@ -1037,7 +1253,11 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
     overflow: 'hidden',
   },
+  promptFound: { borderColor: '#FFE48A', backgroundColor: 'rgba(40,34,20,0.9)' },
   promptShine: { position: 'absolute', left: 14, right: 14, top: 2, height: 2, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.18)' },
+  big: { fontFamily: font.displayBold, fontSize: 26, lineHeight: 32, color: '#FFE48A' },
+  clsChip: { alignSelf: 'flex-start', height: 30, paddingHorizontal: 12, borderRadius: 15, justifyContent: 'center' },
+  clsText: { fontFamily: font.uiHeavy, fontSize: 16 },
   medal: { width: 58, height: 58, borderRadius: 29, backgroundColor: '#2B3270', borderWidth: 3, borderColor: '#FFC83D', alignItems: 'center', justifyContent: 'center' },
   emoji: { fontSize: 32, lineHeight: 40, textAlign: 'center' },
   speak: { width: 56, height: 56 },

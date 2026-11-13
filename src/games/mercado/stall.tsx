@@ -2,7 +2,7 @@
 // bocadillos (con el thai que se escribe solo), bandeja de bambú, cartera de cuero y el recibo.
 import { useEffect, useId, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
-import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withSequence, withSpring, withTiming, ZoomIn } from 'react-native-reanimated';
+import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming, ZoomIn } from 'react-native-reanimated';
 import Svg, { Circle, Defs, Ellipse, G, LinearGradient, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 import { color, font } from '@/brand/tokens';
@@ -106,8 +106,11 @@ function Board({ children, w, h }: { children: ReactNode; w: number; h: number }
   );
 }
 
-/** Pizarra con el precio. Oculta (solo de oído) se voltea al tocarla para ver la pista. */
-export function PriceTag({ price, deal, show, revealed, onReveal, w = 84 }: { price: number; deal?: number; show: Show; revealed: boolean; onReveal?: () => void; w?: number }) {
+/**
+ * Pizarra con el precio. Oculta (solo de oído) se voltea al tocarla para ver la pista. En cifras thai, las primeras
+ * veces lleva debajo su equivalente (`gloss`); después, se toca para verlo (también es una pista).
+ */
+export function PriceTag({ price, deal, show, revealed, gloss, onReveal, w = 84 }: { price: number; deal?: number; show: Show; revealed: boolean; gloss?: boolean; onReveal?: () => void; w?: number }) {
   const h = w * 0.66;
   const swing = useSharedValue(0);
   useEffect(() => {
@@ -115,6 +118,9 @@ export function PriceTag({ price, deal, show, revealed, onReveal, w = 84 }: { pr
   }, [swing, price, deal, revealed]);
   const st = useAnimatedStyle(() => ({ transform: [{ rotate: `${swing.value}deg` }] }));
   const mode: Show = show === 'oculto' && revealed ? 'thai' : show;
+  // las cifras de siempre, en pequeño, junto a las thai
+  const arabic = show !== 'num' && (revealed || (show === 'thai' && !!gloss));
+  const peek = show === 'thai' && !arabic && !!onReveal;
   const shown = (n: number, big: boolean) => (
     <Text style={[styles.chalk, { fontSize: (big ? w * 0.3 : w * 0.17) * (String(n).length > 3 ? 0.82 : 1) }]} numberOfLines={1} adjustsFontSizeToFit>
       {priceText(n, mode === 'oculto' ? 'num' : mode)}
@@ -133,7 +139,7 @@ export function PriceTag({ price, deal, show, revealed, onReveal, w = 84 }: { pr
       ) : (
         shown(price, true)
       )}
-      {revealed && show !== 'num' ? <Text style={styles.chalkSmall}>{deal ?? price} ฿</Text> : null}
+      {arabic ? <Text style={styles.chalkSmall}>= {deal ?? price} ฿</Text> : peek ? <Text style={styles.chalkSmall}>toca: pista</Text> : null}
     </Board>
   );
   const hidden = (
@@ -150,6 +156,10 @@ export function PriceTag({ price, deal, show, revealed, onReveal, w = 84 }: { pr
       {show === 'oculto' ? (
         <Press3D onPress={onReveal} disabled={!onReveal || revealed} accessibilityLabel={revealed ? `Precio: ${deal ?? price} baht` : 'Precio oculto. Toca para ver una pista'} style={{ width: w, height: h }}>
           <Flip3D flipped={revealed} front={hidden} back={face} style={{ width: w, height: h }} />
+        </Press3D>
+      ) : peek ? (
+        <Press3D onPress={onReveal} accessibilityLabel="Precio en cifras thai. Toca para ver una pista" style={{ width: w, height: h }}>
+          {face}
         </Press3D>
       ) : (
         <View accessible accessibilityLabel={`Precio: ${deal ?? price} baht`}>{face}</View>
@@ -191,8 +201,34 @@ export function Typed({ text, size, color: c = color.tinta }: { text: string; si
   );
 }
 
-/** Bocadillo de la vendedora, con el pico hacia ella. */
-export function Bubble({ label, line, typedKey, showEs, onSpeak, style, tailTop = 22 }: { label: string; line: Line | null; typedKey: string | number; showEs?: boolean; onSpeak?: () => void; style?: StyleProp<ViewStyle>; tailTop?: number }) {
+function WaveBar({ i, tint, h }: { i: number; tint: string; h: number }) {
+  const reduced = useReducedMotion();
+  const t = useSharedValue(0.35);
+  useEffect(() => {
+    if (reduced) return;
+    t.value = withDelay(i * 110, withRepeat(withTiming(1, { duration: 300 + (i % 3) * 90, easing: Easing.inOut(Easing.sin) }), -1, true));
+  }, [reduced, t, i]);
+  const st = useAnimatedStyle(() => ({ transform: [{ scaleY: t.value }] }));
+  return <Animated.View style={[{ width: h * 0.16, height: h, borderRadius: h, backgroundColor: tint }, st]} />;
+}
+
+/** Onda de sonido que baila: «esto se oye, no se lee». */
+export function SoundWave({ tint = color.cielo, height = 26, bars = 7, label }: { tint?: string; height?: number; bars?: number; label?: string }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 }}>
+      <Icon name="speaker" size={height * 0.8} color={tint} />
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: height * 0.12, height }}>
+        {Array.from({ length: bars }, (_, i) => (
+          <WaveBar key={i} i={i} tint={tint} h={height * (0.55 + 0.45 * Math.abs(Math.sin(i * 1.3 + 0.6)))} />
+        ))}
+      </View>
+      {label ? <Text style={styles.waveText}>{label}</Text> : null}
+    </View>
+  );
+}
+
+/** Bocadillo de la vendedora, con el pico hacia ella. `veiled`: solo se oye (onda de sonido en vez del texto). */
+export function Bubble({ label, line, typedKey, showEs, veiled, hideRom, onSpeak, style, tailTop = 22 }: { label: string; line: Line | null; typedKey: string | number; showEs?: boolean; veiled?: boolean; hideRom?: boolean; onSpeak?: () => void; style?: StyleProp<ViewStyle>; tailTop?: number }) {
   return (
     <Animated.View entering={ZoomIn.springify().damping(13)} style={[styles.bubble, style]}>
       <View style={[styles.tail, { top: tailTop }]} />
@@ -205,15 +241,19 @@ export function Bubble({ label, line, typedKey, showEs, onSpeak, style, tailTop 
         ) : null}
       </View>
       {line ? (
-        <>
-          <Typed key={`${typedKey}-${line.th}`} text={line.th} size={17} />
-          <Rom rom={line.rom} size={12} />
-          {showEs ? (
-            <Animated.View entering={ZoomIn.duration(220)} style={styles.es}>
-              <Text style={styles.esText}>{line.es}</Text>
-            </Animated.View>
-          ) : null}
-        </>
+        veiled ? (
+          <SoundWave label="escucha…" />
+        ) : (
+          <>
+            <Typed key={`${typedKey}-${line.th}`} text={line.th} size={17} />
+            {hideRom || !line.rom ? null : <Rom rom={line.rom} size={12} />}
+            {showEs ? (
+              <Animated.View entering={ZoomIn.duration(220)} style={styles.es}>
+                <Text style={styles.esText}>{line.es}</Text>
+              </Animated.View>
+            ) : null}
+          </>
+        )
       ) : (
         <Dots />
       )}
@@ -341,6 +381,7 @@ const styles = StyleSheet.create({
   spk: { width: 28, height: 28, borderRadius: 10, backgroundColor: color.cielo, alignItems: 'center', justifyContent: 'center', borderBottomWidth: 3, borderBottomColor: color.cieloHondo },
   es: { alignSelf: 'flex-start', marginTop: 4, backgroundColor: color.cieloSuave, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 },
   esText: { fontFamily: font.uiBold, fontSize: 12, color: color.cieloHondo },
+  waveText: { fontFamily: font.uiBold, fontSize: 12, color: color.tinta3 },
   me: {
     backgroundColor: color.azafranSuave,
     borderRadius: 16,

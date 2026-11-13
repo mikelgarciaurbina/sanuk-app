@@ -11,6 +11,7 @@ import { Rom, Th } from '@/components/ui';
 import type { Word } from '@/content/types';
 
 import { Press3D } from '../fx';
+import { fitTh } from '../palabras/common';
 
 /** `out`: ya ha estallado y no se dibuja (para que no tape los toques). */
 export type FichaState = 'idle' | 'sel' | 'bad' | 'hint' | 'ok' | 'gone' | 'out';
@@ -33,6 +34,7 @@ export function Ficha({
   state,
   delay,
   height,
+  width,
   dx,
   dy,
   golden,
@@ -46,6 +48,8 @@ export function Ficha({
   state: FichaState;
   delay: number;
   height: number;
+  /** ancho de la ficha, para que el thai quepa entero en una línea */
+  width: number;
   dx: number;
   dy: number;
   golden?: boolean;
@@ -104,9 +108,9 @@ export function Ficha({
   const look = state === 'bad' ? LOOK.bad : state === 'ok' ? LOOK.ok : golden ? LOOK.oro : LOOK[side];
   const ringTint = state === 'hint' ? '#6FA0FF' : '#FFD34D';
   const hideTh = audio && state !== 'ok' && state !== 'gone';
-  const len = word.th.length;
-  const thSize = height < 56 ? (len > 9 ? 17 : 21) : len > 10 ? 18 : len > 7 ? 21 : 24;
-  const thFinal = showRom ? Math.min(thSize, 21) : thSize;
+  // con transcripción el thai va algo más pequeño (y más aún en fichas bajas) para que quepan las dos líneas
+  const tight = height < 54;
+  const thFinal = fitTh(word.th, width - 16, showRom ? (tight ? 17 : 21) : height < 56 ? 21 : 24, 12).size;
   const esLen = word.es.length;
   const esSize = esLen > 24 ? 13 : esLen > 14 ? 14.5 : 16;
 
@@ -145,10 +149,14 @@ export function Ficha({
                   </View>
                 ) : (
                   <>
-                    <Th size={thFinal} bold numberOfLines={1} style={{ color: look.text, lineHeight: Math.round(thFinal * 1.45) }}>
+                    <Th size={thFinal} bold numberOfLines={1} style={{ color: look.text, lineHeight: Math.round(thFinal * (showRom && tight ? 1.35 : 1.45)) }}>
                       {word.th}
                     </Th>
-                    {showRom ? <Rom rom={word.rom} size={11.5} /> : null}
+                    {showRom ? (
+                      <View style={{ maxHeight: tight ? 14 : 16, overflow: 'hidden' }}>
+                        <Rom rom={word.rom} size={tight ? 10.5 : 11.5} />
+                      </View>
+                    ) : null}
                   </>
                 )
               ) : (

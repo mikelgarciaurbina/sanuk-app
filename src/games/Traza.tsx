@@ -1,7 +1,9 @@
 // Une los puntos: escribe las consonantes como se aprenden en la escuela tailandesa, empezando por la cabeza (el
 // bucle) y en su sentido. En el templo, sobre una hoja de palma enmarcada en laca, una tinta dorada sigue tu dedo
 // por el trazo de verdad; cada punto se enciende con una nota más aguda y, al terminar, la letra destella y dice su
-// nombre. Una estrella fugaz enseña primero el orden. En la feria, la plantilla desaparece y luego los números.
+// nombre. Una estrella fugaz enseña primero el orden (si ya estás escribiendo, no te interrumpe). En la feria, la
+// plantilla desaparece y, en el último nivel, también los puntos: solo queda el 1 y hay que escribirla de memoria;
+// si te pierdes, se enciende el siguiente punto.
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { StyleSheet, Text, View, useWindowDimensions, type GestureResponderEvent } from 'react-native';
 import Animated, {
@@ -326,12 +328,13 @@ function GoldGlyph({ glyph, S, on }: { glyph: string; S: number; on: SharedValue
 
 // ——— El juego ———
 
-type Level = { ghost: boolean; numbers: boolean; demo: boolean; tol: number; name: string };
-const LESSON: Level = { ghost: true, numbers: true, demo: true, tol: 11, name: '' };
+/** `memory`: solo se ve el punto 1; los demás aparecen de uno en uno, y solo si hace falta. */
+type Level = { ghost: boolean; numbers: boolean; demo: boolean; memory: boolean; tol: number; name: string };
+const LESSON: Level = { ghost: true, numbers: true, demo: true, memory: false, tol: 11, name: '' };
 const LEVELS: Level[] = [
-  { ghost: true, numbers: true, demo: true, tol: 10.5, name: 'Con plantilla' },
-  { ghost: false, numbers: true, demo: false, tol: 9.5, name: 'Sin plantilla' },
-  { ghost: false, numbers: false, demo: false, tol: 9, name: 'De memoria' },
+  { ghost: true, numbers: true, demo: true, memory: false, tol: 10.5, name: 'Con plantilla' },
+  { ghost: false, numbers: true, demo: false, memory: false, tol: 9.5, name: 'Sin plantilla' },
+  { ghost: false, numbers: false, demo: false, memory: true, tol: 10, name: 'De memoria' },
 ];
 const PER_LEVEL = 2;
 const WINDOW = 20;
@@ -345,9 +348,13 @@ export default function Traza({ mode, extra, rounds, onAnswer, onDone }: GamePro
   const setName = extra?.kind === 'letras' && LETTER_SETS[extra.set] ? extra.set : 'media';
 
   const [queue, setQueue] = useState<string[]>(() => {
-    const pool = LETTER_SETS[setName].filter((c) => LETTER_TRACE[c]);
-    const rest = shuffle(Object.keys(LETTER_TRACE).filter((c) => !pool.includes(c)));
-    return [...shuffle(pool), ...rest].slice(0, total0);
+    const traced = (set: string) => (LETTER_SETS[set] ?? []).filter((c) => LETTER_TRACE[c]);
+    const main = shuffle(traced(setName));
+    // en la feria se mezclan los demás grupos ya estudiados: cuatro letras del de hoy y dos de repaso
+    const studied = shuffle((extra?.kind === 'letras' ? (extra.pool ?? []) : []).flatMap(traced).filter((c) => !main.includes(c)));
+    const rest = shuffle(Object.keys(LETTER_TRACE).filter((c) => !main.includes(c) && !studied.includes(c)));
+    const first = feria && studied.length ? shuffle([...main.slice(0, total0 - 2), ...studied.slice(0, 2)]) : [];
+    return [...new Set([...first, ...main, ...studied, ...rest])].slice(0, total0);
   });
   const [i, setI] = useState(0);
   const [reached, setReached] = useState(0);
@@ -361,6 +368,8 @@ export default function Traza({ mode, extra, rounds, onAnswer, onDone }: GamePro
   const [msg, setMsg] = useState<string | null>(null);
   const [demoOn, setDemoOn] = useState(false);
   const [shine, setShine] = useState(0);
+  /** De memoria: el punto que se enciende como ayuda tras perderse (su número en el trazo). */
+  const [help, setHelp] = useState<number | null>(null);
 
   const level = feria ? LEVELS[Math.min(LEVELS.length - 1, Math.floor(i / PER_LEVEL))] : LESSON;
   const ch = queue[i];
@@ -389,6 +398,11 @@ export default function Traza({ mode, extra, rounds, onAnswer, onDone }: GamePro
     started: 0,
     org: { x: 0, y: 0 },
     retried: 0,
+    /** ya ha puesto el dedo en la hoja en esta letra: la demostración no arranca sola */
+    touched: false,
+    /** qué demostración está en marcha (las anteriores ya no mandan) */
+    demo: 0,
+    help: -1,
     counted: -1,
     combo: 0,
     points: 0,
@@ -416,6 +430,9 @@ export default function Traza({ mode, extra, rounds, onAnswer, onDone }: GamePro
 
   // ——— demostración: la estrella recorre el trazo ———
   const playDemo = () => {
+    const L = live.current;
+    L.demo += 1;
+    const id = L.demo;
     setDemoOn(true);
     setPose('escucha');
     setMsg('Mira: así se escribe');
@@ -424,16 +441,18 @@ export default function Traza({ mode, extra, rounds, onAnswer, onDone }: GamePro
     const ms = Math.min(4200, 1100 + M.demo.total * 9);
     demo.set(withTiming(M.demo.total, { duration: ms, easing: Easing.inOut(Easing.quad) }));
     later(() => {
+      if (live.current.demo !== id) return;
       demoFade.set(withTiming(0, { duration: 450 }));
       setPose('piensa');
       setMsg((m) => (m === 'Mira: así se escribe' ? '¡Tu turno! Empieza en el 1' : m));
     }, ms + 250);
-    later(() => setDemoOn(false), ms + 750);
+    later(() => live.current.demo === id && setDemoOn(false), ms + 750);
   };
 
   const onLetterStart = useEffectEvent(() => {
     if (c) say(letterCall(c));
-    if (level.demo) later(playDemo, 700);
+    // la estrella enseña el orden… salvo que ya se esté escribiendo
+    if (level.demo) later(() => !live.current.touched && !live.current.done && playDemo(), 700);
     else setPose('piensa');
   });
   useEffect(() => {
@@ -450,6 +469,9 @@ export default function Traza({ mode, extra, rounds, onAnswer, onDone }: GamePro
     L.off = false;
     L.done = false;
     L.started = 0;
+    L.touched = false;
+    L.help = -1;
+    setHelp(null);
     p0.set(0);
     p1.set(0);
     gold.set(0);
@@ -471,6 +493,22 @@ export default function Traza({ mode, extra, rounds, onAnswer, onDone }: GamePro
     if (n === M.dots.length - 1 || (M.dots[n + 1] && M.dots[n + 1].s !== d.s && M.dots[n + 1].first)) juice.ring(scr(d.x, d.y), '#FFD54A', 60);
   };
 
+  /** De memoria: se enciende el punto que toca (hasta que se llegue a él). */
+  const showNext = () => {
+    const L = live.current;
+    if (!level.memory || L.reached >= M.dots.length || L.help === L.reached) return;
+    L.help = L.reached;
+    setHelp(L.reached);
+  };
+  /** Al avanzar, la ayuda que ya se ha alcanzado se apaga. */
+  const dropHelp = () => {
+    const L = live.current;
+    if (L.help >= 0 && L.reached > L.help) {
+      L.help = -1;
+      setHelp(null);
+    }
+  };
+
   const slip = () => {
     const L = live.current;
     L.misses += 1;
@@ -478,7 +516,8 @@ export default function Traza({ mode, extra, rounds, onAnswer, onDone }: GamePro
     sfx('plip');
     juice.shake(4);
     setPose('ups');
-    setMsg('Sigue la línea de puntos');
+    setMsg(level.memory ? 'ไม่เป็นไร: sigue hacia el punto que se enciende' : 'Sigue la línea de puntos');
+    showNext();
     later(() => setPose((p) => (p === 'ups' ? 'piensa' : p)), 900);
   };
 
@@ -540,6 +579,8 @@ export default function Traza({ mode, extra, rounds, onAnswer, onDone }: GamePro
     const tol = level.tol;
     if (p === 0 && Math.hypot(st.x[0] - fxp, st.y[0] - fyp) > tol * 1.25) {
       if (L.si === 0 && L.reached === 0) setMsg('Empieza por la cabeza: el punto 1');
+      // de memoria, el segundo trazo: si no se acierta dónde empieza, se enciende
+      else showNext();
       return;
     }
     if (!L.started) L.started = now();
@@ -547,6 +588,7 @@ export default function Traza({ mode, extra, rounds, onAnswer, onDone }: GamePro
       L.reached += 1;
       setReached(L.reached);
       passDot(L.reached - 1);
+      dropHelp();
       setMsg(null);
     }
     let best = -1;
@@ -568,6 +610,7 @@ export default function Traza({ mode, extra, rounds, onAnswer, onDone }: GamePro
         passDot(L.reached - 1);
       }
       setReached(L.reached);
+      dropHelp();
       if (p >= st.x.length - 2) {
         L.p[L.si] = st.x.length - 1;
         progs[L.si].set(st.x.length - 1);
@@ -579,7 +622,7 @@ export default function Traza({ mode, extra, rounds, onAnswer, onDone }: GamePro
         if (L.si < M.strokes.length - 1) {
           L.si += 1;
           fx.pop();
-          setMsg('Levanta el dedo: ahora el trazo pequeño');
+          setMsg('Levanta el dedo: ahora el segundo trazo');
         } else finishLetter();
       }
       return;
@@ -605,8 +648,10 @@ export default function Traza({ mode, extra, rounds, onAnswer, onDone }: GamePro
   const onGrant = (e: GestureResponderEvent) => {
     const p = local(e);
     if (live.current.done) return;
+    live.current.touched = true;
     if (demoOn) {
       // tocar corta la demostración: a escribir
+      live.current.demo += 1;
       demo.set(M.demo.total);
       demoFade.set(withTiming(0, { duration: 200 }));
       setDemoOn(false);
@@ -657,6 +702,8 @@ export default function Traza({ mode, extra, rounds, onAnswer, onDone }: GamePro
 
   const nextDot = M.dots[reached];
   const dotState = (n: number): DotState => (n < reached ? 'lit' : n === reached && !done ? 'next' : 'idle');
+  // de memoria solo se ven el punto 1, los ya pasados y, si hubo un despiste, el que toca
+  const dotShown = (n: number) => !level.memory || n === 0 || n < reached || n === help;
 
   return (
     <View style={styles.root}>
@@ -696,7 +743,7 @@ export default function Traza({ mode, extra, rounds, onAnswer, onDone }: GamePro
               ))}
             </Svg>
             {!done
-              ? M.dots.map((d, n) => <Dot key={`${i}-${n}`} x={d.x * k} y={d.y * k} n={n + 1} state={dotState(n)} num={level.numbers} first={d.first} />)
+              ? M.dots.map((d, n) => (dotShown(n) ? <Dot key={`${i}-${n}`} x={d.x * k} y={d.y * k} n={n + 1} state={dotState(n)} num={level.numbers || n === help} first={d.first} /> : null))
               : null}
             {demoOn ? <Comet model={M} demo={demo} fade={demoFade} k={k} /> : null}
             <Tip tx={tx} ty={ty} on={tipOn} />
@@ -774,8 +821,8 @@ export default function Traza({ mode, extra, rounds, onAnswer, onDone }: GamePro
           </Animated.View>
         ) : (
           <View style={styles.toolRow}>
-            <Txt v="small" style={{ flex: 1 }}>
-              {nextDot ? (reached === 0 ? 'Pon el dedo en el punto 1.' : level.numbers ? `Ahora hacia el ${reached + 1}.` : 'Sigue el trazo.') : ''}
+            <Txt v="small" style={styles.note}>
+              {nextDot ? (reached === 0 ? (level.memory ? 'De memoria: empieza en el punto 1.' : 'Pon el dedo en el punto 1.') : level.numbers ? `Ahora hacia el ${reached + 1}.` : level.memory ? 'Sigue de memoria: si te pierdes, se enciende el siguiente punto.' : 'Sigue el trazo.') : ''}
               {misses ? `  ·  Fuera: ${misses}` : ''}
             </Txt>
             {level.demo || !feria ? <Btn v="ghost" label="Ver" height={40} style={{ width: 92 }} onPress={() => !demoOn && playDemo()} icon={<Icon name="play" size={16} color={color.tinta} />} /> : null}
@@ -813,6 +860,8 @@ const styles = StyleSheet.create({
   speak: { width: 46, height: 46 },
   speakFace: { flex: 1, borderRadius: 16, backgroundColor: color.cielo, borderBottomWidth: 4, borderBottomColor: color.cieloHondo, alignItems: 'center', justifyContent: 'center' },
   toolRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  // la pista va sobre el escenario: en un rótulo claro se lee con cualquier fondo
+  note: { flex: 1, color: color.tinta, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.8)' },
   doneRow: { gap: 10 },
   stars: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 },
 });

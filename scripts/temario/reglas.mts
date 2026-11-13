@@ -15,7 +15,7 @@ export type ReglasTemporada = {
 
 /** Tamaños de cada temporada. Salirse del rango da un aviso, no un error. */
 export const REGLAS: Record<number, ReglasTemporada> = {
-  1: { leccionesPorParada: [3, 7], palabrasPorLeccion: [5, 11], frasesPorLeccion: [0, 6], lineasPorDialogo: [3, 7], paginasPorCuento: [3, 5], meses: false },
+  1: { leccionesPorParada: [3, 9], palabrasPorLeccion: [4, 10], frasesPorLeccion: [0, 6], lineasPorDialogo: [3, 7], paginasPorCuento: [3, 5], meses: false },
   2: { leccionesPorParada: [6, 8], palabrasPorLeccion: [6, 12], frasesPorLeccion: [3, 5], lineasPorDialogo: [4, 6], paginasPorCuento: [3, 5], meses: true },
 };
 
@@ -27,9 +27,15 @@ export function reglasDe(temporada: number): ReglasTemporada {
 
 /** Grupos de `extra: { kind: 'letras', set }` que no están en LETTER_SETS porque src/lib/lesson.ts los trata aparte. */
 export const GRUPOS_DE_LETRAS_ESPECIALES: Record<string, string> = {
-  vocales: 'juego de sílabas y cueva de las letras',
-  silabas: 'solo el juego de sílabas',
+  vocales: 'vocales largas: cueva de las letras y bloques de sílabas',
+  cortas: 'vocales cortas: cueva de las letras y bloques de sílabas',
+  compuestas: 'vocales compuestas (เ◌ีย, เ◌ือ, ◌ัว, เ◌า…): cueva de las letras y bloques de sílabas',
+  silabas: 'construir la sílaba que se oye: solo bloques de sílabas',
+  reglas: 'leer una sílaba y decir su tono: solo bloques de sílabas',
 };
+
+/** Tamaños de los textos de la historia y de la gramática (caracteres). Salirse da un aviso. */
+export const TEXTOS = { momento: [40, 260] as Rango, despues: [20, 180] as Rango, regla: [30, 260] as Rango, ejemplosPorPatron: [1, 3] as Rango };
 
 /** Lecciones que se salen a propósito de los tamaños habituales. */
 export const TAMANOS_ESPECIALES: Record<string, string> = {
@@ -64,7 +70,11 @@ export const HOMOGRAFOS: Record<string, string> = {
 export const ANTES_DE_TIEMPO: { en: string; piezas: string[]; porque: string }[] = [
   { en: 'd0', piezas: ['นี่', 'กล้วย', 'ไป', 'กัน', 'เถอะ'], porque: 'primera curva: Noi habla con traducción y quien aprende solo responde con สวัสดี y ขอบคุณ' },
   { en: 'd1', piezas: ['พรุ่งนี้', 'เช้า', 'เรา', 'แม่ฮ่องสอน'], porque: 'Nong habla deprisa a propósito para practicar «no entiendo, más despacio»' },
-  { en: 'd1', piezas: ['เถอะ'], porque: 'Nong se despide con «ไปกันเถอะ»; la partícula se enseña en p9l4' },
+  { en: 'd1', piezas: ['เถอะ'], porque: 'Nong se despide con «ไปกันเถอะ»; la partícula se enseña en p9l5' },
+  { en: 'p1', piezas: ['ลูก'], porque: 'Pho ya te llama ลูก en su primer mensaje: lo acaba de anunciar «¿Quién te espera?» (p1l8); la ficha llega en p11l1' },
+  { en: 'p5', piezas: ['ลูก'], porque: 'Mae te llama ลูก, como avisó «¿Quién te espera?» (p1l8); la ficha llega en p11l1' },
+  { en: 'd2', piezas: ['ร้าน'], porque: 'Nong cuenta su sueño, abrir un café (ร้านกาแฟ) en el pueblo; ร้าน se enseña en p10l2' },
+  { en: 'd8', piezas: ['ลูก', 'จ๊ะ'], porque: 'primera llamada con Mae: habla como hablará en casa. จ๊ะ se enseña en la lección siguiente (p9l5) y ลูก, al llegar (p11l1)' },
   { en: 'b140', piezas: ['เอ๋ย'], porque: 'la llamada ritual al khwan de la ceremonia del hilo blanco' },
   { en: 'd6', piezas: ['เอ๋ย'], porque: 'la misma llamada al khwan, en boca de Yai' },
 ];

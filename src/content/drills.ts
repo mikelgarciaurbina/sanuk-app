@@ -31,7 +31,7 @@ export const TONE_BANK: MiniWord[] = [
   { th: 'เสือ', rom: 'sʉ̌a', es: 'tigre', emoji: '🐯' },
 ];
 
-/** Pares (o tríos) que solo cambian de tono. */
+/** Pares (o tríos) que se distinguen por el tono; en alguno cambia además el largo de la vocal (หมอ / หม้อ). */
 export const MINIMAL_SETS: { title: string; items: MiniWord[]; joke?: string }[] = [
   { title: '¿Tigre o camisa?', items: [{ th: 'เสือ', rom: 'sʉ̌a', es: 'tigre', emoji: '🐯' }, { th: 'เสื้อ', rom: 'sʉ̂a', es: 'camisa', emoji: '👕' }], joke: 'En la tienda, cuidado: no pidas un tigre de la talla M.' },
   { title: '¿Blanco, arroz o rodilla?', items: [{ th: 'ขาว', rom: 'khǎao', es: 'blanco', emoji: '⬜' }, { th: 'ข้าว', rom: 'khâao', es: 'arroz', emoji: '🍚' }, { th: 'เข่า', rom: 'khào', es: 'rodilla', emoji: '🦵' }], joke: 'Pedir «rodilla frita» en el mercado da para una buena anécdota.' },
@@ -57,10 +57,14 @@ export const CLASSIFIERS: { clf: string; rom: string; es: string }[] = [
   { clf: 'คน', rom: 'khon', es: 'personas' },
   { clf: 'ใบ', rom: 'bai', es: 'hojas, bolsos, platos' },
   { clf: 'ลูก', rom: 'lûuk', es: 'frutas redondas, pelotas' },
-  { clf: 'อัน', rom: 'an', es: 'cosas pequeñas' },
+  { clf: 'อัน', rom: 'an', es: 'cosas pequeñas (comodín)' },
   { clf: 'คัน', rom: 'khan', es: 'coches, paraguas, cucharas' },
   { clf: 'เล่ม', rom: 'lêm', es: 'libros, cuchillos' },
   { clf: 'หลัง', rom: 'lǎng', es: 'casas' },
+  { clf: 'ดอก', rom: 'dɔ̀ɔk', es: 'flores, llaves, incienso' },
+  { clf: 'ต้น', rom: 'tôn', es: 'árboles y plantas' },
+  { clf: 'ฟอง', rom: 'fɔɔng', es: 'huevos' },
+  { clf: 'ผืน', rom: 'phʉ̌ʉn', es: 'telas, esterillas, mantas' },
 ];
 
 export const CLASSIFIER_ITEMS: (MiniWord & { clf: string })[] = [
@@ -90,33 +94,41 @@ export const CLASSIFIER_ITEMS: (MiniWord & { clf: string })[] = [
   { th: 'บ้าน', rom: 'bâan', es: 'casa', emoji: '🏡', clf: 'หลัง' },
 ];
 
-/** Partes de Noi para «Noi dice». Zonas en el viewBox 240×240 del dibujo (izquierda/derecha DE NOI). */
-export type NoiTarget = 'earL' | 'earR' | 'eyes' | 'trunk' | 'hat' | 'handL' | 'handR' | 'legs' | 'belly' | 'mouth';
-export const NOI_ZONES: Record<NoiTarget, { x: number; y: number; w: number; h: number }> = {
-  // la oreja izquierda de Noi está a la DERECHA de quien mira
-  earL: { x: 172, y: 50, w: 64, h: 104 },
-  earR: { x: 4, y: 50, w: 64, h: 104 },
-  eyes: { x: 82, y: 82, w: 76, h: 36 },
-  trunk: { x: 108, y: 112, w: 50, h: 46 },
-  hat: { x: 54, y: 4, w: 132, h: 54 },
-  handL: { x: 150, y: 160, w: 30, h: 46 },
-  handR: { x: 60, y: 160, w: 30, h: 46 },
-  legs: { x: 84, y: 198, w: 72, h: 36 },
-  belly: { x: 100, y: 160, w: 40, h: 26 },
-  mouth: { x: 90, y: 132, w: 30, h: 22 },
-};
+/**
+ * Partes de Noi para «Noi dice» (izquierda/derecha DE NOI: su oreja izquierda está a la DERECHA de quien mira).
+ * Dónde está cada una en el dibujo, según la pose, lo sabe src/games/frases/noiZones.ts.
+ */
+export type NoiTarget =
+  | 'earL' | 'earR' | 'eyes' | 'trunk' | 'mouth' | 'head' | 'hat'
+  | 'handL' | 'handR' | 'arms' | 'shoulders' | 'neck' | 'belly' | 'waist' | 'knees' | 'legs';
 
-export const BODY_COMMANDS: { th: string; rom: string; es: string; target: NoiTarget }[] = [
+/** `note`: algo que conviene saber al acertar (se enseña junto a la traducción). */
+export type BodyCommand = { th: string; rom: string; es: string; target: NoiTarget; note?: string };
+
+/**
+ * Órdenes de «Noi dice»: แตะ + una parte del cuerpo del temario (+ ซ้าย/ขวา). Cada una entra en juego cuando sus
+ * palabras ya tienen ficha (`bodyCommandsFor`). Las dos órdenes de una misma zona van juntas, la primera es la
+ * que da nombre a la zona (งวง antes que จมูก).
+ */
+export const BODY_COMMANDS: BodyCommand[] = [
   { th: 'แตะหูซ้าย', rom: 'tɛ̀ hǔu sáai', es: 'toca la oreja izquierda', target: 'earL' },
   { th: 'แตะหูขวา', rom: 'tɛ̀ hǔu khwǎa', es: 'toca la oreja derecha', target: 'earR' },
   { th: 'แตะตา', rom: 'tɛ̀ taa', es: 'toca los ojos', target: 'eyes' },
   { th: 'แตะงวง', rom: 'tɛ̀ nguang', es: 'toca la trompa', target: 'trunk' },
+  { th: 'แตะจมูก', rom: 'tɛ̀ jà-mùuk', es: 'toca la nariz', target: 'trunk', note: 'la nariz de un elefante es su trompa' },
+  { th: 'แตะหัว', rom: 'tɛ̀ hǔa', es: 'toca la cabeza', target: 'head' },
+  // หมวก se enseña en «Noi dice» (parada 3): la orden sale en cuanto se ha visto su ficha
   { th: 'แตะหมวก', rom: 'tɛ̀ mùak', es: 'toca el sombrero', target: 'hat' },
   { th: 'แตะมือซ้าย', rom: 'tɛ̀ mʉʉ sáai', es: 'toca la mano izquierda', target: 'handL' },
   { th: 'แตะมือขวา', rom: 'tɛ̀ mʉʉ khwǎa', es: 'toca la mano derecha', target: 'handR' },
   { th: 'แตะขา', rom: 'tɛ̀ khǎa', es: 'toca las patas', target: 'legs' },
+  { th: 'แตะเข่า', rom: 'tɛ̀ khào', es: 'toca la rodilla', target: 'knees' },
   { th: 'แตะท้อง', rom: 'tɛ̀ thɔ́ɔng', es: 'toca la barriga', target: 'belly' },
   { th: 'แตะปาก', rom: 'tɛ̀ pàak', es: 'toca la boca', target: 'mouth' },
+  { th: 'แตะบ่า', rom: 'tɛ̀ bàa', es: 'toca el hombro', target: 'shoulders' },
+  { th: 'แตะแขน', rom: 'tɛ̀ khɛ̌ɛn', es: 'toca el brazo', target: 'arms' },
+  { th: 'แตะเอว', rom: 'tɛ̀ eeo', es: 'toca la cintura', target: 'waist' },
+  { th: 'แตะคอ', rom: 'tɛ̀ khɔɔ', es: 'toca el cuello', target: 'neck' },
 ];
 
 /** Puesto del mercado para «Paga justo». */
@@ -175,7 +187,7 @@ export const toneBankFor = (known: Set<string>) => TONE_BANK.filter((w) => known
 export const classifierItemsFor = (known: Set<string>) => CLASSIFIER_ITEMS.filter((it) => known.has(it.th) && known.has(it.clf));
 
 /** Palabras de una orden de «Noi dice»: แตะหูซ้าย → แตะ, หู, ซ้าย. */
-export function bodyWordsOf(c: (typeof BODY_COMMANDS)[number]): string[] {
+export function bodyWordsOf(c: BodyCommand): string[] {
   const side = c.th.match(/(ซ้าย|ขวา)$/)?.[0];
   return ['แตะ', c.th.replace(/^แตะ/, '').replace(/(ซ้าย|ขวา)$/, ''), ...(side ? [side] : [])];
 }

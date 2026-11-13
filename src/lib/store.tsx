@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 
+import { LESSONS, RENAMED_LESSONS } from '@/content';
 import type { GameId } from '@/content/types';
 import type { Gender } from '@/lib/thai';
 import { daysBetween, todayKey } from '@/lib/random';
@@ -19,7 +20,8 @@ export type Profile = {
 export type Settings = { sound: boolean; haptics: boolean; voiceRate: number; romanization: boolean };
 
 export type Progress = {
-  v: 1;
+  /** 2: el temario reordenó paradas y lecciones (las del mirador Kiew Lom van antes que la cueva Tham Lod) */
+  v: 2;
   onboarded: boolean;
   profile: Profile;
   bananas: number;
@@ -34,13 +36,15 @@ export type Progress = {
   missions: string[];
   /** la carta de respuesta a Yai: las frases elegidas y cuándo se envió */
   reply?: { sentences: string[]; at: string };
+  /** lecciones que el temario añadió en tramos ya recorridos: se avisa una vez en el camino y se borra al verlo */
+  news?: number;
   settings: Settings;
 };
 
 const KEY = 'sanuk:progress:v1';
 
 export const INITIAL: Progress = {
-  v: 1,
+  v: 2,
   onboarded: false,
   profile: { name: '', gender: 'm', motive: 'pareja', startStop: 1, goal: 60 },
   bananas: 0,
@@ -54,6 +58,35 @@ export const INITIAL: Progress = {
   missions: [],
   settings: { sound: true, haptics: true, voiceRate: 0.85, romanization: true },
 };
+
+/** Parada de una lección por su id («p6l3» → «p6»). */
+const stopOfLesson = (id: string) => id.replace(/l\d+$/, '');
+
+/**
+ * Progreso guardado con el temario anterior (v 1): las lecciones que cambiaron de id conservan lo hecho. Todas se
+ * renombran a la vez (la p6l1 antigua es la p7l1 nueva y al revés) y los sellos se recalculan con los ids nuevos.
+ */
+export function migrate(saved: Progress & { v: number }): Progress {
+  if (saved.v >= 2) return saved;
+  const rename = (id: string) => RENAMED_LESSONS[id] ?? id;
+  const completed: Progress['completed'] = {};
+  for (const [id, done] of Object.entries(saved.completed ?? {})) completed[rename(id)] = done;
+  // paradas que se intercambiaron enteras (p6 ↔ p7): su sello pasa a la parada nueva. Una lección suelta que
+  // cambia de parada (la respuesta a Yai, de la 14 a la 15) no mueve el sello de la suya.
+  const pairs = new Set(Object.entries(RENAMED_LESSONS).map(([from, to]) => `${stopOfLesson(from)}>${stopOfLesson(to)}`));
+  const stopMoves = new Map<string, string>();
+  for (const pair of pairs) {
+    const [from, to] = pair.split('>');
+    if (from !== to && pairs.has(`${to}>${from}`)) stopMoves.set(from, to);
+  }
+  const stamps = [...new Set((saved.stamps ?? []).map((id) => stopMoves.get(id) ?? id))];
+  const missions = [...new Set((saved.missions ?? []).map((id) => stopMoves.get(id) ?? id))];
+  // lecciones nuevas por detrás de la última hecha: el camino vuelve a ellas, y hay que contarlo para que no extrañe
+  const startStop = saved.profile?.startStop ?? 1;
+  const lastDone = LESSONS.reduce((a, l) => (completed[l.id] ? l.index : a), -1);
+  const news = LESSONS.filter((l) => l.index < lastDone && !completed[l.id] && l.stop.n >= startStop).length;
+  return { ...saved, v: 2, completed, stamps, missions, ...(news ? { news } : {}) };
+}
 
 /** Intervalos del repaso espaciado por nivel de fuerza (0–5). */
 const SRS_MS = [0, 10 * 60e3, 24 * 3600e3, 3 * 24 * 3600e3, 7 * 24 * 3600e3, 16 * 24 * 3600e3];
@@ -92,6 +125,8 @@ type Actions = {
   sendReply: (sentences: string[]) => void;
   setSetting: <K extends keyof Settings>(k: K, v: Settings[K]) => void;
   setProfile: (p: Partial<Profile>) => void;
+  /** ya se ha leído el aviso de lecciones nuevas */
+  dismissNews: () => void;
   reset: () => void;
 };
 
@@ -107,7 +142,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     AsyncStorage.getItem(KEY)
       .then((raw) => {
         if (raw) {
-          const saved = JSON.parse(raw) as Progress;
+          const saved = migrate(JSON.parse(raw) as Progress & { v: number });
           setP({ ...INITIAL, ...saved, settings: { ...INITIAL.settings, ...saved.settings } });
         }
       })
@@ -126,6 +161,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const actions: Actions = {
     finishOnboarding: (profile) => setP((s) => ({ ...s, onboarded: true, profile })),
     setProfile: (patch) => setP((s) => ({ ...s, profile: { ...s.profile, ...patch } })),
+    dismissNews: () => setP((s) => ({ ...s, news: undefined })),
     answer: (wordId, ok) =>
       setP((s) => {
         const w = s.words[wordId] ?? { s: 0, due: 0, seen: 0, ok: 0, bad: 0 };
@@ -174,7 +210,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     completeMission: (stopId) =>
       setP((s) => (s.missions.includes(stopId) ? s : { ...withBananas(s, 30), missions: [...s.missions, stopId] })),
     setSetting: (k, v) => setP((s) => ({ ...s, settings: { ...s.settings, [k]: v } })),
-    reset: () => setP({ ...INITIAL, today: { date: todayKey(), bananas: 0 } }),
+    reset: () => {
+      // empezar de cero también vuelve a enseñar la presentación de los tonos
+      AsyncStorage.removeItem('sanuk:tonos:intro').catch(() => {});
+      setP({ ...INITIAL, today: { date: todayKey(), bananas: 0 } });
+    },
   };
 
   return <StoreCtx.Provider value={{ p, ready, ...actions }}>{children}</StoreCtx.Provider>;

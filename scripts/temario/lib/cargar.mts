@@ -4,7 +4,7 @@ import { readdirSync } from 'node:fs';
 import { registerHooks } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
-import type { Dialogue, Sentence, Stop, Story, Word } from '../../../src/content/types.ts';
+import type { Dialogue, Pattern, Sentence, Stop, Story, Word } from '../../../src/content/types.ts';
 
 export const CONTENIDO = new URL('../../../src/content/', import.meta.url);
 
@@ -41,6 +41,7 @@ export type Temario = {
   paradas: ConOrigen<Stop>[];
   dialogos: ConOrigen<Dialogue>[];
   cuentos: ConOrigen<Story>[];
+  patrones: ConOrigen<Pattern>[];
   /** Nombres propios que se usan sin enseñarse (PROPER_NOUNS_*). */
   nombresPropios: string[];
   carta: typeof import('../../../src/content/yai.ts');
@@ -53,6 +54,7 @@ const PREFIJOS = {
   STOPS_: 'paradas',
   DIALOGUES_: 'dialogos',
   STORIES_: 'cuentos',
+  PATTERNS_: 'patrones',
   PROPER_NOUNS_: 'nombresPropios',
 } as const;
 
@@ -64,6 +66,7 @@ export async function cargarTemario(): Promise<Temario> {
     paradas: [],
     dialogos: [],
     cuentos: [],
+    patrones: [],
     nombresPropios: [],
     carta: await import(new URL('yai.ts', CONTENIDO).href),
     letras: await import(new URL('letters.ts', CONTENIDO).href),

@@ -1,6 +1,8 @@
 // Juego 1 · Parejas: une thai y español antes de que se consuma la mecha. Feria nocturna: cada pareja vuela
 // hacia la otra y estalla en fuegos artificiales; en la feria la mecha arde, el tablero se rellena en ola y se
-// sube de nivel; en la lección no hay mecha y las que se resisten vuelven en un repaso final.
+// sube de nivel: cada nivel las parejas devuelven menos mecha y una pareja equivocada quema un segundo, así que
+// tarde o temprano el cohete sale (la mecha se para mientras se reparte el tablero nuevo). En la lección no hay
+// mecha y las que se resisten vuelven en un repaso final (ya sin transcripción si se sabe leer).
 import { useEffect, useEffectEvent, useRef, useState, type ComponentRef } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { Easing, ZoomIn, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
@@ -16,14 +18,15 @@ import { shuffle } from '@/lib/random';
 import { Backdrop } from './Backdrop';
 import { Countdown, Pop, useJuice, type Point } from './fx';
 import { ComboBadge, useScore } from './kit';
-import { LevelChip, MultChip, ScoreChip, distinct, multFor, pickWords, pointIn, useLater } from './palabras/common';
+import { LevelChip, MultChip, ScoreChip, ToastRibbon, distinct, multFor, pickWords, pointIn, romFor, useLater, useToast } from './palabras/common';
 import { Ficha, type FichaState, type Side } from './parejas/Ficha';
 import { FUSE_H, Mecha, fuseGeom, fuseY } from './parejas/Mecha';
 import type { GameProps } from './types';
 
 /** Segundos de mecha al empezar (y lo más larga que puede estar). */
 const START_S = 40;
-const CLEAR_S = 4;
+/** Segundos que quema una pareja equivocada. */
+const MISS_S = 1;
 const ROW_GAP = 10;
 const COL_GAP = 14;
 
@@ -32,8 +35,13 @@ type Board = { wave: number; pairs: Pair[]; order: string[]; review?: boolean };
 type Pose = 'feliz' | 'celebra' | 'ups';
 
 const pairsFor = (level: number) => (level <= 1 ? 4 : level === 2 ? 5 : 6);
-/** Segundos que alarga la mecha cada pareja: menos cuanto más alto el nivel. */
-const bonusFor = (level: number) => (level <= 1 ? 2.5 : level === 2 ? 2 : level === 3 ? 1.6 : 1.2);
+/**
+ * Segundos que alarga la mecha cada pareja: cada nivel un 18 % menos (2,5 · 2 · 1,7 · 1,4 · 1,1 · 0,9 · 0,8…),
+ * sin suelo cómodo: desde el nivel 6 o 7 ni la mano más rápida recupera lo que arde.
+ */
+const bonusFor = (level: number) => Math.max(0.3, Math.round(25 * 0.82 ** (level - 1)) / 10);
+/** Segundos de premio por limpiar el tablero: también menguan (4 · 3,6 · 3,2 … 1,5). */
+const clearFor = (level: number) => Math.max(1.5, Math.round((4 - 0.4 * (level - 1)) * 10) / 10);
 const keyOf = (side: Side, id: string) => `${side}:${id}`;
 /** Reloj de la partida (solo se consulta en manejadores y temporizadores). */
 const clock = () => Date.now();
@@ -49,10 +57,11 @@ function makePairs(list: Word[], level: number, feria: boolean): Pair[] {
 const toBoard = (wave: number, pairs: Pair[], review?: boolean): Board => ({ wave, pairs, order: shuffle(pairs.map((p) => p.word.id)), review });
 
 /** Juego 1 · Parejas: une thai y español antes de que se consuma la mecha. */
-export default function Parejas({ mode, words, focus, onAnswer, onDone }: GameProps) {
+export default function Parejas({ mode, words, focus, reads, review, onAnswer, onDone }: GameProps) {
   const feria = mode === 'feria';
   const score = useScore(mode);
   const juice = useJuice();
+  const toast = useToast();
   const later = useLater();
   const burn = useSharedValue(0);
   const rootRef = useRef<ComponentRef<typeof View>>(null);
@@ -60,6 +69,7 @@ export default function Parejas({ mode, words, focus, onAnswer, onDone }: GamePr
   const fuseRef = useRef<ComponentRef<typeof View>>(null);
 
   const [pool] = useState(() => distinct([...focus, ...words]));
+  const [fresh] = useState(() => new Set(review ? [] : focus.map((w) => w.id)));
   const [board, setBoard] = useState<Board>(() => toBoard(0, makePairs(pickWords(feria ? pairsFor(1) : 5, { focus: feria ? [] : focus, pool }), 1, feria)));
   const [states, setStates] = useState<Record<string, FichaState>>({});
   const [sel, setSel] = useState<{ side: Side; id: string } | null>(null);
@@ -75,7 +85,27 @@ export default function Parejas({ mode, words, focus, onAnswer, onDone }: GamePr
   const [area, setArea] = useState({ w: 0, h: 0 });
   const [rowW, setRowW] = useState(0);
 
-  const g = useRef({ wave: 0, level: 1, points: 0, ended: false, done: false, deadline: 0, lastTick: 0, lastMatch: 0, poseN: 0, fbN: 0, cleared: -1, reviewed: false, used: new Set<string>(), retry: [] as Word[], gone: new Set<string>() });
+  const g = useRef({
+    wave: 0,
+    level: 1,
+    points: 0,
+    ended: false,
+    done: false,
+    deadline: 0,
+    /** mecha parada (entre tableros): `left` guarda lo que queda */
+    paused: false,
+    left: 0,
+    lastTick: 0,
+    lastMatch: 0,
+    poseN: 0,
+    fbN: 0,
+    cleared: -1,
+    reviewed: false,
+    matchedN: 0,
+    used: new Set<string>(),
+    retry: [] as Word[],
+    gone: new Set<string>(),
+  });
 
   const tooFew = board.pairs.length < 2;
   const bail = useEffectEvent(() => onDone(score.result(0)));
@@ -176,7 +206,7 @@ export default function Parejas({ mode, words, focus, onAnswer, onDone }: GamePr
 
   const onTick = useEffectEvent(() => {
     const s = g.current;
-    if (s.ended) return;
+    if (s.ended || s.paused) return;
     const left = s.deadline - clock();
     const sec = Math.max(0, Math.ceil(left / 1000));
     setSecs(sec);
@@ -192,18 +222,43 @@ export default function Parejas({ mode, words, focus, onAnswer, onDone }: GamePr
     return () => clearInterval(t);
   }, [feria, phase]);
 
+  /** Alarga la mecha (`sec` > 0: una pareja, un tablero limpio) o la acorta (`sec` < 0: una pareja equivocada). */
   const addTime = (sec: number) => {
     const s = g.current;
     const now = clock();
-    s.deadline = Math.min(now + START_S * 1000, s.deadline + sec * 1000);
-    const left = Math.max(0, s.deadline - now);
-    const p = 1 - left / (START_S * 1000);
-    burn.set(withSequence(withTiming(p, { duration: 280, easing: Easing.out(Easing.cubic) }), withTiming(1, { duration: Math.max(1, left - 280), easing: Easing.linear })));
+    const full = START_S * 1000;
+    let left: number;
+    if (s.paused) {
+      s.left = Math.max(0, Math.min(full, s.left + sec * 1000));
+      left = s.left;
+    } else {
+      s.deadline = Math.min(now + full, s.deadline + sec * 1000);
+      left = Math.max(0, s.deadline - now);
+    }
+    const p = 1 - left / full;
+    const jump = withTiming(p, { duration: 280, easing: Easing.out(Easing.cubic) });
+    burn.set(s.paused ? jump : withSequence(jump, withTiming(1, { duration: Math.max(1, left - 280), easing: Easing.linear })));
     setSecs(Math.ceil(left / 1000));
     fuseRef.current?.measureInWindow((x, y) => {
       const { x0, len } = fuseGeom(rowW);
-      juice.float({ x: x + x0 + p * len, y: y + fuseY(p) }, `+${secsText(sec)} s`, '#5FD4FF', 22);
+      juice.float({ x: x + x0 + p * len, y: y + fuseY(p) }, `${sec > 0 ? '+' : '-'}${secsText(Math.abs(sec))} s`, sec > 0 ? '#5FD4FF' : '#FF8A7A', 22);
     });
+  };
+
+  /** Para la mecha (última pareja del tablero): mientras se celebra y se reparte el siguiente no arde. */
+  const pauseFuse = () => {
+    const s = g.current;
+    if (!feria || s.paused || s.ended) return;
+    s.paused = true;
+    s.left = Math.max(0, s.deadline - clock());
+    burn.set(1 - s.left / (START_S * 1000));
+  };
+  const resumeFuse = () => {
+    const s = g.current;
+    if (!s.paused || s.ended) return;
+    s.paused = false;
+    s.deadline = clock() + s.left;
+    burn.set(withTiming(1, { duration: Math.max(1, s.left), easing: Easing.linear }));
   };
 
   // ——— tableros ———
@@ -213,6 +268,7 @@ export default function Parejas({ mode, words, focus, onAnswer, onDone }: GamePr
     for (const p of board.pairs) s.used.add(p.word.id);
     s.wave += 1;
     s.gone = new Set();
+    s.matchedN = 0;
     setBoard(toBoard(s.wave, pairs, review));
     setStates({});
     setSel(null);
@@ -232,19 +288,23 @@ export default function Parejas({ mode, words, focus, onAnswer, onDone }: GamePr
     if (s.cleared === s.wave || s.ended) return;
     s.cleared = s.wave;
     if (feria) {
+      // la mecha ya está parada desde la última pareja; vuelve a arder cuando el tablero nuevo está en la mesa
+      pauseFuse();
+      addTime(clearFor(s.level));
       s.level += 1;
       const bonus = 20 * (s.level - 1);
       s.points += bonus;
       setPoints(s.points);
       setLevel(s.level);
-      addTime(CLEAR_S);
       fx.levelup();
-      juice.banner(`¡Nivel ${s.level}!`, `Tablero limpio · +${bonus}`, color.buatong);
+      const note = s.level === 2 && reads ? 'Sin transcripción: ¡a leer!' : s.level === 3 ? 'Ahora, alguna solo de oído' : `Tablero limpio · +${bonus}`;
+      juice.banner(`¡Nivel ${s.level}!`, note, color.buatong);
       pointIn(rootRef, 0.5, 0.3, (at) => {
         juice.burst(at, 'chispas', 28, 200);
         juice.burst(at, 'confeti', 18, 170);
       });
       later(() => nextFeriaBoard(s.level), 650);
+      later(resumeFuse, 650 + pairsFor(s.level) * 70 + 450);
       return;
     }
     const review = s.retry.filter((w, i, a) => a.findIndex((x) => x.id === w.id) === i).slice(0, 4);
@@ -275,6 +335,8 @@ export default function Parejas({ mode, words, focus, onAnswer, onDone }: GamePr
     const combo = score.hit(true);
     onAnswer(true, id);
     if (secondSide === 'es') say(pair.word.th);
+    s.matchedN += 1;
+    const last = s.matchedN >= board.pairs.length;
     const now = clock();
     const quick = feria && s.lastMatch > 0 && now - s.lastMatch < 2600;
     s.lastMatch = now;
@@ -285,7 +347,8 @@ export default function Parejas({ mode, words, focus, onAnswer, onDone }: GamePr
     tell(true, pair.word);
     setJump((j) => j + 1);
     if (combo >= 3 || pair.golden) setMood('celebra');
-    if (combo > 0 && combo % 5 === 0) juice.banner(`¡Racha ×${combo}!`, 'los puntos se multiplican', color.farol);
+    // aviso pequeño sobre la mecha: no tapa el tablero mientras arde
+    if (combo > 0 && combo % 5 === 0) toast.show(`¡Racha ×${combo}!`, 'los puntos se multiplican', color.farol);
     if (pair.golden) fx.sparkle();
 
     const i = board.pairs.findIndex((p) => p.word.id === id);
@@ -301,7 +364,10 @@ export default function Parejas({ mode, words, focus, onAnswer, onDone }: GamePr
         if (quick) juice.float({ x: at.x, y: at.y + 40 }, '¡Rápido!', '#FF8FB1', 18);
       }, 240);
     });
-    if (feria) addTime(bonusFor(s.level) + (pair.golden ? 3 : 0));
+    if (feria) {
+      addTime(bonusFor(s.level) + (pair.golden ? 3 : 0));
+      if (last) pauseFuse();
+    }
 
     later(() => {
       setStates((st) => ({ ...st, [keyOf('th', id)]: 'gone', [keyOf('es', id)]: 'gone' }));
@@ -323,6 +389,7 @@ export default function Parejas({ mode, words, focus, onAnswer, onDone }: GamePr
     juice.shake(7);
     tell(false, thWord);
     setMood('ups');
+    if (feria) addTime(-MISS_S);
     later(() => {
       setStates((st) => {
         const n = { ...st };
@@ -366,7 +433,9 @@ export default function Parejas({ mode, words, focus, onAnswer, onDone }: GamePr
 
   const stateOf = (side: Side, id: string): FichaState => states[keyOf(side, id)] ?? (sel && sel.side === side && sel.id === id ? 'sel' : 'idle');
   const byId = new Map(board.pairs.map((p) => [p.word.id, p]));
-  const hintText = feria ? 'Cada pareja alarga la mecha. ¡Encadena para multiplicar!' : 'Toca una palabra thai y luego su traducción.';
+  const hintText = feria ? 'Cada pareja alarga la mecha; un fallo quema 1 s. ¡Encadena para multiplicar!' : 'Toca una palabra thai y luego su traducción.';
+  /** Transcripción: siempre mientras no se sabe leer; después, solo en lo nuevo de la lección o el nivel 1 de la feria. */
+  const romOf = (w: Word) => romFor(reads, { feria, level, review: !!board.review || !fresh.has(w.id) });
   const sideW = (colW + COL_GAP) / 2;
   const step = (tileH + ROW_GAP) / 2;
 
@@ -390,7 +459,7 @@ export default function Parejas({ mode, words, focus, onAnswer, onDone }: GamePr
         ) : (
           <View style={{ paddingVertical: 8, gap: 2 }}>
             <Text style={styles.title}>{board.review ? 'Repaso de las difíciles' : 'Empareja'}</Text>
-            <Text style={styles.sub}>Une cada palabra thai con su traducción.</Text>
+            <Text style={styles.sub}>{board.review && reads ? 'Ahora sin transcripción: ¡léelas!' : 'Une cada palabra thai con su traducción.'}</Text>
           </View>
         )}
 
@@ -408,11 +477,12 @@ export default function Parejas({ mode, words, focus, onAnswer, onDone }: GamePr
                       state={st}
                       delay={i * 70}
                       height={tileH}
+                      width={colW}
                       dx={sideW}
                       dy={(j - i) * step}
                       golden={p.golden}
                       audio={p.audio}
-                      showRom={!feria}
+                      showRom={romOf(p.word)}
                       disabled={phase !== 'play'}
                       onPress={() => tap('th', p)}
                     />
@@ -434,6 +504,7 @@ export default function Parejas({ mode, words, focus, onAnswer, onDone }: GamePr
                       state={st}
                       delay={40 + j * 70}
                       height={tileH}
+                      width={colW}
                       dx={-sideW}
                       dy={(i - j) * step}
                       disabled={phase !== 'play'}
@@ -457,6 +528,7 @@ export default function Parejas({ mode, words, focus, onAnswer, onDone }: GamePr
             )}
           </View>
         </View>
+        <ToastRibbon toast={toast.now} style={{ top: 48 }} />
       </Animated.View>
       {phase === 'count' && !tooFew ? <Countdown dark onDone={start} /> : null}
       {juice.layer}
@@ -502,11 +574,11 @@ function Lanterns({ total, lit }: { total: number; lit: number }) {
 }
 
 const styles = StyleSheet.create({
-  hud: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44 },
+  hud: { flexDirection: 'row', alignItems: 'center', gap: 8, height: 46 },
   hudMid: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   title: { fontFamily: font.displayBold, fontSize: 24, color: '#FFFFFF', textShadowColor: 'rgba(0,0,0,0.35)', textShadowRadius: 8, textShadowOffset: { width: 0, height: 2 } },
   sub: { fontFamily: font.uiBold, fontSize: 13.5, color: '#E9DDF7' },
-  bottom: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, minHeight: 92, paddingBottom: 6 },
+  bottom: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, height: 100, paddingBottom: 6 },
   hint: { backgroundColor: 'rgba(20,12,36,0.55)', borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1.5, borderColor: 'rgba(255,214,140,0.35)' },
   hintText: { fontFamily: font.uiBold, fontSize: 13.5, color: '#FFE9C2' },
   answer: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#FFFFFF', borderRadius: 18, borderWidth: 2.5, paddingHorizontal: 12, paddingVertical: 7, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 6 },

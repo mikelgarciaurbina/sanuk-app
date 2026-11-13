@@ -1,6 +1,8 @@
 // Juego 2 · Memoria del templo: cartas Lanna (rojas = thai, azules = español) que se reparten en abanico,
-// se dejan ver un momento y se voltean en 3D. Las parejas brillan y salen flotando entre pétalos. En la
-// feria la cuadrícula crece por niveles, hay estrellas por movimientos y una varilla de incienso marca el tiempo.
+// se dejan ver un momento (más cuanto mayor es la cuadrícula) y se voltean en 3D. Las parejas enseñan su otra
+// mitad, brillan y salen flotando entre pétalos. Explorar a ciegas no es fallar: solo cuenta como despiste dejar
+// pasar una pareja que ya se había visto, y nunca baja la palabra en el repaso (puede ser solo la memoria). En la
+// feria la cuadrícula crece por niveles, desde el 3 hay cartas «de oído», y una varilla de incienso marca el tiempo.
 import { useEffect, useEffectEvent, useRef, useState, type ComponentRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, { Easing, ZoomIn, useAnimatedStyle, useSharedValue, withDelay, withSpring, withTiming } from 'react-native-reanimated';
@@ -18,7 +20,7 @@ import { useJuice, type Point } from './fx';
 import { ComboBadge, useScore } from './kit';
 import { Carta, Loto, type CardData } from './memoria/Carta';
 import { INC_H, Incienso } from './memoria/Incienso';
-import { LevelChip, MultChip, ScoreChip, distinct, multFor, pickWords, pointIn, useLater } from './palabras/common';
+import { LevelChip, MultChip, ScoreChip, ToastRibbon, distinct, fitTh, multFor, pickWords, pointIn, romFor, thWidth, useLater, useToast } from './palabras/common';
 import type { GameProps } from './types';
 
 /** Parejas por nivel de la feria: la cuadrícula crece (3×2, 4×2, 4×3, 4×4…). */
@@ -28,6 +30,15 @@ const FULL_S = 80;
 const LEVEL_S = 15;
 const GAP = 9;
 const RATIO = 1.3;
+/** Milisegundos entre carta y carta al repartir. */
+const DEAL_STEP = 45;
+/** Ancho útil del bocadillo de Noi en el móvil más estrecho (para que el thai quepa en una línea). */
+const BUBBLE_W = 190;
+
+/** Cartas thai «de oído» (sin escritura: se voltean y se escuchan) en cada nivel de la feria. */
+const audioFor = (level: number) => (level >= 5 ? 3 : level === 4 ? 2 : level === 3 ? 1 : 0);
+/** Vistazo antes de jugar: crece con la cuadrícula (unos 0,3 s por carta), para que 16 cartas no sean pura suerte. */
+const peekFor = (pairs: number) => Math.max(2600, 900 + 520 * pairs);
 
 type Bubble = { kind: 'intro' | 'peek' | 'flip' | 'ok' | 'bad' | 'miss'; card?: CardData };
 type Clear = { n: number; stars: number; title: string; sub: string };
@@ -35,14 +46,22 @@ type Pose = 'feliz' | 'celebra' | 'ups' | 'piensa' | 'escucha';
 
 const clock = () => Date.now();
 
-function makeDeck(list: Word[]): CardData[] {
+function makeDeck(list: Word[], audioN = 0): CardData[] {
+  const audio = new Set(
+    shuffle(list)
+      .slice(0, audioN)
+      .map((w) => w.id),
+  );
   return shuffle(
     list.flatMap((w) => [
-      { key: `${w.id}-th`, pair: w.id, side: 'th' as const, word: w },
+      { key: `${w.id}-th`, pair: w.id, side: 'th' as const, word: w, audio: audio.has(w.id) },
       { key: `${w.id}-es`, pair: w.id, side: 'es' as const, word: w },
     ]),
   );
 }
+
+/** La otra mitad de una carta. */
+const partnerKey = (c: CardData) => `${c.pair}-${c.side === 'th' ? 'es' : 'th'}`;
 
 const MAX_W = 118;
 
@@ -58,20 +77,25 @@ function gridFor(n: number, w: number, h: number): { cols: number; rows: number;
   return best;
 }
 
-/** Estrellas de un nivel según los movimientos: 3 si casi sin fallos, 2 si pocos, 1 si muchos. */
-const starsFor = (moves: number, pairs: number) => (moves <= pairs + 1 ? 3 : moves <= Math.ceil(pairs * 1.75) ? 2 : 1);
+/**
+ * Estrellas de un nivel según los despistes (parejas que ya se habían visto y se dejaron pasar): voltear a ciegas
+ * para descubrir cartas no resta.
+ */
+const starsFor = (slips: number, pairs: number) => (slips <= Math.floor(pairs / 3) ? 3 : slips <= Math.ceil(pairs * 0.75) ? 2 : 1);
 
 /** Juego 2 · Memoria del templo: voltea cartas Lanna y encuentra las parejas thai ↔ español. */
-export default function Memoria({ mode, words, focus, onAnswer, onDone }: GameProps) {
+export default function Memoria({ mode, words, focus, reads, review, onAnswer, onDone }: GameProps) {
   const feria = mode === 'feria';
   const score = useScore(mode);
   const juice = useJuice();
+  const toast = useToast();
   const later = useLater();
   const burn = useSharedValue(0);
   const rootRef = useRef<ComponentRef<typeof View>>(null);
   const gridRef = useRef<ComponentRef<typeof View>>(null);
 
   const [pool] = useState(() => distinct([...focus, ...words]));
+  const [fresh] = useState(() => new Set(review ? [] : focus.map((w) => w.id)));
   const [deck, setDeck] = useState(() => {
     const n = feria ? LEVELS[0] : Math.min(4, Math.max(3, focus.length));
     return { round: 0, cards: makeDeck(pickWords(n, { focus: feria ? [] : focus, pool })) };
@@ -84,6 +108,7 @@ export default function Memoria({ mode, words, focus, onAnswer, onDone }: GamePr
   const [shakes, setShakes] = useState<Record<string, number>>({});
   const [waveClose, setWaveClose] = useState(false);
   const [moves, setMoves] = useState(0);
+  const [slips, setSlips] = useState(0);
   const [points, setPoints] = useState(0);
   const [level, setLevel] = useState(1);
   const [secs, setSecs] = useState(FULL_S);
@@ -98,6 +123,7 @@ export default function Memoria({ mode, words, focus, onAnswer, onDone }: GamePr
     level: 1,
     points: 0,
     moves: 0,
+    slips: 0,
     ended: false,
     done: false,
     running: false,
@@ -110,7 +136,7 @@ export default function Memoria({ mode, words, focus, onAnswer, onDone }: GamePr
     seen: new Set<string>(),
     used: new Set<string>(),
     retry: [] as Word[],
-    found: 0,
+    matchedN: 0,
     clearN: 0,
   });
 
@@ -215,6 +241,7 @@ export default function Memoria({ mode, words, focus, onAnswer, onDone }: GamePr
       const bonus = Math.ceil(s.remaining / 1000) * 5;
       s.points += bonus;
       setPoints(s.points);
+      setClear(null);
       juice.banner('¡Templo completo!', `+${bonus} por el incienso que sobra`, color.buatong);
     } else {
       setClear({ n: s.clearN + 1, stars, title: '¡Memoria de elefante!', sub: `${s.moves} movimientos` });
@@ -264,8 +291,8 @@ export default function Memoria({ mode, words, focus, onAnswer, onDone }: GamePr
   const endWave = useEffectEvent(() => setWaveClose(false));
   useEffect(() => {
     const n = deck.cards.length;
-    const dealMs = n * 60 + 550;
-    const peekMs = feria ? 800 + 230 * (n / 2) : 2800;
+    const dealMs = n * DEAL_STEP + 420;
+    const peekMs = peekFor(n / 2);
     const t1 = setTimeout(() => toPeek(), dealMs);
     const t2 = setTimeout(() => toPlay(), dealMs + peekMs);
     const t3 = setTimeout(() => endWave(), dealMs + peekMs + n * 30 + 500);
@@ -274,7 +301,7 @@ export default function Memoria({ mode, words, focus, onAnswer, onDone }: GamePr
       clearTimeout(t2);
       clearTimeout(t3);
     };
-  }, [deck.round, deck.cards.length, feria]);
+  }, [deck.round, deck.cards.length]);
 
   const dealLevel = (lv: number) => {
     const s = g.current;
@@ -282,9 +309,9 @@ export default function Memoria({ mode, words, focus, onAnswer, onDone }: GamePr
     const first = s.retry.splice(0, 2);
     const list = pickWords(LEVELS[Math.min(LEVELS.length, lv) - 1], { first, pool, used: s.used });
     s.seen = new Set();
-    s.found = 0;
+    s.matchedN = 0;
     s.pending = [];
-    setDeck((d) => ({ round: d.round + 1, cards: makeDeck(list) }));
+    setDeck((d) => ({ round: d.round + 1, cards: makeDeck(list, audioFor(lv)) }));
     setPhase('deal');
     setOpen([]);
     setMatched([]);
@@ -299,7 +326,7 @@ export default function Memoria({ mode, words, focus, onAnswer, onDone }: GamePr
   const roundCleared = () => {
     const s = g.current;
     if (s.ended) return;
-    const stars = starsFor(s.moves, pairs);
+    const stars = starsFor(s.slips, pairs);
     if (!feria) {
       endGame('leccion', stars);
       return;
@@ -315,16 +342,18 @@ export default function Memoria({ mode, words, focus, onAnswer, onDone }: GamePr
     petalShow(2);
     setMood('celebra');
     if (s.level >= LEVELS.length) {
-      later(() => endGame('templo'), 1500);
+      later(() => endGame('templo'), 1200);
       return;
     }
     addTime(LEVEL_S);
     later(() => {
       s.level += 1;
       s.moves = 0;
+      s.slips = 0;
       setMoves(0);
+      setSlips(0);
       dealLevel(s.level);
-    }, 1900);
+    }, 1350);
   };
 
   const center = (c: CardData) => {
@@ -342,12 +371,16 @@ export default function Memoria({ mode, words, focus, onAnswer, onDone }: GamePr
     const gain = 10 * multFor(combo);
     s.points += gain;
     setPoints(s.points);
+    s.matchedN += 1;
+    // con la última pareja se para el incienso: lo que queda de fiesta ya no gasta tiempo
+    const last = s.matchedN >= pairs;
+    if (last) pauseClock();
     setMatched((m) => [...m, a.pair]);
     setOpen([]);
     setBubble({ kind: 'ok', card: th });
     setJump((j) => j + 1);
     if (combo >= 3) setMood('celebra');
-    if (combo > 0 && combo % 5 === 0) juice.banner(`¡Racha ×${combo}!`, 'los puntos se multiplican', color.farol);
+    if (combo > 0 && combo % 5 === 0) toast.show(`¡Racha ×${combo}!`, 'los puntos se multiplican', color.farol);
     const ca = center(a);
     const cb = center(b);
     gridRef.current?.measureInWindow((gx, gy) => {
@@ -357,33 +390,38 @@ export default function Memoria({ mode, words, focus, onAnswer, onDone }: GamePr
         juice.burst(at, 'estrellas', 8, 110);
         juice.ring(at, color.buatong, 120);
         juice.float(at, `+${gain}`, color.azafranHondo, 32);
-      }, 380);
+      }, 300);
     });
-    later(() => setLeaving((l) => [...l, a.pair]), 750);
-    later(() => {
-      setGone((gn) => [...gn, a.pair]);
-      s.found += 1;
-      if (s.found >= pairs) later(roundCleared, 250);
-    }, 1400);
+    // las dos cartas enseñan un momento la pareja entera (thai + significado) y salen flotando
+    later(() => setLeaving((l) => [...l, a.pair]), 700);
+    later(() => setGone((gn) => [...gn, a.pair]), 1300);
+    if (last) later(roundCleared, 800);
   };
 
-  const missPair = (a: CardData, b: CardData, deliberate: boolean) => {
+  /**
+   * No eran pareja. `known`: la pareja de la primera carta ya se había visto en esta ronda, así que se podía saber
+   * (un despiste: cuenta en la partida y la palabra vuelve en otro nivel). Si no, era explorar: ni cuenta ni corta
+   * la racha. En ningún caso baja la palabra en el repaso espaciado: en un juego de memoria no se distingue no saber
+   * la palabra de no recordar el sitio.
+   */
+  const missPair = (a: CardData, b: CardData, known: boolean) => {
     const s = g.current;
-    score.hit(false, false);
-    const th = a.side === 'th' ? a : b.side === 'th' ? b : null;
-    if (deliberate && th) {
-      onAnswer(false, th.word.id);
-      if (!s.retry.some((w) => w.id === th.word.id)) s.retry.push(th.word);
+    if (known) {
+      score.hit(false, false);
+      s.slips += 1;
+      setSlips(s.slips);
+      if (!s.retry.some((w) => w.id === a.word.id)) s.retry.push(a.word);
       fx.bad();
-      setBubble({ kind: 'bad', card: th });
+      setBubble({ kind: 'bad', card: a });
       setMood('ups');
-    } else setBubble({ kind: 'miss', card: th ?? a });
+    } else setBubble({ kind: 'miss', card: a });
     setShakes((sh) => ({ ...sh, [a.key]: (sh[a.key] ?? 0) + 1, [b.key]: (sh[b.key] ?? 0) + 1 }));
     s.pending = [a.key, b.key];
     s.closeN += 1;
     const n = s.closeN;
     later(() => {
-      if (g.current.closeN !== n) return;
+      // si entre tanto se apagó el incienso, las cartas se quedan descubiertas para verlas una vez más
+      if (g.current.closeN !== n || s.ended) return;
       s.pending = [];
       setOpen([]);
     }, 1050);
@@ -403,21 +441,26 @@ export default function Memoria({ mode, words, focus, onAnswer, onDone }: GamePr
     }
     fx.flip();
     if (c.side === 'th') say(c.word.th);
-    const seenBefore = s.seen.has(c.key);
-    s.seen.add(c.key);
     if (current.length === 0) {
+      s.seen.add(c.key);
       setOpen([c.key]);
       setBubble({ kind: 'flip', card: c });
       return;
     }
     const first = deck.cards.find((x) => x.key === current[0]);
     if (!first) return;
+    const known = s.seen.has(partnerKey(first));
+    s.seen.add(c.key);
     setOpen([first.key, c.key]);
     s.moves += 1;
     setMoves(s.moves);
     if (first.pair === c.pair) matchPair(first, c);
-    else missPair(first, c, seenBefore && first.side !== c.side);
+    else missPair(first, c, known);
   };
+
+  /** Transcripción de una carta: siempre mientras no se sabe leer; después solo en lo nuevo (lección) o el nivel 1 (feria). */
+  const romOf = (w: Word) => romFor(reads, { feria, level, review: !fresh.has(w.id) });
+  const hasAudio = deck.cards.some((c) => c.audio);
 
   // ——— geometría de la cuadrícula ———
 
@@ -446,9 +489,10 @@ export default function Memoria({ mode, words, focus, onAnswer, onDone }: GamePr
           {feria ? <LevelChip level={level} /> : <ParesChip found={gone.length} total={pairs} />}
         </View>
         <View style={styles.row2}>
-          <StarsMeter moves={moves} pairs={pairs} />
-          <Text style={styles.moves}>
+          <StarsMeter slips={slips} pairs={pairs} />
+          <Text style={styles.moves} numberOfLines={1}>
             {moves} {moves === 1 ? 'movimiento' : 'movimientos'}
+            {slips ? ` · ${slips} ${slips === 1 ? 'despiste' : 'despistes'}` : ''}
           </Text>
         </View>
         {feria ? (
@@ -475,9 +519,11 @@ export default function Memoria({ mode, words, focus, onAnswer, onDone }: GamePr
                     matched={matched.includes(c.pair)}
                     leaving={leaving.includes(c.pair)}
                     shake={shakes[c.key] ?? 0}
-                    dealDelay={i * 60}
+                    dealDelay={i * DEAL_STEP}
                     flipDelay={waveClose ? i * 30 : 0}
                     disabled={phase !== 'play'}
+                    showRom={romOf(c.word)}
+                    reveal={phase === 'end'}
                     onPress={() => tap(c)}
                   />
                 );
@@ -485,12 +531,16 @@ export default function Memoria({ mode, words, focus, onAnswer, onDone }: GamePr
             : null}
         </View>
 
+        {/* alto fijo: lo que diga Noi nunca mueve la cuadrícula mientras se memoriza */}
         <View style={styles.bottom}>
           <Noi pose={pose} size={84} jump={jump} />
-          <Speech tail="left" style={{ flex: 1, marginBottom: 22 }}>
-            <BubbleText b={bubble} />
+          <Speech tail="left" style={styles.speech}>
+            <View style={styles.speechIn}>
+              <BubbleText b={bubble} rom={!bubble.card || bubble.kind !== 'flip' || romOf(bubble.card.word)} peekMs={peekFor(pairs)} round={deck.round} hasAudio={hasAudio} />
+            </View>
           </Speech>
         </View>
+        <ToastRibbon toast={toast.now} style={{ top: 46 }} />
       </Animated.View>
       {clear ? <LevelClear key={clear.n} stars={clear.stars} title={clear.title} sub={clear.sub} /> : null}
       {juice.layer}
@@ -498,51 +548,105 @@ export default function Memoria({ mode, words, focus, onAnswer, onDone }: GamePr
   );
 }
 
-function BubbleText({ b }: { b: Bubble }) {
+/** Lo que dice Noi. Cabe siempre en el alto fijo del bocadillo (una línea de thai y, como mucho, dos de texto). */
+function BubbleText({ b, rom, peekMs, round, hasAudio }: { b: Bubble; rom: boolean; peekMs: number; round: number; hasAudio: boolean }) {
   const w = b.card?.word;
-  if (b.kind === 'peek') return <Txt v="bodyStrong">¡Fíjate bien dónde está cada una!</Txt>;
+  if (b.kind === 'peek')
+    return (
+      <View style={{ gap: 6 }}>
+        <Txt v="bodyStrong" numberOfLines={2}>
+          {hasAudio ? '¡Fíjate bien! Las del altavoz solo se oyen.' : '¡Fíjate bien dónde está cada una!'}
+        </Txt>
+        <PeekBar key={round} ms={peekMs} />
+      </View>
+    );
   if (!w || b.kind === 'intro')
     return (
-      <Txt v="bodyStrong">
+      <Txt v="bodyStrong" numberOfLines={2}>
         <Text style={{ color: color.laca }}>Rojas: thai</Text> · <Text style={{ color: color.mohom }}>azules: español</Text>. ¡Busca las parejas!
       </Txt>
     );
+  if (b.kind === 'miss')
+    return (
+      <Txt v="bodyStrong" numberOfLines={2}>
+        ไม่เป็นไร · ¡ahora ya sabes dónde están!
+      </Txt>
+    );
+  // thai y transcripción en una línea si caben; si no, la transcripción baja y el texto se queda en una línea
+  const fit = fitTh(w.th, BUBBLE_W, 18, 12);
+  const inline = !rom || thWidth(w.th) * fit.size + 8 + w.rom.length * 6.4 <= BUBBLE_W;
   const head = (
-    <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
-      <Th size={18} bold style={{ lineHeight: 26 }}>
+    <View style={inline ? styles.head : null}>
+      <Th size={fit.size} bold numberOfLines={1} style={{ lineHeight: 26 }}>
         {w.th}
       </Th>
-      <Rom rom={w.rom} size={12} />
+      {rom ? (
+        <View style={styles.headRom}>
+          <Rom rom={w.rom} size={12} />
+        </View>
+      ) : null}
     </View>
   );
   if (b.kind === 'ok')
     return (
       <Animated.View entering={ZoomIn.springify().damping(14)}>
         {head}
-        <Txt v="bodyStrong" style={{ color: color.arrozalHondo }}>
+        <Text numberOfLines={inline ? 2 : 1} style={[styles.say, { color: color.arrozalHondo }]}>
           = «{w.es}» ✓
-        </Txt>
+        </Text>
       </Animated.View>
     );
   if (b.kind === 'bad')
     return (
       <Animated.View entering={ZoomIn.springify().damping(14)}>
         {head}
-        <Txt v="bodyStrong" style={{ color: color.lacaHondo }}>
-          es «{w.es}». ¡Esa no era!
-        </Txt>
+        <Text numberOfLines={inline ? 2 : 1} style={[styles.say, { color: color.lacaHondo }]}>
+          es «{w.es}» · su pareja ya había salido
+        </Text>
       </Animated.View>
     );
-  if (b.kind === 'miss') return <Txt v="bodyStrong">Uy… ¡recuerda dónde estaban!</Txt>;
-  return b.card?.side === 'th' ? (
+  if (b.card?.side === 'es')
+    return (
+      <View>
+        <Txt v="bodyStrong" numberOfLines={1}>
+          «{w.es}»
+        </Txt>
+        <Txt v="small" numberOfLines={1}>
+          ¿Cuál será en thai?
+        </Txt>
+      </View>
+    );
+  if (b.card?.audio)
+    return (
+      <View>
+        <Txt v="bodyStrong" numberOfLines={1}>
+          ¿Qué has oído?
+        </Txt>
+        <Txt v="small" numberOfLines={1}>
+          Busca lo que significa.
+        </Txt>
+      </View>
+    );
+  return (
     <View>
       {head}
-      <Txt v="small">¿Dónde estará su pareja?</Txt>
+      <Txt v="small" numberOfLines={1}>
+        ¿Dónde estará su pareja?
+      </Txt>
     </View>
-  ) : (
-    <View>
-      <Txt v="bodyStrong">«{w.es}»</Txt>
-      <Txt v="small">¿Cuál será en thai?</Txt>
+  );
+}
+
+/** Barrita que se vacía mientras dura el vistazo: se ve cuánto queda para memorizar. */
+function PeekBar({ ms }: { ms: number }) {
+  const p = useSharedValue(1);
+  useEffect(() => {
+    p.value = withTiming(0, { duration: ms, easing: Easing.linear });
+  }, [p, ms]);
+  const st = useAnimatedStyle(() => ({ width: `${p.value * 100}%` }));
+  return (
+    <View style={styles.peek}>
+      <Animated.View style={[styles.peekFill, st]} />
     </View>
   );
 }
@@ -569,9 +673,9 @@ function StarIcon({ on, size = 20 }: { on: boolean; size?: number }) {
   );
 }
 
-/** Las tres estrellas del nivel: se van apagando si se gastan muchos movimientos. */
-function StarsMeter({ moves, pairs }: { moves: number; pairs: number }) {
-  const stars = starsFor(moves, pairs);
+/** Las tres estrellas del nivel: se apagan con los despistes (no por voltear cartas que aún no se conocían). */
+function StarsMeter({ slips, pairs }: { slips: number; pairs: number }) {
+  const stars = starsFor(slips, pairs);
   return (
     <View style={{ flexDirection: 'row', gap: 1 }}>
       {[1, 2, 3].map((k) => (
@@ -593,7 +697,7 @@ function LevelClear({ stars, title, sub }: { stars: number; title: string; sub: 
       <Animated.View style={[styles.clear, st]}>
         <View style={{ flexDirection: 'row', gap: 6, marginTop: -44 }}>
           {[1, 2, 3].map((k) => (
-            <BigStar key={k} on={k <= stars} delay={180 + k * 200} big={k === 2} />
+            <BigStar key={k} on={k <= stars} delay={110 + k * 150} big={k === 2} />
           ))}
         </View>
         <Text style={styles.clearTitle}>{title}</Text>
@@ -622,13 +726,20 @@ function BigStar({ on, delay, big }: { on: boolean; delay: number; big: boolean 
 }
 
 const styles = StyleSheet.create({
-  hud: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44 },
+  hud: { flexDirection: 'row', alignItems: 'center', gap: 8, height: 46 },
   hudMid: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   row2: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 2, paddingBottom: 2 },
   moves: { fontFamily: font.uiHeavy, fontSize: 13, color: '#7A3A10' },
   pares: { height: 36, paddingHorizontal: 12, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.92)', justifyContent: 'center', borderWidth: 2, borderColor: '#FFFFFF' },
   paresNum: { fontFamily: font.displayBold, fontSize: 19, color: color.tinta },
-  bottom: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, minHeight: 96, paddingBottom: 6 },
+  bottom: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, height: 108, paddingBottom: 6 },
+  speech: { flex: 1, marginBottom: 22, height: 78, paddingVertical: 8, justifyContent: 'center' },
+  speechIn: { height: 62, justifyContent: 'center', overflow: 'hidden' },
+  head: { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
+  headRom: { flexShrink: 1, maxHeight: 18, overflow: 'hidden' },
+  say: { fontFamily: font.uiBold, fontSize: 13.5, lineHeight: 17 },
+  peek: { height: 6, borderRadius: 3, backgroundColor: color.niebla2, overflow: 'hidden' },
+  peekFill: { height: '100%', borderRadius: 3, backgroundColor: color.azafran },
   clear: {
     minWidth: 250,
     paddingHorizontal: 26,

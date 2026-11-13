@@ -13,20 +13,25 @@ import { Backdrop } from './Backdrop';
 import { Glow, Pop, Press3D, centerOf, tapPoint, useJuice, type Point } from './fx';
 import { ComboBadge, useScore } from './kit';
 import { GoodsDisplay } from './mercado/goods';
-import { askLine, breakdown, haggleLine, knowledge, makePlan, makeRound, priceLine, quoteLine, sorryLine, thanksLine, type Line, type Round } from './mercado/logic';
+import { amountLine, answersOf, askLine, breakdown, haggleLine, howMuchLine, knowledge, makePlan, makeRound, numberParts, priceLine, quoteLine, sayTarget, sorryLine, thanksLine, type Line, type NumTile, type Round } from './mercado/logic';
 import { WalletPiece } from './mercado/money';
+import { SayBoard, type SayState } from './mercado/say';
 import { Awning, Bubble, Counter, MeBubble, PriceTag, SpeedBar, TrayBase, WalletBase } from './mercado/stall';
 import { StackBadge, TrayPiece, arrange, pile, type TrayItem } from './mercado/tray';
 import { Vendor, type Mood } from './mercado/vendor';
+import { sayThen } from './mercado/voz';
 import type { GameProps } from './types';
 
 type ViewRef = ComponentRef<typeof View>;
-type Phase = 'intro' | 'ask' | 'play' | 'done';
+/** intro: llega el cliente · ask: te toca preguntar el precio · play: pagas · trato: estáis regateando · done: ronda cerrada */
+type Phase = 'intro' | 'ask' | 'play' | 'trato' | 'done';
 type Verdict = 'justo' | 'falta' | 'sobra';
 type Outcome = { ok: boolean; stars: number; gain: number; speed: number; mult: number; bonus: number; note?: string };
 type Box = { x: number; y: number; w: number; h: number };
 
 const NOTES = [20, 50, 100, 500];
+/** La vendedora espera a que el precio lo digas tú (cuando aún no se ha presentado «เท่าไหร่»). */
+const WAITING: Line = { th: '· · · ?', rom: '', es: '' };
 const COINS = [1, 2, 5, 10];
 /** Alturas de la bandeja, la cartera y la barra inferior (más justas en pantallas bajas). */
 const SIZES = { tall: { tray: 100, wallet: 134, bar: 84, awning: 46 }, short: { tray: 88, wallet: 122, bar: 78, awning: 32 } };
@@ -36,8 +41,11 @@ const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v
 const since = (t: number) => Date.now() - t;
 const now = () => Date.now();
 
-/** Juego 14 · Paga justo: la vendedora dice el precio en thai y pagas con billetes y monedas de verdad. */
-export default function Mercado({ mode, words, focus, rounds, gender, onAnswer, onDone }: GameProps) {
+/**
+ * Juego 14 · Paga justo: la vendedora dice el precio en thai y pagas con billetes y monedas de verdad; a veces
+ * regateas, compruebas el cambio o el número lo dices tú. Los precios solo usan números ya enseñados.
+ */
+export default function Mercado({ mode, words, focus, rounds, reads = false, gender, onAnswer, onDone }: GameProps) {
   const feria = mode === 'feria';
   const { height: winH } = useWindowDimensions();
   const S = winH < 720 ? SIZES.short : SIZES.tall;
@@ -45,7 +53,11 @@ export default function Mercado({ mode, words, focus, rounds, gender, onAnswer, 
   const score = useScore(mode);
   const juice = useJuice();
   const [k] = useState(() => knowledge(words, focus));
-  const [plan, setPlan] = useState(() => makePlan(mode, feria ? Math.max(4, rounds ?? 8) : Math.max(1, rounds ?? 2), k));
+  const [plan, setPlan] = useState(() => {
+    const n = Math.max(1, rounds ?? 2);
+    // lección: ver y oír → solo de oído → y una ronda corta más en la que el número lo dices tú
+    return makePlan(mode, feria ? Math.max(4, rounds ?? 8) : n >= 2 ? n + 1 : n, k, { reads });
+  });
   const [i, setI] = useState(0);
   const [phase, setPhase] = useState<Phase>('intro');
   const [tray, setTray] = useState<TrayItem[]>([]);
@@ -54,6 +66,12 @@ export default function Mercado({ mode, words, focus, rounds, gender, onAnswer, 
   const [revealed, setRevealed] = useState(false);
   const [hinted, setHinted] = useState(false);
   const [haggled, setHaggled] = useState(false);
+  /** la rebaja vale desde que la vendedora la dice, no desde que la pides */
+  const [dealOn, setDealOn] = useState(false);
+  /** «dilo tú»: fichas que llevas dichas, en orden */
+  const [picked, setPicked] = useState<number[]>([]);
+  const [sayState, setSayState] = useState<SayState>('idle');
+  const [wrongSay, setWrongSay] = useState(0);
   const [line, setLine] = useState<Line | null>(null);
   const [lineKey, setLineKey] = useState(0);
   const [me, setMe] = useState<Line | null>(null);
@@ -74,11 +92,15 @@ export default function Mercado({ mode, words, focus, rounds, gender, onAnswer, 
 
   const planRef = useRef(plan);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const hush = useRef<(() => void)[]>([]);
+  const voice = useRef(0);
   const uid = useRef(0);
   const quoteAt = useRef(0);
   const tally = useRef(0);
   const advanced = useRef(-1);
   const finished = useRef(false);
+  /** la ronda ya está decidida: un segundo toque (dos dedos, doble clic) no vuelve a puntuarla */
+  const closed = useRef(false);
   const trayRef = useRef<ViewRef>(null);
   const vendorRef = useRef<ViewRef>(null);
   const self = useRef<{ start: (n: number) => void } | null>(null);
@@ -89,17 +111,39 @@ export default function Mercado({ mode, words, focus, rounds, gender, onAnswer, 
   const measureTray = () => trayRef.current?.measureInWindow((x, y, w, h) => setBox((b) => (b && b.x === x && b.y === y && b.w === w && b.h === h ? b : { x, y, w, h })));
 
   const r = plan[i];
-  const target = r.kind === 'regateo' && haggled && r.deal !== undefined ? r.deal : r.price;
+  const target = r.kind === 'regateo' && dealOn && r.deal !== undefined ? r.deal : r.price;
   const sum = tray.reduce((a, m) => a + m.v, 0);
   const right = r.kind === 'cambio' && r.paid ? r.paid - r.price : 0;
+  /** el número lo dices tú · la bandeja enseña lo que has pagado y tu cambio · la vendedora pregunta en vez de decir el precio */
+  const saying = r.kind === 'decir';
+  const sayN = saying ? sayTarget(r) : 0;
+  const changeLook = r.kind === 'cambio' || (saying && r.ask === 'cambio');
+  const asksYou = (x: Round) => x.kind === 'decir' && x.ask === 'precio' && x.show !== 'oculto';
   const truth: Verdict | null = r.kind !== 'cambio' || r.change === undefined ? null : r.change === right ? 'justo' : r.change < right ? 'falta' : 'sobra';
   const liveStars = Math.max(1, 3 - mistakes - (feria && hinted ? 1 : 0));
   const hudStars = phase === 'done' && outcome ? outcome.stars : liveStars;
 
-  const speak = (th: string, slow = false) => {
+  /** Habla la vendedora: mueve la boca hasta que la voz termina de verdad (también con la voz lenta). */
+  const speak = (th: string, slow = false, then?: () => void) => {
+    voice.current += 1;
+    const my = voice.current;
     setTalking(true);
-    say(th, { slow, onDone: () => setTalking(false) });
-    later(() => setTalking(false), 900 + th.length * (slow ? 150 : 90));
+    hush.current.push(
+      sayThen(
+        th,
+        () => {
+          if (voice.current === my) setTalking(false);
+          then?.();
+        },
+        { slow },
+      ),
+    );
+  };
+  /** Hablas tú: la vendedora escucha, y `then` llega cuando has terminado de decirlo. */
+  const mine = (th: string, then: () => void) => {
+    voice.current += 1;
+    setTalking(false);
+    hush.current.push(sayThen(th, then));
   };
 
   const dropChange = (amount: number, delay0: number) => {
@@ -113,10 +157,11 @@ export default function Mercado({ mode, words, focus, rounds, gender, onAnswer, 
   };
 
   const quote = (nr: Round) => {
-    const l = quoteLine(nr.good, nr.qty, nr.price, k);
-    setLine(l);
+    // normalmente dice el precio; en «dilo tú» lo pregunta («เท่าไหร่คะ») y espera a que se lo digas
+    const l = asksYou(nr) ? howMuchLine(k) : quoteLine(nr.good, nr.qty, nr.price, k, nr.casual);
+    setLine(l ?? WAITING);
     setLineKey((x) => x + 1);
-    speak(l.th);
+    if (l) speak(l.th);
     setPhase('play');
     quoteAt.current = now();
     if (feria) setSpeedRun((x) => x + 1);
@@ -127,6 +172,7 @@ export default function Mercado({ mode, words, focus, rounds, gender, onAnswer, 
   const startRound = (n: number) => {
     const list = planRef.current;
     const nr = list[n];
+    closed.current = false;
     setI(n);
     setTray([]);
     setChange([]);
@@ -134,6 +180,9 @@ export default function Mercado({ mode, words, focus, rounds, gender, onAnswer, 
     setRevealed(false);
     setHinted(false);
     setHaggled(false);
+    setDealOn(false);
+    setPicked([]);
+    setSayState('idle');
     setLine(null);
     setMe(null);
     setMood('idle');
@@ -149,7 +198,7 @@ export default function Mercado({ mode, words, focus, rounds, gender, onAnswer, 
       juice.banner(`¡Nivel ${nr.level}!`, nr.show === 'thai' ? 'Precios en cifras thai' : 'Ahora, solo de oído', color.farol);
     }
     later(measureTray, 80);
-    if (nr.kind === 'cambio' && nr.paid) {
+    if ((nr.kind === 'cambio' || (nr.kind === 'decir' && nr.ask === 'cambio')) && nr.paid) {
       const notes: TrayItem[] = breakdown(nr.paid).map((v, j) => {
         uid.current += 1;
         return { id: uid.current, v, from: { x: 60 + j * 30, y: TRAY_H + 160 }, delay: j * 160 };
@@ -159,7 +208,7 @@ export default function Mercado({ mode, words, focus, rounds, gender, onAnswer, 
         notes.forEach((p) => later(() => fx.swish(), (p.delay ?? 0) + 200));
       }, 500);
     }
-    if (!feria && k.canAsk && nr.kind !== 'cambio') {
+    if (!feria && k.canAsk && (nr.kind === 'pagar' || nr.kind === 'regateo')) {
       later(() => setPhase('ask'), 500);
       return;
     }
@@ -177,10 +226,12 @@ export default function Mercado({ mode, words, focus, rounds, gender, onAnswer, 
   });
   useEffect(() => {
     const all = timers.current;
+    const voices = hush.current;
     const t = setTimeout(() => self.current?.start(0), 350);
     return () => {
       clearTimeout(t);
       all.forEach(clearTimeout);
+      voices.forEach((stop) => stop());
     };
   }, []);
 
@@ -209,49 +260,54 @@ export default function Mercado({ mode, words, focus, rounds, gender, onAnswer, 
     const j = list.findIndex((x, idx) => idx > i + 1 && x.kind === 'pagar');
     if (j < 0) return;
     const fresh = makeRound('pagar', list[j].level, list[j].show, { ...k, fresh: new Set([nr.numWord.th]), focus: [nr.numWord, ...k.focus] });
-    const next = list.map((x, idx) => (idx === j ? fresh : x));
+    const next = list.map((x, idx) => (idx === j ? { ...fresh, gloss: x.gloss } : x));
     planRef.current = next;
     setPlan(next);
   };
 
-  const finishRound = (ok: boolean, combo: number, opts: { note?: string; quiet?: boolean } = {}) => {
+  const finishRound = (ok: boolean, combo: number, opts: { note?: string; quiet?: boolean; delay?: number } = {}) => {
     setPhase('done');
-    const stars = ok ? (r.kind === 'cambio' ? 3 : liveStars) : 0;
+    // la pista (ver el precio escrito) cuesta una estrella en la feria, también cuando compruebas el cambio
+    const stars = ok ? liveStars : 0;
     let gain = 0;
     let speed = 0;
     let mult = 1;
     let bonus = 0;
     if (feria && ok) {
-      const el = since(quoteAt.current);
-      speed = mistakes === 0 ? Math.max(0, Math.round(10 * (1 - el / SPEED_MS))) : 0;
-      bonus = r.kind === 'regateo' && haggled ? 10 * r.level : 0;
+      const base = stars * 10 * r.level;
+      // la rapidez cuenta de verdad: hasta la mitad más si pagas justo a la primera con la barra aún llena
+      speed = mistakes === 0 && !hinted ? Math.round(base * 0.5 * Math.max(0, 1 - since(quoteAt.current) / SPEED_MS)) : 0;
+      bonus = r.kind === 'regateo' && dealOn ? 10 * r.level : 0;
       mult = 1 + Math.min(4, Math.max(0, combo - 1)) * 0.25;
-      gain = Math.round((stars * 10 * r.level + speed + bonus) * mult);
+      gain = Math.round((base + speed + bonus) * mult);
     } else if (ok) gain = stars;
     tally.current += gain;
     setPoints(tally.current);
     setHistory((h) => [...h, stars]);
     setOutcome({ ok, stars, gain, speed, mult, bonus, note: opts.note });
+    // al cerrar la ronda, la pizarra enseña el precio (sin que cuente como pista)
+    if (r.show !== 'num') setRevealed(true);
     if (ok) {
       if (!opts.quiet) {
         setMood(stars === 3 ? 'love' : 'happy');
         later(() => speak(thanksLine(k).th), 450);
       }
       setJump((x) => x + 1);
-      if (r.kind !== 'cambio') setLeaving(true);
-      centerOf(trayRef, (p) => juice.celebrate(p, feria ? `+${gain}` : '¡Justo!', 'monedas'));
-      if (feria && stars === 3 && speed >= 5) {
+      if (r.kind === 'pagar' || r.kind === 'regateo') setLeaving(true);
+      centerOf(trayRef, (p) => juice.celebrate(p, feria ? `+${gain}` : saying ? '¡Bien dicho!' : '¡Justo!', 'monedas'));
+      if (feria && stars === 3 && speed >= stars * r.level * 2.5) {
         later(() => {
           fx.sparkle();
-          juice.banner('¡Perfecto!', 'Justo y a la primera', color.buatong);
+          juice.banner('¡Perfecto!', saying ? 'Dicho a la primera y deprisa' : r.kind === 'cambio' ? 'Bien visto, y deprisa' : 'Justo, a la primera y deprisa', color.buatong);
         }, 700);
       }
     } else if (!opts.quiet) setMood('oops');
     later(() => {
       setReceipt(true);
       for (let s = 0; s < stars; s++) later(() => fx.sparkle(), 350 + s * 200);
-    }, ok ? 1150 : 1400);
-    if (feria) later(() => advance(i), ok ? 4600 : 5200);
+    }, opts.delay ?? (ok ? 1150 : 1400));
+    // tras un fallo, el recibo se queda hasta que lo tocas: es donde se aprende la frase
+    if (feria && ok) later(() => advance(i), (opts.delay ?? 1150) + 3450);
   };
 
   // ——— Acciones ———
@@ -260,38 +316,133 @@ export default function Mercado({ mode, words, focus, rounds, gender, onAnswer, 
     if (phase !== 'ask') return;
     const l = askLine(gender);
     setMe(l);
-    say(l.th);
     fx.pop();
     setPhase('intro');
-    later(() => setMe(null), 2400);
-    later(() => quote(r), 1600);
+    // ella contesta cuando has terminado de preguntar
+    mine(l.th, () => {
+      later(() => setMe(null), 700);
+      quote(r);
+    });
   };
 
   const haggle = () => {
-    if (phase !== 'play' || haggled || r.deal === undefined) return;
+    if (closed.current || phase !== 'play' || haggled || r.deal === undefined) return;
+    const deal = r.deal;
     setHaggled(true);
+    // mientras regateáis no se paga: el precio nuevo vale cuando ella lo dice
+    setPhase('trato');
     const l = haggleLine(gender, k.saysCaro);
     setMe(l);
-    say(l.th);
     fx.pop();
-    later(() => setMe(null), 2600);
-    later(() => {
+    mine(l.th, () => {
       setMood('happy');
       setJump((x) => x + 1);
-    }, 1500);
-    later(() => {
-      const pl = priceLine(r.deal!, k);
-      setLine(pl);
-      setLineKey((x) => x + 1);
-      speak(pl.th);
-      setMood('idle');
-      quoteAt.current = now();
-      if (feria) setSpeedRun((x) => x + 1);
-    }, 2200);
+      later(() => {
+        setMe(null);
+        const pl = priceLine(deal, k, r.casual);
+        setLine(pl);
+        setLineKey((x) => x + 1);
+        speak(pl.th);
+        setDealOn(true);
+        setMood('idle');
+        setPhase('play');
+        quoteAt.current = now();
+        if (feria) setSpeedRun((x) => x + 1);
+      }, 550);
+    });
+  };
+
+  // ——— «Dilo tú» ———
+
+  const pickTile = (t: NumTile) => {
+    if (phase !== 'play' || !saying || picked.includes(t.id)) return;
+    fx.tap();
+    voice.current += 1;
+    setTalking(false);
+    say(t.th);
+    setSayState('idle');
+    setMsg(null);
+    setPicked((list) => (list.includes(t.id) ? list : [...list, t.id]));
+  };
+
+  const unpickTile = (t: NumTile) => {
+    if (phase !== 'play') return;
+    fx.tap();
+    setSayState('idle');
+    setPicked((list) => list.filter((id) => id !== t.id));
+  };
+
+  const sayIt = () => {
+    const tiles = r.tiles;
+    if (closed.current || phase !== 'play' || !saying || !tiles || picked.length === 0) return;
+    const parts = picked.map((id) => tiles.find((t) => t.id === id)?.th ?? '');
+    const ok = answersOf(sayN).includes(parts.join(''));
+    const combo = score.hit(ok);
+    const first = mistakes === 0;
+    onAnswer(ok, first ? r.numWord?.id : undefined);
+    if (ok) {
+      closed.current = true;
+      setMsg(null);
+      setSayState('ok');
+      const l = amountLine(sayN, gender, k, parts);
+      setMe(l);
+      finishRound(true, combo, { quiet: true, delay: 1900, note: r.ask === 'cambio' ? `${r.paid} − ${r.price} = ${sayN} ฿ de cambio.` : undefined });
+      // lo dices tú… y ella te da las gracias cuando terminas
+      mine(l.th, () => {
+        setMood('love');
+        speak(thanksLine(k).th);
+        later(() => setMe(null), 900);
+      });
+      if (r.ask === 'cambio') dropChange(sayN, 500);
+      else {
+        // el dinero justo va a la bandeja y de ahí a la vendedora
+        const pieces: TrayItem[] = breakdown(sayN).map((v, j) => {
+          uid.current += 1;
+          return { id: uid.current, v, from: { x: (box?.w ?? 320) / 2, y: TRAY_H + 120 }, delay: 250 + j * 120 };
+        });
+        setTray(pieces);
+        pieces.forEach((pc) => later(() => (pc.v < 20 ? fx.coin() : fx.swish()), (pc.delay ?? 0) + 300));
+        later(() => setLeaving(true), 1150 + pieces.length * 120);
+      }
+      return;
+    }
+    juice.shake();
+    const m = mistakes + 1;
+    setMistakes(m);
+    setSayState('bad');
+    setWrongSay((x) => x + 1);
+    setMood('oops');
+    if (r.show !== 'num') setRevealed(true);
+    if (feria && first) relearn(r);
+    if (m >= 3) {
+      closed.current = true;
+      setPhase('done');
+      later(() => {
+        // la solución queda puesta en tu bocadillo y se oye despacio
+        const used = new Set<number>();
+        const solution = numberParts(sayN).map((th) => {
+          const t = tiles.find((x) => x.th === th && !used.has(x.id));
+          if (t) used.add(t.id);
+          return t?.id ?? -1;
+        });
+        setPicked(solution.filter((id) => id > 0));
+        setSayState('idle');
+        setMsg(`Era ${sayN}: así se dice.`);
+        voice.current += 1;
+        say(amountLine(sayN, gender, k).th, { slow: true });
+        finishRound(false, 0, { quiet: true, delay: 2200 });
+      }, 800);
+      return;
+    }
+    const n = numberParts(sayN).length;
+    setMsg(m === 1 ? `Casi. Son ${n} ${n === 1 ? 'ficha' : 'fichas'}: tócalas para oírlas.` : 'Con calma: escucha cada ficha.');
+    // si el precio se oía, la vendedora lo repite despacio
+    if (line && !asksYou(r)) later(() => speak(line.th, true), 750);
+    later(() => setMood((md) => (md === 'oops' ? 'idle' : md)), 2400);
   };
 
   const addMoney = (v: number, at: Point | null, dragged: boolean): boolean => {
-    if (phase !== 'play' || r.kind === 'cambio') return false;
+    if (phase !== 'play' || changeLook || saying) return false;
     if (dragged && (!box || !at || at.y > box.y + box.h + 30 || at.y < box.y - 80)) return false;
     if (tray.length >= 24) {
       setMsg('¡La bandeja está llena!');
@@ -322,16 +473,17 @@ export default function Mercado({ mode, words, focus, rounds, gender, onAnswer, 
   };
 
   const pay = () => {
-    if (phase !== 'play' || r.kind === 'cambio' || sum === 0) return;
+    if (closed.current || phase !== 'play' || changeLook || saying || sum === 0) return;
     const ok = sum === target;
     const combo = score.hit(ok);
     const first = mistakes === 0;
     onAnswer(ok, first ? r.numWord?.id : undefined);
     if (ok) {
+      closed.current = true;
       setMsg(null);
       const note =
         r.kind === 'regateo'
-          ? haggled
+          ? dealOn
             ? `Regateo con gracia: de ${r.price} a ${r.deal} ฿.`
             : `Has pagado ${r.price} ฿… ¡podías haber regateado!`
           : undefined;
@@ -343,12 +495,15 @@ export default function Mercado({ mode, words, focus, rounds, gender, onAnswer, 
     setMistakes(m);
     const over = sum > target;
     setMood(over ? 'wow' : 'oops');
-    if (r.kind === 'regateo' && haggled && sum === r.price) setMsg('¡Ya te lo había rebajado!');
+    if (r.kind === 'regateo' && dealOn && sum === r.price) setMsg('¡Ya te lo había rebajado!');
     else if (feria) setMsg(over ? '¡Te pasas! Escucha otra vez.' : 'Te falta dinero. Escucha otra vez.');
     else setMsg(over ? `Te pasas ${sum - target} ฿.` : `Te faltan ${target - sum} ฿.`);
     if (r.show !== 'num') setRevealed(true);
     if (feria && first) relearn(r);
     if (m >= 3) {
+      // la ronda se cierra ya: si no, otro toque en «Pagar» antes de enseñar la solución la contaba dos veces
+      closed.current = true;
+      setPhase('done');
       later(() => {
         setTray(
           breakdown(target).map((v) => {
@@ -366,7 +521,8 @@ export default function Mercado({ mode, words, focus, rounds, gender, onAnswer, 
   };
 
   const judge = (v: Verdict, e: GestureResponderEvent) => {
-    if (phase !== 'play' || r.kind !== 'cambio' || verdict || !truth || change.length === 0) return;
+    if (closed.current || phase !== 'play' || r.kind !== 'cambio' || verdict || !truth || change.length === 0) return;
+    closed.current = true;
     setVerdict(v);
     const ok = v === truth;
     const combo = score.hit(ok);
@@ -413,14 +569,27 @@ export default function Mercado({ mode, words, focus, rounds, gender, onAnswer, 
 
   const noteW = clamp((trayW - 24) / 4, 60, 82);
   const coinK = 0.5;
-  const trayItems = r.kind === 'cambio' ? [...tray, ...change] : tray;
+  const trayItems = changeLook ? [...tray, ...change] : tray;
   const area = { y: 10, h: TRAY_H - 18 };
-  const paidSlots = r.kind === 'cambio' ? pile(tray, { ...area, x: 8, w: noteW + 16 }, noteW, coinK) : null;
-  const restPart = r.kind === 'cambio' ? arrange(change, { ...area, x: noteW + 34, w: Math.max(60, trayW - noteW - 42) }, noteW, coinK) : arrange(tray, { ...area, x: 12, w: Math.max(60, trayW - 24) }, noteW, coinK);
+  const paidSlots = changeLook ? pile(tray, { ...area, x: 8, w: noteW + 16 }, noteW, coinK) : null;
+  const restPart = changeLook ? arrange(change, { ...area, x: noteW + 34, w: Math.max(60, trayW - noteW - 42) }, noteW, coinK) : arrange(tray, { ...area, x: 12, w: Math.max(60, trayW - 24) }, noteW, coinK);
   const slots = { ...paidSlots, ...restPart.slots };
-  const badges = phase === 'done' && r.kind !== 'cambio' ? [] : restPart.badges;
+  const badges = phase === 'done' && !changeLook ? [] : restPart.badges;
   const leaveTo = { x: 40 - 12, y: -(TRAY_H + 40) };
-  const walletNoteW = clamp((trayW - 34 - 3 * 8) / 4, 64, 92);
+  // con «mil» ya enseñado entra el billete de 1.000 en la cartera
+  const notes = k.top > 999 ? [...NOTES, 1000] : NOTES;
+  const walletNoteW = clamp((trayW - 34 - (notes.length - 1) * 8) / notes.length, 54, 92);
+  // solo de oído: el bocadillo no enseña la frase hasta que pides la pista, fallas o se cierra la ronda
+  const veiled = r.show === 'oculto' && !revealed && phase !== 'done' && !!line && line !== WAITING;
+  // quien ya lee va perdiendo la transcripción: fuera en los niveles 2 y 3 de la feria
+  const hideRom = reads && feria && r.level >= 2;
+  const sayPrompt = !saying
+    ? ''
+    : r.ask === 'cambio'
+      ? `Pagas con ${r.paid} ฿. Dile cuánto cambio te toca`
+      : r.show === 'oculto'
+        ? 'Repite en thai el precio que has oído'
+        : 'Dile el precio en thai';
 
   return (
     <View style={{ flex: 1 }}>
@@ -480,10 +649,11 @@ export default function Mercado({ mode, words, focus, rounds, gender, onAnswer, 
                   <PriceTag
                     key={`t${i}`}
                     price={r.price}
-                    deal={haggled && line && r.deal !== undefined && line.th !== quoteLine(r.good, r.qty, r.price, k).th ? r.deal : undefined}
-                    show={r.kind === 'cambio' && r.show === 'num' ? 'num' : r.show}
+                    deal={dealOn ? r.deal : undefined}
+                    show={r.show}
                     revealed={revealed}
-                    onReveal={r.show === 'oculto' && phase === 'play' ? reveal : undefined}
+                    gloss={r.gloss}
+                    onReveal={(r.show === 'oculto' || (r.show === 'thai' && !r.gloss)) && phase === 'play' ? reveal : undefined}
                     w={tagW}
                   />
                 </View>
@@ -494,7 +664,9 @@ export default function Mercado({ mode, words, focus, rounds, gender, onAnswer, 
                   line={phase === 'ask' ? null : line}
                   typedKey={lineKey}
                   tailTop={tailTop}
-                  onSpeak={() => line && speak(line.th)}
+                  veiled={veiled}
+                  hideRom={hideRom}
+                  onSpeak={line && line !== WAITING ? () => speak(line.th) : undefined}
                 />
               </View>
               {me ? (
@@ -526,15 +698,15 @@ export default function Mercado({ mode, words, focus, rounds, gender, onAnswer, 
                   order={n}
                   leaving={leaving}
                   leaveTo={leaveTo}
-                  label={r.kind === 'cambio' ? `${m.v} baht` : `Quitar ${m.v} baht`}
-                  onPress={phase === 'play' && r.kind !== 'cambio' ? () => removeMoney(m.id) : undefined}
+                  label={changeLook || saying ? `${m.v} baht` : `Quitar ${m.v} baht`}
+                  onPress={phase === 'play' && !changeLook && !saying ? () => removeMoney(m.id) : undefined}
                 />
               ))
             : null}
           {badges.map((b) => (
             <StackBadge key={b.key} b={b} />
           ))}
-          {r.kind === 'cambio' ? (
+          {changeLook ? (
             <>
               <View style={[styles.trayChip, { left: 6 }]}>
                 <Text style={styles.trayChipText}>Pagas {r.paid} ฿</Text>
@@ -543,7 +715,7 @@ export default function Mercado({ mode, words, focus, rounds, gender, onAnswer, 
                 <Text style={styles.trayChipText}>Tu cambio</Text>
               </View>
             </>
-          ) : (
+          ) : saying ? null : (
             <View style={[styles.sum, sum === target && phase !== 'intro' && sum > 0 && r.show === 'num' ? { borderColor: color.arrozalVivo } : null]} pointerEvents="none">
               <Text style={styles.sumLabel}>Tu pago</Text>
               <Rolling value={sum} />
@@ -557,8 +729,25 @@ export default function Mercado({ mode, words, focus, rounds, gender, onAnswer, 
           ) : null}
         </View>
 
-        {/* Cartera o pregunta del cambio */}
-        {r.kind === 'cambio' ? (
+        {/* Pizarra para decirlo tú, pregunta del cambio o cartera */}
+        {saying ? (
+          <View style={{ marginHorizontal: 12, marginTop: 10, zIndex: 30 }}>
+            <SayBoard
+              key={`s${i}`}
+              prompt={sayPrompt}
+              tiles={r.tiles ?? []}
+              picked={picked}
+              state={sayState}
+              wrong={wrongSay}
+              showRom={!reads || (feria && r.level === 1)}
+              disabled={phase !== 'play'}
+              height={S.wallet + S.bar - 10}
+              onPick={pickTile}
+              onUnpick={unpickTile}
+              onSay={sayIt}
+            />
+          </View>
+        ) : r.kind === 'cambio' ? (
           <View style={{ marginHorizontal: 12, marginTop: 10, height: S.wallet + S.bar - 10, padding: 14, gap: 10 }}>
             <WalletBase />
             <Txt v="h3" style={{ color: '#FFF4DE', textAlign: 'center' }}>
@@ -598,7 +787,7 @@ export default function Mercado({ mode, words, focus, rounds, gender, onAnswer, 
                 <Text style={styles.walletHint}>toca o arrastra a la bandeja</Text>
               </View>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                {NOTES.map((v) => (
+                {notes.map((v) => (
                   <WalletPiece key={v} v={v} noteW={walletNoteW} disabled={phase !== 'play'} label={`Billete de ${v} baht`} onDrop={(at, dragged) => addMoney(v, at, dragged)} />
                 ))}
               </View>
@@ -656,13 +845,13 @@ export default function Mercado({ mode, words, focus, rounds, gender, onAnswer, 
         <Receipt
           ok={outcome.ok}
           stars={outcome.stars}
-          line={quoteLine(r.good, r.qty, r.price, k)}
-          price={r.kind === 'regateo' && haggled && r.deal !== undefined ? r.deal : r.price}
+          line={saying ? amountLine(sayN, gender, k) : quoteLine(r.good, r.qty, r.price, k, r.casual)}
+          price={saying ? sayN : dealOn && r.deal !== undefined ? r.deal : r.price}
           note={outcome.note}
           feria={feria}
           points={feria ? outcome : null}
           last={i + 1 >= plan.length}
-          change={r.kind === 'cambio'}
+          kind={r.kind}
           onNext={() => advance(i)}
         />
       ) : null}
@@ -710,9 +899,9 @@ function Rolling({ value }: { value: number }) {
   );
 }
 
-function Receipt({ ok, stars, line, price, note, feria, points, last, change, onNext }: { ok: boolean; stars: number; line: Line; price: number; note?: string; feria: boolean; points: Outcome | null; last: boolean; change?: boolean; onNext: () => void }) {
-  const title = !ok ? 'ไม่เป็นไร' : change ? '¡Bien visto!' : stars === 3 ? '¡Perfecto!' : '¡Pagado!';
-  const stamp = !ok ? '¡ÁNIMO!' : change ? 'CAMBIO OK' : 'PAGADO';
+function Receipt({ ok, stars, line, price, note, feria, points, last, kind, onNext }: { ok: boolean; stars: number; line: Line; price: number; note?: string; feria: boolean; points: Outcome | null; last: boolean; kind: Round['kind']; onNext: () => void }) {
+  const title = !ok ? 'ไม่เป็นไร' : kind === 'cambio' ? '¡Bien visto!' : kind === 'decir' ? '¡Bien dicho!' : stars === 3 ? '¡Perfecto!' : '¡Pagado!';
+  const stamp = !ok ? '¡ÁNIMO!' : kind === 'cambio' ? 'CAMBIO OK' : kind === 'decir' ? 'BIEN DICHO' : 'PAGADO';
   return (
     <Animated.View entering={SlideInDown.springify().damping(17).stiffness(170)} style={styles.receipt}>
       <View style={styles.zigzag}>
@@ -759,7 +948,7 @@ function Receipt({ ok, stars, line, price, note, feria, points, last, change, on
           <>
             {points.speed > 0 ? (
               <View style={[styles.chip, { backgroundColor: color.arrozalSuave }]}>
-                <Text style={styles.chipText}>⚡ +{points.speed}</Text>
+                <Text style={styles.chipText}>⚡ rapidez +{points.speed}</Text>
               </View>
             ) : null}
             {points.bonus > 0 ? (

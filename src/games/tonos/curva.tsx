@@ -1,6 +1,8 @@
 // La «melodía» de una palabra: el contorno de cada sílaba con el color de su tono, trazado en grande
-// sobre un pentagrama de cinco alturas, con una chispa en la punta mientras suena. Los contornos salen
-// de los mismos glifos de tono de toda la app (`tones[t].path`), así que lo grande y lo pequeño coinciden.
+// sobre un pentagrama de cinco alturas, con una chispa en la punta mientras suena. Los cinco contornos
+// están dibujados aquí (`TONE_PATH`), pensados para no confundirse entre sí ni en pequeño: el alto va
+// entero por encima de la línea media y solo se levanta al final; el ascendente baja hasta el fondo
+// antes de subir. Lo grande (`Melody`) y lo pequeño (`Contour`) salen del mismo dibujo.
 // Lo usan «Trompa de tonos», «¿Tigre o camisa?» y «Eco».
 import { useId } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -8,33 +10,68 @@ import Animated, { useAnimatedProps, useAnimatedStyle, type SharedValue } from '
 import Svg, { Circle, Defs, Line, Path, RadialGradient, Stop } from 'react-native-svg';
 
 import { font, tones, type ToneId } from '@/brand/tokens';
+import { ToneGlyph } from '@/components/icons';
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 
 type Pt = { x: number; y: number };
 
-/** Puntos por contorno (repartidos a igual distancia para que la chispa avance a ritmo constante). */
-const K = 22;
+/**
+ * Contorno de cada tono en la caja de los glifos de tono (24×14; y = 0 es lo más agudo, 7 la línea media).
+ * · medio: plano, justo en la línea media · bajo: empieza algo por debajo y se queda abajo
+ * · descendente: arranca alto, sube un poco y cae hasta el fondo · alto: siempre por encima de la media, con
+ *   un levantón al final · ascendente: empieza bajo la media, baja al fondo y sube hasta arriba.
+ */
+export const TONE_PATH: Record<ToneId, string> = {
+  M: 'M2 7 H22',
+  L: 'M2 8.2 C8 8.6 12 11.6 22 12',
+  F: 'M2 5 C6.5 1 10.5 1 13.5 5.2 C16 8.7 18.5 11.8 22 12.4',
+  H: 'M2 5.2 C10 5.2 15.5 5 22 1.8',
+  R: 'M2 8.4 C6 12.8 11.5 13.4 15 9.2 C17.5 6.2 19.5 3 22 1.8',
+};
 
-/** Curva cuadrática de un glifo de tono (viewBox 24×14) normalizada a 0–1 (y = 0 es lo más agudo). */
-function quadOf(path: string): [Pt, Pt, Pt] {
-  const n = (path.match(/-?\d*\.?\d+/g) ?? []).map(Number);
-  const norm = (x: number, y: number): Pt => ({ x: (x - 2) / 20, y: y / 14 });
-  if (path.includes('Q')) return [norm(n[0], n[1]), norm(n[2], n[3]), norm(n[4], n[5])];
-  const a = norm(n[0], n[1]);
-  const b = path.includes('H') ? norm(n[2], n[1]) : norm(n[2], n[3]);
-  return [a, { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, b];
+/** Puntos por contorno (repartidos a igual distancia para que la chispa avance a ritmo constante). */
+const K = 28;
+
+/** Tramos de un camino SVG sencillo (M, L, H, V, Q y C absolutos), cada uno como función de 0 a 1. */
+function segmentsOf(path: string): ((s: number) => Pt)[] {
+  const tk = path.match(/[MLHVQC]|-?\d*\.?\d+/g) ?? [];
+  const segs: ((s: number) => Pt)[] = [];
+  let i = 0;
+  let cur: Pt = { x: 0, y: 0 };
+  const num = () => Number(tk[i++]);
+  const pt = (): Pt => ({ x: num(), y: num() });
+  while (i < tk.length) {
+    const cmd = tk[i++];
+    const a = cur;
+    if (cmd === 'M') cur = pt();
+    else if (cmd === 'Q') {
+      const c = pt();
+      const b = pt();
+      segs.push((s) => ({ x: (1 - s) * (1 - s) * a.x + 2 * (1 - s) * s * c.x + s * s * b.x, y: (1 - s) * (1 - s) * a.y + 2 * (1 - s) * s * c.y + s * s * b.y }));
+      cur = b;
+    } else if (cmd === 'C') {
+      const c1 = pt();
+      const c2 = pt();
+      const b = pt();
+      const at = (s: number, p0: number, p1: number, p2: number, p3: number) => (1 - s) ** 3 * p0 + 3 * (1 - s) ** 2 * s * p1 + 3 * (1 - s) * s * s * p2 + s ** 3 * p3;
+      segs.push((s) => ({ x: at(s, a.x, c1.x, c2.x, b.x), y: at(s, a.y, c1.y, c2.y, b.y) }));
+      cur = b;
+    } else if (cmd === 'L' || cmd === 'H' || cmd === 'V') {
+      const b: Pt = cmd === 'L' ? pt() : cmd === 'H' ? { x: num(), y: a.y } : { x: a.x, y: num() };
+      segs.push((s) => ({ x: a.x + (b.x - a.x) * s, y: a.y + (b.y - a.y) * s }));
+      cur = b;
+    } else break;
+  }
+  return segs;
 }
 
+/** Contorno normalizado a 0–1 (y = 0 es lo más agudo), en K puntos a igual distancia. */
 function sample(t: ToneId): Pt[] {
-  const [a, c, b] = quadOf(tones[t].path);
-  const at = (s: number): Pt => ({
-    x: (1 - s) * (1 - s) * a.x + 2 * (1 - s) * s * c.x + s * s * b.x,
-    y: (1 - s) * (1 - s) * a.y + 2 * (1 - s) * s * c.y + s * s * b.y,
-  });
-  const fine = Array.from({ length: 97 }, (_, i) => at(i / 96));
+  const fine: Pt[] = [];
+  for (const seg of segmentsOf(TONE_PATH[t])) for (let i = fine.length ? 1 : 0; i <= 64; i++) fine.push(seg(i / 64));
   const acc = [0];
-  for (let i = 1; i < fine.length; i++) acc.push(acc[i - 1] + Math.hypot((fine[i].x - fine[i - 1].x) * 20, (fine[i].y - fine[i - 1].y) * 14));
+  for (let i = 1; i < fine.length; i++) acc.push(acc[i - 1] + Math.hypot(fine[i].x - fine[i - 1].x, fine[i].y - fine[i - 1].y));
   const total = acc[acc.length - 1];
   const out: Pt[] = [];
   let j = 0;
@@ -42,7 +79,7 @@ function sample(t: ToneId): Pt[] {
     const target = (k / (K - 1)) * total;
     while (j < fine.length - 2 && acc[j + 1] < target) j++;
     const f = Math.min(1, Math.max(0, (target - acc[j]) / Math.max(1e-6, acc[j + 1] - acc[j])));
-    out.push({ x: fine[j].x + (fine[j + 1].x - fine[j].x) * f, y: fine[j].y + (fine[j + 1].y - fine[j].y) * f });
+    out.push({ x: (fine[j].x + (fine[j + 1].x - fine[j].x) * f - 2) / 20, y: (fine[j].y + (fine[j + 1].y - fine[j].y) * f) / 14 });
   }
   return out;
 }
@@ -53,6 +90,19 @@ const SHAPES: Record<ToneId, Pt[]> = { M: sample('M'), L: sample('L'), F: sample
 export const TONE_ORDER: ToneId[] = ['M', 'L', 'F', 'H', 'R'];
 /** Cómo se mueve la voz en cada tono, en dos palabras. */
 export const TONE_HOW: Record<ToneId, string> = { M: 'plano', L: 'grave', F: 'sube y cae', H: 'agudo', R: 'baja y sube' };
+/** Cada tono, anclado a algo que ya se hace al hablar español. */
+export const TONE_ANCHOR: Record<ToneId, string> = {
+  M: 'plano, como habla un robot',
+  L: 'grave, como un «bueno…» cansado',
+  F: 'cae de golpe, como un «¡no!» seco',
+  H: 'agudo, como un «¿eh?» de sorpresa',
+  R: 'baja y sube, como el final de «¿sí?»',
+};
+
+/** El glifo pequeño de un tono (para teclas, chips y etiquetas), con el mismo dibujo que la curva grande. */
+export function Contour({ tone, size = 22, color }: { tone: ToneId; size?: number; color?: string }) {
+  return <ToneGlyph path={TONE_PATH[tone]} size={size} color={color ?? tones[tone].fill} />;
+}
 
 const r1 = (v: number) => Math.round(v * 10) / 10;
 

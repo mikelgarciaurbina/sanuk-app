@@ -25,6 +25,14 @@ export type GameProps = {
   rounds?: number;
   /** primera curva: todo de oído (sin opciones escritas ni preguntas sobre frases que aún no se entienden) */
   oral?: boolean;
+  /**
+   * Quien aprende ya ha pasado por la cueva de las letras: sabe leer la escritura thai. Mientras sea `false`, todo
+   * thai que haya que reconocer lleva su transcripción (y audio donde se pueda); cuando es `true`, los juegos la
+   * van quitando para que se lea de verdad.
+   */
+  reads?: boolean;
+  /** sesión de repaso: ninguna palabra es nueva (las de `focus` son las que tocan hoy), así que quien ya lee no ve transcripción */
+  review?: boolean;
   gender: Gender;
   /** avisa de cada respuesta (repaso espaciado, combo y sonido los gestiona el juego) */
   onAnswer: (ok: boolean, wordId?: string) => void;

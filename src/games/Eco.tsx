@@ -1,66 +1,77 @@
 // Juego 9 · Eco: de noche, en un valle entre dos montañas, Noi grita la palabra y el eco rebota de una
-// montaña a otra. Debajo se dibuja la melodía de tonos de lo que ha dicho. Luego grabas tu voz, que
-// levanta su propia cordillera de luz, la escuchas junto a la de Noi y decides cuánto se parece.
-// Si no hay micrófono, se dice en voz alta y se compara de oído.
-import { RecordingPresets, createAudioPlayer, requestRecordingPermissionsAsync, setAudioModeAsync, useAudioRecorder, type AudioPlayer } from 'expo-audio';
-import { useEffect, useEffectEvent, useId, useRef, useState } from 'react';
-import { StyleSheet, Text, View, useWindowDimensions, type GestureResponderEvent } from 'react-native';
-import Animated, { Easing, ZoomIn, useAnimatedProps, useAnimatedStyle, useSharedValue, withDelay, withSequence, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
-import Svg, { Circle, Defs, G, LinearGradient, Path, RadialGradient, Stop } from 'react-native-svg';
+// montaña a otra mientras se dibuja la melodía de sus tonos. Luego grabas tu voz: su melodía se dibuja ENCIMA
+// de la de Noi, las dos suenan seguidas (primero Noi, enseguida tú) y cada sílaba se lleva su estrella según
+// si tu voz subió, cayó o se quedó plana donde tocaba. Las frases largas se gritan por trozos.
+//
+// Aquí no se suspende. Lo que puntúa es lo MEDIDO en tu voz (src/games/eco/tono.ts); lo que uno mismo se valora
+// no da puntos ni cambia el repaso; «Otra vez» nunca cuenta como fallo; y «Ahora no puedo hablar» deja pasar sin
+// grabar nada. Donde no se puede medir el tono se ve el volumen (con su nombre) y se compara de oído; sin
+// micrófono, se dice en voz alta.
+import { RecordingPresets, createAudioPlayer, useAudioRecorder, type AudioPlayer } from 'expo-audio';
+import { useEffect, useEffectEvent, useRef, useState } from 'react';
+import { Pressable, StyleSheet, Text, View, useWindowDimensions, type GestureResponderEvent } from 'react-native';
+import Animated, { Easing, FadeIn, ZoomIn, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 
 import type { NoiPose } from '@/brand/noi-art';
-import { color, font } from '@/brand/tokens';
+import { color, font, tones as TONES, type ToneId } from '@/brand/tokens';
 import { Icon } from '@/components/icons';
-import { Noi } from '@/components/Noi';
 import { Rom, Th } from '@/components/ui';
-import type { Sentence, Word } from '@/content/types';
 import { fx, stopSpeech } from '@/lib/audio';
-import { shuffle } from '@/lib/random';
-import { joinThai, personalize, personalizeRom, syllables, tonesOf, type Gender } from '@/lib/thai';
+import { toneOfSyllable } from '@/lib/thai';
 
 import { Backdrop } from './Backdrop';
-import { Glow, Pop, Press3D, tapPoint, useJuice } from './fx';
+import { canMeasurePitch, knownVoice, openMic, releaseTakes, rememberVoice, type Mic as OpenMic, type Take } from './eco/captura';
+import { makeItems, spoken } from './eco/partes';
+import { IDEAL, Staff, Star } from './eco/pentagrama';
+import { BigBtn, Echo, EcoBar, InhaleNoi, Mic, QuietLink, Ridge, RoundBtn, Valley, type EchoVoice, type EcoMark } from './eco/piezas';
+import { analyse, fitStaff, isVoiced, toSemitones, type Analysis, type Frame, type Slip } from './eco/tono';
+import { tapPoint, useJuice, type Point } from './fx';
 import { useScore } from './kit';
-import { Melody } from './tonos/curva';
-import { TopBar, Waves, type Mark } from './tonos/piezas';
-import { useTimers, useVoice } from './tonos/voz';
-import type { GameProps } from './types';
+import { Contour, TONE_HOW } from './tonos/curva';
+import { speechMs, useTimers, useVoice } from './tonos/voz';
+import type { GameProps, GameResult } from './types';
 
-const AnimatedPath = Animated.createAnimatedComponent(Path);
 const REC = { ...RecordingPresets.HIGH_QUALITY, isMeteringEnabled: true };
-const TICK = 70;
 const MAX_MS = 8000;
+/** Tras oír una voz, este silencio (s) da la grabación por terminada sin tener que tocar nada. */
+const HUSH_S = 1.1;
+/** Marca de «aquí se levanta el lápiz» en el trazo en directo. */
+const GAP = -999;
 
-type Item = { id?: string; th: string; rom: string; es: string; sentence: boolean };
-type Phase = 'shout' | 'ready' | 'rec' | 'has';
+/** shout: Noi grita · ready: te toca · rec: grabando · compare: suenan Noi y tú, seguidos · result: cómo ha salido · next: pasando al siguiente */
+type Phase = 'shout' | 'ready' | 'rec' | 'compare' | 'result' | 'next';
 type Rating = 'otra' | 'casi' | 'igual';
+/** Lo que salió de un trozo: su nota y estrellas MEDIDAS (null = sin medir) y si de verdad se oyó una voz. */
+type Outcome = { score: number | null; stars: number; spoke: boolean };
+/** Una grabación medida: la nota de cada sílaba y tu melodía ya colocada sobre el pentagrama de Noi. */
+type Shot = { a: Analysis; mine: (number[] | null)[] | null };
+/** Lo que se va oyendo mientras se graba (para dibujarlo en directo y saber cuándo has acabado). */
+type Live = { pts: number[]; sum: number; n: number; peak: number; now: number; first: number; lastVoiced: number; drawn: number; est: number };
 
-function makeItems(mode: GameProps['mode'], sentences: Sentence[], words: Word[], focus: Word[], gender: Gender, n: number): Item[] {
-  const S: Item[] = shuffle(sentences).map((x) => ({ th: joinThai(x.th.map((t) => personalize(t, gender))), rom: personalizeRom(x.rom, gender), es: personalize(x.es, gender), sentence: true }));
-  const seen = new Set<string>();
-  const W: Item[] = [...shuffle(focus), ...shuffle(words)]
-    .filter((w) => !seen.has(w.th) && (seen.add(w.th), true))
-    .map((x) => ({ id: x.id, th: x.th, rom: x.rom, es: x.es, sentence: false }));
-  const out: Item[] = [];
-  if (mode === 'feria') {
-    // primero palabras cortas para calentar la voz; luego, frases
-    const half = Math.ceil(n / 2);
-    out.push(...W.filter((w) => syllables(w.rom).length <= 3).slice(0, half));
-    out.push(...S.slice(0, n - out.length));
-    out.push(...W.filter((w) => !out.includes(w)).slice(0, n - out.length));
-  } else {
-    const a = n >= 2 ? [...W] : [...S];
-    const b = n >= 2 ? [...S] : [...W];
-    while (out.length < n && (a.length || b.length)) {
-      const it = (out.length % 2 === 0 ? a.shift() ?? b.shift() : b.shift() ?? a.shift())!;
-      if (!out.some((o) => o.th === it.th)) out.push(it);
-    }
-  }
-  return out.slice(0, n);
+/** Coloca lo medido sobre el pentagrama: una sola regla (centro y anchura de tu voz) para todas las sílabas. */
+function place(a: Analysis, list: ToneId[]): (number[] | null)[] {
+  const pts = a.syll.map((s) => s.pts);
+  const { mid, range } = fitStaff(
+    pts,
+    list.map((t) => IDEAL[t]),
+    a.range,
+  );
+  return pts.map((p) => (p ? p.map((v) => 0.5 + (v - mid) / range) : null));
 }
 
-/** Juego 9 · Eco: escucha, repite y compárate con Noi. */
-export default function Eco({ mode, words, focus, sentences, rounds, gender, onAnswer, onDone }: GameProps) {
+/** La pista: qué hizo tu voz en esa sílaba y qué tocaba, en palabras de andar por casa. */
+const HINTS: Record<ToneId, Partial<Record<Slip, string>>> = {
+  M: { subio: 'tu voz subió, y aquí va plana, sin moverse', cayo: 'tu voz cayó, y aquí va plana, sin moverse', aguda: 'te quedó aguda: va en medio, ni arriba ni abajo', grave: 'te quedó grave: va en medio, ni arriba ni abajo' },
+  L: { subio: 'tu voz subió, y aquí se queda abajo, grave', aguda: 'te quedó aguda: aquí va grave desde el principio' },
+  F: { subio: 'tu voz subió donde debía caer', plana: 'te quedó plana: empieza arriba y déjala caer', grave: 'empiézala más arriba, para que tenga de dónde caer' },
+  H: { cayo: 'tu voz cayó, y aquí se queda arriba, aguda', grave: 'te quedó grave: aquí va aguda, arriba del todo' },
+  R: { cayo: 'tu voz cayó donde debía subir', plana: 'te quedó plana: baja primero y súbela al final', aguda: 'baja más antes de subir' },
+};
+const SLIPS: Record<Slip, string> = { subio: 'tu voz subió', cayo: 'tu voz cayó', plana: 'te quedó plana', aguda: 'te quedó aguda', grave: 'te quedó grave' };
+const hintOf = (tone: ToneId, slip: Slip) => HINTS[tone][slip] ?? `${SLIPS[slip]}, y aquí va así: ${TONE_HOW[tone]}`;
+
+/** Juego 9 · Eco: escucha, repite y mira tu tono sobre el de Noi. */
+export default function Eco({ mode, words, focus, sentences, rounds, gender, oral, reads, onAnswer, onDone }: GameProps) {
   const feria = mode === 'feria';
   const score = useScore(mode);
   const juice = useJuice();
@@ -72,36 +83,53 @@ export default function Eco({ mode, words, focus, sentences, rounds, gender, onA
 
   const [list] = useState(() => makeItems(mode, sentences, words, focus, gender, rounds ?? (feria ? 6 : 2)));
   const [i, setI] = useState(0);
-  const [attempt, setAttempt] = useState(0);
-  const [repeats, setRepeats] = useState(0);
+  const [c, setC] = useState(0);
+  const [turn, setTurn] = useState(0);
   const [phase, setPhase] = useState<Phase>('shout');
-  const [heard, setHeard] = useState(false);
   const [noMic, setNoMic] = useState(false);
-  const [uri, setUri] = useState<string | null>(null);
-  const [mine, setMine] = useState(false);
-  const [marks, setMarks] = useState<Mark[]>([]);
+  /** ¿se mide el tono aquí? Se supone que sí donde se puede; la primera grabación lo confirma. */
+  const [pitch, setPitch] = useState(canMeasurePitch);
+  const [take, setTake] = useState<Take | null>(null);
+  const [shot, setShot] = useState<Shot | null>(null);
+  const [shown, setShown] = useState(false);
+  const [playing, setPlaying] = useState<'noi' | 'yo' | null>(null);
+  const [marks, setMarks] = useState<EcoMark[]>([]);
   const [points, setPoints] = useState(0);
   const [pose, setPose] = useState<NoiPose>('feliz');
   const [jump, setJump] = useState(0);
-  const [echoRun, setEchoRun] = useState(0);
+  const [echo, setEcho] = useState<{ run: number; voice: EchoVoice; bounces: number; text?: string }>({ run: 0, voice: 'noi', bounces: 3 });
+  const [peek, setPeek] = useState(false);
   const [canyon, setCanyon] = useState({ w: 0, h: 0 });
   const [vizW, setVizW] = useState(0);
+
   const pointsRef = useRef(0);
+  /** plátanos por haber hablado de verdad en algo que no se pudo medir */
+  const extra = useRef(0);
+  const outcomes = useRef<Outcome[]>([]);
+  const tally = useRef<EcoMark[]>([]);
+  /** el mejor intento medido de este trozo: repetir nunca baja la nota */
+  const best = useRef<{ score: number; stars: number } | null>(null);
   const finished = useRef(false);
-  const rated = useRef(false);
+  const gone = useRef(false);
   const busy = useRef(false);
+  const locked = useRef(false);
+  /** turno de sonido: lo que quedara pendiente de uno anterior (voz, temporizadores, estrellas) ya no cuenta */
+  const seq = useRef(0);
+  const recSeq = useRef(0);
   const player = useRef<AudioPlayer | null>(null);
-  const meter = useRef<ReturnType<typeof setInterval> | null>(null);
+  const mic = useRef<OpenMic | null>(null);
   const buf = useRef<number[]>([]);
-  const recMs = useRef(0);
+  const liveRef = useRef<Live | null>(null);
 
   const melo = useSharedValue(0);
   const levels = useSharedValue<number[]>([]);
+  const trace = useSharedValue<number[]>([]);
   const live = useSharedValue(0);
   const head = useSharedValue(0);
   const inhale = useSharedValue(1);
 
   const it = list[i];
+  const part = it?.parts[c];
 
   const dropPlayer = () => {
     try {
@@ -109,245 +137,535 @@ export default function Eco({ mode, words, focus, sentences, rounds, gender, onA
     } catch {}
     player.current = null;
   };
-  const stopMeter = () => {
-    if (meter.current) clearInterval(meter.current);
-    meter.current = null;
+  const claim = () => {
+    seq.current += 1;
+    const id = seq.current;
+    return () => seq.current === id && !gone.current && !finished.current;
   };
-  useEffect(
-    () => () => {
-      stopMeter();
-      dropPlayer();
-      stopSpeech();
-    },
-    [],
-  );
-
-  /** Noi coge aire y grita: suena la palabra, rebota el eco y se dibuja la melodía de tonos. */
-  const shout = (slow = false) => {
-    if (!it) return;
+  /** «¿Sigue siendo este momento?», sin cortar nada (para lo que se programa a continuación). */
+  const still = () => {
+    const id = seq.current;
+    return () => seq.current === id && !gone.current && !finished.current;
+  };
+  /** Calla a Noi y a la grabación; devuelve «¿sigo siendo yo quien suena?» para lo que venga después. */
+  const hush = () => {
+    const alive = claim();
+    voice.stop();
     dropPlayer();
-    setMine(false);
+    setPlaying(null);
+    return alive;
+  };
+
+  // al salir (también a media grabación): se suelta el micro y el audio vuelve a quedar para escuchar
+  const shutdown = useEffectEvent(() => {
+    gone.current = true;
+    seq.current += 1;
+    recSeq.current += 1;
+    mic.current?.cancel();
+    mic.current = null;
+    dropPlayer();
+    stopSpeech();
+    releaseTakes();
+  });
+  useEffect(() => {
+    gone.current = false;
+    return () => shutdown();
+  }, []);
+
+  const toReady = () => setPhase((p) => (p === 'shout' ? 'ready' : p));
+
+  /** Noi coge aire y grita el trozo: suena, rebota el eco y se dibuja la melodía de sus tonos. */
+  const noiSays = (slow: boolean, after?: () => void) => {
+    if (!part) return;
+    const alive = hush();
+    setPlaying('noi');
     setPose('celebra');
     inhale.set(withSequence(withTiming(1.12, { duration: 260, easing: Easing.out(Easing.quad) }), withSpring(1, { damping: 7, stiffness: 160 })));
-    timers.later(
-      () =>
-        voice.speak(it.th, {
-          rom: it.rom,
-          slow,
-          onStart: (ms) => {
-            setEchoRun((n) => n + 1);
-            melo.set(withSequence(withTiming(0, { duration: 0 }), withTiming(1, { duration: Math.max(600, ms * 0.95), easing: Easing.linear })));
-          },
-          onEnd: () => {
-            setPose('feliz');
-            setHeard(true);
-            setPhase((p) => (p === 'shout' ? 'ready' : p));
-          },
-        }),
-      240,
-    );
+    timers.later(() => {
+      if (!alive()) return;
+      voice.speak(part.th, {
+        rom: part.rom,
+        slow,
+        onStart: (ms) => {
+          if (!alive()) return;
+          setEcho((e) => ({ run: e.run + 1, voice: 'noi', bounces: 3 }));
+          melo.set(withSequence(withTiming(0, { duration: 0 }), withTiming(1, { duration: Math.max(600, ms * 0.95), easing: Easing.linear })));
+        },
+        onEnd: () => {
+          if (!alive()) return;
+          setPose('feliz');
+          setPlaying(null);
+          after?.();
+        },
+      });
+    }, 240);
   };
 
   const begin = useEffectEvent(() => {
-    timers.later(() => shout(false), 550);
+    const alive = claim();
+    timers.later(() => {
+      if (alive()) noiSays(false, toReady);
+    }, 550);
   });
   useEffect(() => {
     begin();
-  }, [i, attempt]);
+  }, [turn]);
 
-  const bail = useEffectEvent(() => onDone(score.result(0)));
+  const result = (pts?: number): GameResult => {
+    const r = score.result(pts);
+    return { ...r, bananas: r.bananas + extra.current };
+  };
+  const bail = useEffectEvent(() => {
+    if (finished.current) return;
+    finished.current = true;
+    onDone(result(0));
+  });
   useEffect(() => {
     if (!list.length) bail();
   }, [list.length]);
 
-  if (!it) return null;
+  if (!it || !part) return null;
 
-  // ——— Grabar (mantiene lo que hacía el juego: permiso, grabar, parar, escucharte) ———
-  const startRec = async () => {
-    if (busy.current) return;
-    busy.current = true;
-    voice.stop();
-    dropPlayer();
+  const sylls = spoken(part.rom);
+  const toneList = sylls.map(toneOfSyllable);
+
+  // ——— Escuchar y grabar ———
+
+  /** Suena tu grabación mientras una línea recorre tu voz. */
+  const playMine = (t: Take, after?: () => void) => {
+    const alive = hush();
+    if (!t.uri) {
+      after?.();
+      return;
+    }
+    let done = false;
+    const end = () => {
+      if (done || !alive()) return;
+      done = true;
+      setPlaying(null);
+      setPose('feliz');
+      after?.();
+    };
     try {
-      const perm = await requestRecordingPermissionsAsync();
-      if (!perm.granted) {
-        setNoMic(true);
-        setPhase('ready');
+      const p = createAudioPlayer(t.uri);
+      player.current = p;
+      setPlaying('yo');
+      setPose('escucha');
+      const ms = Math.max(600, t.ms);
+      head.set(withSequence(withTiming(0, { duration: 0 }), withTiming(1, { duration: ms, easing: Easing.linear })));
+      p.addListener('playbackStatusUpdate', (st) => {
+        if (st.didJustFinish) end();
+      });
+      p.play();
+      // por si el reproductor no avisa del final
+      timers.later(end, ms + 1500);
+    } catch {
+      end();
+    }
+  };
+
+  /** Se enseña la nota: una estrella por sílaba, de izquierda a derecha, y Noi reacciona. */
+  const reveal = (s: Shot | null) => {
+    setPhase('result');
+    if (!s || !s.a.heard) return;
+    const now = still();
+    setShown(true);
+    s.a.syll.forEach((y, k) => {
+      if (y.grade !== 'bien' && y.grade !== 'casi') return;
+      timers.later(() => {
+        if (!now()) return;
+        if (y.grade === 'bien') fx.ok(Math.min(4, k + 1));
+        else fx.plip();
+      }, 140 + k * 150);
+    });
+    timers.later(() => {
+      if (!now()) return;
+      if (s.a.stars === 3) {
+        // igualito: tu eco también cruza el valle
+        fx.sparkle();
+        setPose('celebra');
+        setJump((j) => j + 1);
+        setEcho((e) => ({ run: e.run + 1, voice: 'tuyo', bounces: 4 }));
+        juice.burst(undefined, 'estrellas', 16, 130);
+      } else if (s.a.stars === 2) {
+        setPose('feliz');
+        setJump((j) => j + 1);
+      } else setPose('piensa');
+    }, 220 + s.a.syll.length * 150);
+  };
+
+  const stopRec = async () => {
+    const m = mic.current;
+    if (!m) return;
+    mic.current = null;
+    recSeq.current += 1;
+    live.set(0);
+    setPhase('compare');
+    const t = await m.stop();
+    if (gone.current || finished.current) return;
+    setTake(t);
+    trace.set([]);
+    fx.pop();
+    let s: Shot | null = null;
+    if (t.frames) {
+      const a = analyse(t.frames, toneList, knownVoice());
+      if (a.heard) {
+        rememberVoice(a.profile);
+        if (!best.current || a.score > best.current.score) best.current = { score: a.score, stars: a.stars };
+      }
+      s = { a, mine: a.heard ? place(a, toneList) : null };
+    }
+    setShot(s);
+    setShown(false);
+    if (s && !s.a.heard) {
+      // no se oyó una voz: no hay nada que comparar
+      setPose('piensa');
+      setPhase('result');
+      return;
+    }
+    // primero Noi y enseguida tú, seguidos: así el oído compara de verdad; la nota llega después
+    noiSays(false, () => playMine(t, () => reveal(s)));
+  };
+
+  /** Lo que llega del micro mientras grabas: se dibuja tu melodía y, cuando callas, se para solo. */
+  const onFrames = (fresh: Frame[]) => {
+    const L = liveRef.current;
+    if (!L || !mic.current) return;
+    for (const f of fresh) {
+      if (f.rms > L.peak) L.peak = f.rms;
+      L.now = f.t;
+      if (isVoiced(f, L.peak)) {
+        const st = toSemitones(f.f0);
+        L.pts.push(f.t, st);
+        L.sum += st;
+        L.n++;
+        if (L.first < 0) L.first = f.t;
+        L.lastVoiced = f.t;
+      } else if (L.pts.length && L.pts[L.pts.length - 1] !== GAP) L.pts.push(f.t, GAP);
+    }
+    if (L.n >= 12 && L.now > 0.8 && L.now - L.lastVoiced >= HUSH_S) {
+      void stopRec();
+      return;
+    }
+    const at = Date.now();
+    if (at - L.drawn < 55) return;
+    L.drawn = at;
+    const known = knownVoice();
+    const mid = known?.mid ?? L.sum / Math.max(1, L.n);
+    const range = (known?.range ?? 8) * 1.3;
+    // el trazo arranca a la izquierda cuando empiezas a hablar (no cuando se abre el micro), como la curva de Noi
+    const span = Math.max(L.est, L.now - L.first);
+    const out: number[] = [];
+    for (let q = 0; q < L.pts.length; q += 2) out.push(Math.max(0, (L.pts[q] - L.first) / span), L.pts[q + 1] === GAP ? -1 : Math.max(0.03, Math.min(0.97, 0.5 + (L.pts[q + 1] - mid) / range)));
+    trace.set(out);
+  };
+
+  const startRec = async () => {
+    if (busy.current || finished.current || locked.current) return;
+    busy.current = true;
+    fx.tap();
+    // si Noi aún estaba gritando, se calla: te toca
+    hush();
+    setPose('escucha');
+    try {
+      buf.current = [];
+      liveRef.current = { pts: [], sum: 0, n: 0, peak: 0, now: 0, first: -1, lastVoiced: 0, drawn: 0, est: (speechMs(part.rom) / 1000) * 0.9 };
+      const m = await openMic({
+        recorder,
+        onFrames,
+        onLevel: (v) => {
+          buf.current.push(v);
+          levels.set(buf.current.slice());
+        },
+      });
+      if (gone.current || finished.current) {
+        if (typeof m !== 'string') m.cancel();
         return;
       }
-      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
-      await recorder.prepareToRecordAsync();
-      recorder.record();
-      fx.tap();
-      setPose('escucha');
-      setPhase('rec');
-      buf.current = [];
+      if (typeof m === 'string') {
+        // sin permiso o sin micro: se juega de oído, y Noi lo repite para que no se quede todo en silencio
+        setNoMic(true);
+        setTake(null);
+        setShot(null);
+        setShown(false);
+        setPhase('ready');
+        noiSays(false, toReady);
+        return;
+      }
+      mic.current = m;
+      setPitch(m.kind === 'tono');
+      setTake(null);
+      setShot(null);
+      setShown(false);
       levels.set([]);
+      trace.set([]);
       live.set(1);
       head.set(0);
-      recMs.current = 0;
-      meter.current = setInterval(() => {
-        let db = -160;
-        try {
-          db = recorder.getStatus().metering ?? -160;
-        } catch {}
-        const raw = Math.max(0, Math.min(1, (db + 52) / 46));
-        const prev = buf.current[buf.current.length - 1] ?? 0;
-        buf.current.push(prev * 0.45 + raw * 0.55);
-        recMs.current += TICK;
-        levels.set(buf.current.slice());
-        if (recMs.current >= MAX_MS) void stopRec();
-      }, TICK);
-    } catch {
-      setNoMic(true);
-      setPhase('ready');
+      setPhase('rec');
+      recSeq.current += 1;
+      const id = recSeq.current;
+      timers.later(() => {
+        if (recSeq.current === id) void stopRec();
+      }, MAX_MS);
     } finally {
       busy.current = false;
     }
   };
 
-  const stopRec = async () => {
-    if (!meter.current) return;
-    stopMeter();
-    live.set(0);
-    try {
-      await recorder.stop();
-      setUri(recorder.uri ?? null);
-      setPhase('has');
-      setPose('feliz');
-      fx.pop();
-    } catch {
-      setNoMic(true);
-      setPhase('ready');
-    }
-    try {
-      await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
-    } catch {}
+  /** Comparar otra vez: Noi y, seguida, tu grabación. */
+  const replay = () => {
+    if (!take) return;
+    noiSays(false, () => playMine(take));
   };
 
-  const playMine = () => {
-    if (!uri) return;
-    voice.stop();
-    dropPlayer();
-    try {
-      const p = createAudioPlayer(uri);
-      player.current = p;
-      setMine(true);
-      const ms = Math.max(600, recMs.current);
-      head.set(withSequence(withTiming(0, { duration: 0 }), withTiming(1, { duration: ms, easing: Easing.linear })));
-      p.addListener('playbackStatusUpdate', (st) => {
-        if (st.didJustFinish) setMine(false);
-      });
-      p.play();
-    } catch {
-      setMine(false);
-    }
+  // ——— Lo que viene después ———
+  const clearTake = () => {
+    setTake(null);
+    setShot(null);
+    setShown(false);
+    buf.current = [];
+    levels.set([]);
+    trace.set([]);
   };
 
-  // ——— Valorar ———
-  const rate = (r: Rating, e: GestureResponderEvent) => {
-    if (finished.current || rated.current) return;
-    rated.current = true;
-    const ok = r !== 'otra';
-    const combo = score.hit(ok);
-    onAnswer(ok, it.id);
-    setMarks((m) => [...m, ok ? 'ok' : 'bad']);
-    dropPlayer();
-    setMine(false);
-    const at = tapPoint(e);
-    if (ok) {
-      const pts = feria ? (r === 'igual' ? 30 : 15) + (combo >= 3 ? 5 : 0) : 0;
-      if (feria) {
-        pointsRef.current += pts;
-        setPoints(pointsRef.current);
+  /** «Otra vez»: el mismo trozo desde el principio. No cuenta como nada: repetir es practicar. */
+  const again = () => {
+    hush();
+    clearTake();
+    setPhase('shout');
+    setTurn((n) => n + 1);
+  };
+
+  /** Cierra una palabra o frase: su bolita, sus puntos y, solo si se MIDIÓ que salió bien, el repaso. */
+  const commit = (at?: Point) => {
+    const outs = outcomes.current;
+    const measured = outs.filter((o) => o.score !== null);
+    let mark: EcoMark = 'libre';
+    let pts = 0;
+    if (measured.length && measured.length * 2 >= outs.length) {
+      const stars = Math.max(1, Math.min(3, Math.round(measured.reduce((a, o) => a + o.stars, 0) / measured.length - 0.01)));
+      mark = stars === 3 ? 'tres' : stars === 2 ? 'dos' : 'una';
+      if (stars >= 2) {
+        const combo = score.hit(true);
+        onAnswer(true, it.id);
+        pts = stars * 10 + (combo >= 3 ? 5 : 0);
+        if (feria && combo >= 3 && combo % 3 === 0) timers.later(() => juice.banner('¡Qué racha!', `${combo} ecos seguidos`, color.farol), 400);
+      } else {
+        // en la feria cuenta para la puntería de la partida (sin sonido de fallo); en una lección no resta nada
+        if (feria) score.hit(false, false);
+        pts = 10;
       }
-      if (r === 'igual') juice.celebrate(at, feria ? `+${pts}` : '¡Igualito!', 'corazones');
-      else juice.float(at, feria ? `+${pts}` : '¡Casi!', color.azafranHondo);
-      if (combo >= 3 && combo % 3 === 0) timers.later(() => juice.banner('¡Eco perfecto!', `${combo} seguidas`, color.farol), 400);
-      setPose('celebra');
-      setJump((j) => j + 1);
-    } else {
-      setPose('piensa');
-      juice.float(at, '¡Otra vez!', color.cielo);
+    } else if (outs.some((o) => o.spoke)) {
+      // sin medir no hay nota: solo lo que vale haber hablado
+      extra.current += 1;
+      pts = 5;
     }
-    // «Otra vez» repite la misma una vez; si no, a la siguiente
-    const again = !ok && attempt === 0;
-    if (again) setRepeats((n) => n + 1);
-    timers.later(() => {
-      rated.current = false;
-      setUri(null);
-      levels.set([]);
-      setHeard(false);
-      setPhase('shout');
-      if (again) {
-        setAttempt(1);
-        return;
-      }
-      if (i + 1 >= list.length) {
-        finish();
-        return;
-      }
-      setAttempt(0);
-      setI((v) => v + 1);
-    }, 700);
+    if (feria && pts) {
+      pointsRef.current += pts;
+      setPoints(pointsRef.current);
+      juice.float(at, `+${pts}`, color.buatong);
+    }
+    tally.current.push(mark);
+    setMarks((m) => [...m, mark]);
   };
 
   const finish = () => {
     if (finished.current) return;
+    hush();
     finished.current = true;
-    voice.stop();
     if (!feria) {
-      onDone(score.result());
+      onDone(result());
       return;
     }
     fx.fanfare();
+    if (tally.current.length > 0 && tally.current.every((m) => m === 'tres')) {
+      // todos los tonos en su sitio: el valle entero contesta
+      setPose('celebra');
+      setJump((j) => j + 1);
+      setEcho((e) => ({ run: e.run + 1, voice: 'tuyo', bounces: 5, text: 'สุดยอด' }));
+      juice.flash('#FFF3C4');
+      juice.banner('¡Eco perfecto!', `El valle entero te contesta · ${pointsRef.current} puntos`, color.arrozal);
+      juice.burst(undefined, 'estrellas', 34, 190);
+      timers.later(() => juice.burst(undefined, 'confeti', 28, 170), 520);
+      timers.later(() => {
+        fx.sparkle();
+        juice.burst(undefined, 'chispas', 26, 150);
+      }, 1000);
+      timers.later(() => onDone(result(pointsRef.current)), 2400);
+      return;
+    }
     juice.banner('¡Qué eco!', `${pointsRef.current} puntos`, color.farol);
     juice.burst(undefined, 'estrellas', 30, 170);
-    timers.later(() => onDone(score.result(pointsRef.current)), 1500);
+    timers.later(() => onDone(result(pointsRef.current)), 1500);
   };
 
-  const sylls = syllables(it.rom);
-  const tones = tonesOf(it.rom);
+  /** «Ahora no puedo hablar»: se deja el paso sin grabar nada. No puntúa ni toca el repaso; lo ya hecho se conserva. */
+  const leave = () => {
+    if (finished.current) return;
+    hush();
+    finished.current = true;
+    recSeq.current += 1;
+    mic.current?.cancel();
+    mic.current = null;
+    if (!feria) {
+      onDone(result());
+      return;
+    }
+    juice.banner('ไม่เป็นไร', 'Otro rato será', color.cielo);
+    timers.later(() => onDone(result(pointsRef.current)), 1200);
+  };
+
+  const next = (o: Outcome, at?: Point) => {
+    if (locked.current) return;
+    locked.current = true;
+    hush();
+    outcomes.current.push(o);
+    const last = c + 1 >= it.parts.length;
+    if (last) commit(at);
+    setPhase('next');
+    timers.later(() => {
+      locked.current = false;
+      best.current = null;
+      clearTake();
+      melo.set(0);
+      setPeek(false);
+      if (!last) {
+        setC(c + 1);
+      } else {
+        outcomes.current = [];
+        if (i + 1 >= list.length) {
+          finish();
+          return;
+        }
+        setI(i + 1);
+        setC(0);
+      }
+      setPhase('shout');
+      setTurn((n) => n + 1);
+    }, 650);
+  };
+
+  /** «Siguiente» tras una grabación medida: cuenta el mejor intento de este trozo. */
+  const onward = (e: GestureResponderEvent) => {
+    if (finished.current || locked.current) return;
+    const b = best.current;
+    next({ score: b ? b.score : null, stars: b ? b.stars : 0, spoke: !!take?.spoke }, tapPoint(e));
+  };
+
+  /** Valorarse de oído (donde no se mide el tono): sirve para pensar en cómo ha sonado, no para puntuar. */
+  const rate = (r: Rating, e: GestureResponderEvent) => {
+    if (finished.current || locked.current || !take) return;
+    const at = tapPoint(e);
+    if (r === 'otra') {
+      juice.float(at, '¡Otra vez!', '#BFD6FF');
+      again();
+      return;
+    }
+    if (r === 'igual') {
+      juice.burst(at, 'corazones', 14, 110);
+      juice.float(at, '¡Bien dicho!', color.arrozalVivo);
+      fx.sparkle();
+      setPose('celebra');
+      setJump((j) => j + 1);
+    } else {
+      juice.float(at, '¡Casi!', color.buatong);
+      fx.plip();
+    }
+    next({ score: null, stars: 0, spoke: take.spoke }, at);
+  };
+
+  /** Sin micro: se dijo en voz alta (nadie lo ha oído, así que ni puntos ni repaso). */
+  const said = (e: GestureResponderEvent) => {
+    if (finished.current || locked.current) return;
+    const at = tapPoint(e);
+    juice.float(at, '¡Dicho!', color.arrozalVivo);
+    fx.plip();
+    next({ score: null, stars: 0, spoke: false }, at);
+  };
+
   const labels = sylls.map((s) => s.replace(/[^\p{L}\p{M}]/gu, ''));
-  const canRate = phase === 'has' || (noMic && heard);
-  const canyonH = compact ? 126 : 214;
-  const noiSize = compact ? 84 : 122;
+  const multi = it.parts.length > 1;
+  const waiting = phase === 'shout' || phase === 'ready';
+  const lockedUi = phase === 'rec' || phase === 'compare' || phase === 'next';
+  // quien ya lee thai ve la transcripción al tocar la tarjeta o al comparar; quien no, siempre
+  const showRom = !reads || peek || phase === 'compare' || phase === 'result';
+  const measuring = pitch && !noMic;
+  const a = shot?.a ?? null;
+  const judged = phase === 'result' && !!a && a.heard && shown;
+  const unheard = phase === 'result' && !!a && !a.heard;
+  const canyonH = compact ? 108 : 190;
+  const noiSize = compact ? 78 : 116;
   const thSize = (it.th.length > 18 ? 22 : it.th.length > 10 ? 27 : 34) - (compact ? 4 : 0);
   const tip = noMic
-    ? heard
-      ? 'Dilo en voz alta, como Noi. ¿Te ha salido?'
-      : 'Escucha a Noi…'
+    ? 'Sin micro: dilo en voz alta, como Noi'
     : phase === 'rec'
-      ? 'Te escucho… ¡tu voz levanta montañas!'
-      : phase === 'has'
-        ? 'Escúchate y compara. ¿Cómo te ha salido?'
-        : phase === 'ready'
-          ? '¡Tu turno! Toca el micro y repite'
-          : 'Escucha a Noi…';
+      ? measuring
+        ? 'Te escucho… mira cómo se dibuja tu voz'
+        : 'Te escucho… toca el cuadrado cuando acabes'
+      : phase === 'compare'
+        ? playing === 'yo'
+          ? '…y ahora tú'
+          : 'Primero Noi…'
+        : unheard
+          ? 'No te he oído bien. Acércate al micro y prueba otra vez'
+          : phase === 'result'
+            ? 'Aquí no puedo medir tu tono: fíate de tu oído. ¿Cómo te ha salido?'
+            : phase === 'ready'
+              ? multi
+                ? '¡Tu turno! Toca el micro y repite este trozo'
+                : '¡Tu turno! Toca el micro y repite'
+              : phase === 'next'
+                ? ' '
+                : oral && i === 0 && c === 0
+                  ? 'Noi grita y tú repites. Sin prisa: aquí no se suspende'
+                  : 'Escucha a Noi…';
+  const worst = judged && a && a.worst >= 0 ? a.syll[a.worst] : null;
 
   return (
     <View style={{ flex: 1 }}>
       <Backdrop scene="noche" />
       <Animated.View style={[{ flex: 1, paddingHorizontal: 16, paddingTop: 4 }, juice.shakeStyle]}>
-        <TopBar marks={marks} total={list.length + repeats} points={feria ? points : undefined} combo={score.combo} dark />
+        <EcoBar marks={marks} total={list.length} points={feria ? points : undefined} combo={score.combo} />
 
-        {/* la palabra o frase */}
-        <Animated.View key={`c${i}`} entering={ZoomIn.springify().damping(14)} style={[styles.card, compact && { paddingVertical: 5 }]}>
-          <Th size={thSize} bold style={{ textAlign: 'center' }} numberOfLines={2}>
-            {it.th}
-          </Th>
-          <Rom rom={it.rom} size={compact ? 15 : 17} style={{ textAlign: 'center' }} />
-          <Text style={styles.es} numberOfLines={2}>
-            {it.es}
-          </Text>
+        {/* la palabra o frase; en las largas, el trozo que toca va encendido y el resto, apagado */}
+        <Animated.View key={`c${i}`} entering={ZoomIn.springify().damping(14)}>
+          <Pressable disabled={!reads} onPress={() => setPeek((v) => !v)} accessibilityLabel={reads ? 'Ver u ocultar la transcripción' : undefined} style={[styles.card, compact && { paddingVertical: 5 }]}>
+            <Th size={thSize} bold style={{ textAlign: 'center' }} numberOfLines={2}>
+              {multi
+                ? it.parts.map((p, k) => (
+                    <Text key={k} style={k === c ? null : styles.dim}>
+                      {p.th}
+                    </Text>
+                  ))
+                : it.th}
+            </Th>
+            {showRom ? (
+              <View style={styles.romRow}>
+                {it.parts.map((p, k) => (
+                  <Rom key={k} rom={p.rom} size={compact ? 15 : 17} mono={k === c ? undefined : 'rgba(29,35,71,0.3)'} />
+                ))}
+              </View>
+            ) : null}
+            <Text style={styles.es} numberOfLines={2}>
+              {it.es}
+            </Text>
+            {multi ? (
+              <View style={styles.piece}>
+                <Text style={styles.pieceText}>
+                  Trozo {c + 1} de {it.parts.length}
+                </Text>
+              </View>
+            ) : null}
+          </Pressable>
         </Animated.View>
 
-        {/* el valle: dos montañas, Noi en su roca y el eco que rebota */}
-        <View style={{ height: canyonH }} onLayout={(e) => setCanyon({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
+        {/* el valle: dos montañas, Noi en su roca y el eco que rebota (el de Noi, ámbar; el tuyo, menta) */}
+        {/* (es lo único que encoge si la pantalla es muy baja: los botones de abajo no se quedan fuera) */}
+        <View style={{ height: canyonH, flexShrink: 1, minHeight: 84 }} onLayout={(e) => setCanyon({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
           {canyon.w > 0 ? (
             <>
               <Valley w={canyon.w} h={canyon.h} />
-              <Echo run={echoRun} text={it.th} w={canyon.w} h={canyon.h} from={{ x: canyon.w / 2, y: canyon.h - noiSize * 0.75 }} />
+              <Echo run={echo.run} text={echo.text ?? part.th} voice={echo.voice} bounces={echo.bounces} w={canyon.w} h={canyon.h} from={{ x: canyon.w / 2, y: canyon.h - noiSize * 0.75 }} />
               <View style={{ position: 'absolute', left: canyon.w / 2 - noiSize / 2, top: canyon.h - noiSize - 4 }}>
                 <InhaleNoi scale={inhale} pose={pose} size={noiSize} jump={jump} />
               </View>
@@ -355,257 +673,136 @@ export default function Eco({ mode, words, focus, sentences, rounds, gender, onA
           ) : null}
         </View>
 
-        {/* comparar: la melodía de Noi y la cordillera de tu voz */}
-        <View style={styles.viz} onLayout={(e) => setVizW(e.nativeEvent.layout.width - 64)}>
-          <View style={styles.vizRow}>
-            <Text style={styles.vizLabel}>Noi</Text>
-            {vizW > 0 ? <Melody key={`m${i}`} tones={tones} labels={labels} width={vizW} height={compact ? 52 : 78} progress={melo} stroke={tones.length > 8 ? 4 : 6} dark /> : null}
+        {/* el pentagrama: Noi en colores y, encima y a la misma escala, tu voz en blanco */}
+        <View style={styles.viz} onLayout={(e) => setVizW(e.nativeEvent.layout.width - 27)}>
+          <View style={styles.legend}>
+            <View style={[styles.swatch, { backgroundColor: color.buatong }]} />
+            <Text style={styles.vizTag}>Noi</Text>
+            {measuring ? (
+              <>
+                <View style={[styles.swatch, { backgroundColor: '#FFFFFF', marginLeft: 8 }]} />
+                <Text style={[styles.vizTag, { color: '#FFFFFF' }]}>Tú</Text>
+              </>
+            ) : null}
+            <View style={{ flex: 1 }} />
+            <Text style={styles.axis}>↑ agudo · grave ↓</Text>
           </View>
-          <View style={styles.vizRow}>
-            <Text style={[styles.vizLabel, { color: '#FFB98A' }]}>Tú</Text>
-            {vizW > 0 ? <Ridge levels={levels} live={live} head={head} playing={mine} width={vizW} height={compact ? 32 : 50} empty={phase === 'shout' || phase === 'ready'} noMic={noMic} /> : null}
-          </View>
+          {vizW > 0 ? (
+            <Staff
+              key={`m${i}-${c}`}
+              tones={toneList}
+              labels={showRom ? labels : undefined}
+              width={vizW}
+              height={measuring ? (compact ? 98 : 134) : compact ? 70 : 98}
+              progress={melo}
+              trace={trace}
+              mine={measuring ? shot?.mine : null}
+              grades={judged && a ? a.syll.map((s) => s.grade) : null}
+              scored={measuring}
+              focus={judged && a && a.worst >= 0 ? a.worst : undefined}
+              head={head}
+              playing={measuring && playing === 'yo'}
+            />
+          ) : null}
+          {!measuring && !noMic ? (
+            <>
+              <Text style={[styles.vizTag, { color: '#FFB98A' }]}>El volumen de tu voz (aquí no se puede medir el tono)</Text>
+              {vizW > 0 ? <Ridge levels={levels} live={live} head={head} playing={playing === 'yo'} width={vizW} height={compact ? 24 : 36} hint={waiting ? 'Aquí se verá cuánto suena tu voz' : undefined} /> : null}
+            </>
+          ) : null}
         </View>
 
-        <Text style={[styles.tip, compact && { marginTop: 4 }]}>{tip}</Text>
+        {/* la pista: o lo que toca hacer ahora, o cómo ha salido lo medido */}
+        {judged && a ? (
+          <Animated.View key={`v${turn}`} entering={FadeIn.duration(220)} style={[styles.verdict, compact && { marginTop: 4 }]}>
+            <View style={styles.stars}>
+              {[1, 2, 3].map((k) => (
+                <Animated.View key={k} entering={ZoomIn.delay(k * 130).springify().damping(8)}>
+                  <Star on={k <= a.stars} size={compact ? 22 : 26} />
+                </Animated.View>
+              ))}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.verdictTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+                {a.stars === 3 ? '¡Igualito! Tu eco cruza el valle' : a.stars === 2 ? '¡Casi! Ya suena a thai' : oral ? 'ไม่เป็นไร, ya va sonando' : 'ไม่เป็นไร, a por ese eco'}
+              </Text>
+              {worst?.slip ? (
+                <View style={styles.hintRow}>
+                  <Contour tone={worst.tone} size={20} />
+                  <Text style={styles.hint} numberOfLines={2}>
+                    «<Text style={{ color: TONES[worst.tone].fill }}>{labels[a.worst] ?? ''}</Text>»: {hintOf(worst.tone, worst.slip)}
+                  </Text>
+                </View>
+              ) : (
+                <Text style={styles.hint} numberOfLines={1}>
+                  {a.stars === 3 ? 'Cada sílaba, con su tono' : 'Escucha a Noi y prueba otra vez si quieres'}
+                </Text>
+              )}
+            </View>
+          </Animated.View>
+        ) : (
+          <Text style={[styles.tip, compact && { marginTop: 4 }]} numberOfLines={2}>
+            {tip}
+          </Text>
+        )}
 
-        {/* escuchar a Noi · grabar · escucharte */}
+        {/* escuchar a Noi · más lento · grabar · comparar (Noi y tú, seguidos) */}
         <View style={styles.controls}>
-          <RoundBtn icon="speaker" label="Noi" tint={color.cielo} deep={color.cieloHondo} onPress={() => shout(false)} disabled={phase === 'rec'} small={compact} />
+          <RoundBtn icon="speaker" label="Noi" hint="Escuchar a Noi" tint={color.cielo} deep={color.cieloHondo} onPress={() => noiSays(false, toReady)} disabled={lockedUi} small={compact} active={playing === 'noi'} />
+          <RoundBtn icon="turtle" label="Lento" hint="Escuchar a Noi más lento" tint="#7C6CF2" deep="#5546C4" onPress={() => noiSays(true, toReady)} disabled={lockedUi} small={compact} />
           {!noMic ? (
-            <Mic recording={phase === 'rec'} ready={phase !== 'shout'} label={phase === 'rec' ? 'Parar' : phase === 'has' ? 'Repetir' : 'Grabar'} onPress={() => (phase === 'rec' ? void stopRec() : void startRec())} small={compact} />
+            <Mic
+              recording={phase === 'rec'}
+              ready={phase === 'ready'}
+              label={phase === 'rec' ? 'Parar' : take ? 'Repetir' : 'Grabar'}
+              onPress={() => (phase === 'rec' ? void stopRec() : void startRec())}
+              disabled={phase === 'compare' || phase === 'next'}
+              small={compact}
+            />
           ) : (
             <View style={styles.noMic}>
               <Icon name="mic" size={26} color="#C9D0EE" />
-              <Text style={styles.noMicText}>Sin micro: dilo en voz alta</Text>
+              <Text style={styles.noMicText}>Sin micro: en voz alta</Text>
             </View>
           )}
-          <RoundBtn icon="play" label="Tú" tint={color.farol} deep="#C2410C" onPress={playMine} disabled={!uri || phase === 'rec'} small={compact} />
+          {!noMic ? (
+            <RoundBtn icon="play" label="Comparar" hint="Escuchar a Noi y luego tu grabación" tint={color.farol} deep="#C2410C" onPress={replay} disabled={!take?.uri || phase !== 'result'} small={compact} active={playing === 'yo'} />
+          ) : null}
         </View>
 
-        <View style={styles.rateRow}>
-          {(
-            [
-              ['otra', '🔁', 'Otra vez', '#5B6BCF', '#3C4AA8'],
-              ['casi', '🙂', 'Casi', color.azafran, color.azafranHondo],
-              ['igual', '🤩', '¡Igualito!', color.arrozal, color.arrozalHondo],
-            ] as const
-          ).map(([r, emoji, label, face, edge]) => (
-            <Press3D key={r} onPress={(e) => rate(r, e)} disabled={!canRate} style={{ flex: r === 'igual' ? 1.25 : 1, height: compact ? 48 : 56, opacity: canRate ? 1 : 0.4 }} depth={10} accessibilityLabel={label}>
-              <View style={[styles.rateEdge, { backgroundColor: edge }]}>
-                <View style={[styles.rateFace, { backgroundColor: face }]}>
-                  <View style={styles.rateShine} />
-                  <Text style={styles.rateEmoji}>{emoji}</Text>
-                  <Text style={[styles.rateText, r === 'casi' && { color: color.tinta }]} numberOfLines={1}>
-                    {label}
-                  </Text>
-                </View>
+        <View style={styles.bottom}>
+          {judged && a ? (
+            // medido: repetir (que nunca resta) o seguir; con una estrella, lo que se ofrece primero es repetir
+            <View style={styles.row}>
+              <BigBtn label="Otra vez" emoji="🔁" skin={a.stars === 1 ? 'ambar' : 'azul'} flex={a.stars === 1 ? 1.5 : 1} onPress={again} small={compact} />
+              <BigBtn label="Siguiente" skin={a.stars === 1 ? 'azul' : 'verde'} flex={a.stars === 1 ? 1 : 1.5} onPress={onward} small={compact} icon={<Icon name="arrow" size={20} color="#FFFFFF" stroke={3} />} />
+            </View>
+          ) : unheard ? (
+            <View style={styles.row}>
+              <BigBtn label="Otra vez" emoji="🔁" skin="ambar" flex={1.5} onPress={again} small={compact} />
+              <BigBtn label="Siguiente" skin="azul" onPress={onward} small={compact} icon={<Icon name="arrow" size={20} color="#FFFFFF" stroke={3} />} />
+            </View>
+          ) : phase === 'result' && take && !a ? (
+            // sin medir: valorarse de oído (no puntúa)
+            <View style={styles.row}>
+              <BigBtn label="Otra vez" emoji="🔁" skin="azul" onPress={(e) => rate('otra', e)} small={compact} />
+              <BigBtn label="Casi" emoji="🙂" skin="ambar" onPress={(e) => rate('casi', e)} small={compact} />
+              <BigBtn label="¡Igualito!" emoji="🤩" skin="verde" flex={1.25} onPress={(e) => rate('igual', e)} small={compact} />
+            </View>
+          ) : waiting && noMic ? (
+            <>
+              <View style={styles.row}>
+                <BigBtn label="Otra vez" emoji="🔁" skin="azul" onPress={() => noiSays(false, toReady)} small={compact} />
+                <BigBtn label="Ya lo he dicho" emoji="🗣️" skin="verde" flex={1.4} onPress={said} small={compact} />
               </View>
-            </Press3D>
-          ))}
+              <QuietLink onPress={leave} small />
+            </>
+          ) : waiting ? (
+            <QuietLink onPress={leave} small={compact} />
+          ) : null}
         </View>
       </Animated.View>
       {juice.layer}
-    </View>
-  );
-}
-
-/** Noi coge aire antes de gritar. */
-function InhaleNoi({ scale, pose, size, jump }: { scale: SharedValue<number>; pose: NoiPose; size: number; jump: number }) {
-  const st = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
-  return (
-    <Animated.View style={[{ transformOrigin: `${size / 2}px ${size}px` }, st]}>
-      <Glow size={size * 1.3} tint="#FFE9B8" strength={0.35} style={{ position: 'absolute', left: -size * 0.15, top: -size * 0.15 }} />
-      <Noi pose={pose} size={size} jump={jump} accessibilityLabel="Noi grita para hacer eco" />
-    </Animated.View>
-  );
-}
-
-/** Las dos montañas del valle, con luz de luna en el borde, nieve y pinos, y la roca de Noi. */
-function Valley({ w, h }: { w: number; h: number }) {
-  const u = useId().replace(/[^a-zA-Z0-9]/g, '');
-  const L = `M-10 ${h} L${w * 0.02} ${h * 0.5} L${w * 0.12} ${h * 0.12} L${w * 0.2} ${h * 0.3} L${w * 0.27} ${h * 0.22} L${w * 0.42} ${h} Z`;
-  const R = `M${w * 0.58} ${h} L${w * 0.72} ${h * 0.2} L${w * 0.8} ${h * 0.04} L${w * 0.9} ${h * 0.26} L${w + 10} ${h * 0.34} L${w + 10} ${h} Z`;
-  const snowL = `M${w * 0.085} ${h * 0.24} L${w * 0.12} ${h * 0.12} L${w * 0.165} ${h * 0.23} L${w * 0.14} ${h * 0.2} L${w * 0.12} ${h * 0.26} L${w * 0.1} ${h * 0.21} Z`;
-  const snowR = `M${w * 0.755} ${h * 0.13} L${w * 0.8} ${h * 0.04} L${w * 0.845} ${h * 0.14} L${w * 0.82} ${h * 0.12} L${w * 0.8} ${h * 0.17} L${w * 0.775} ${h * 0.12} Z`;
-  const pine = (x: number, y: number, s: number) => `M${x} ${y - 16 * s} L${x + 7 * s} ${y} L${x - 7 * s} ${y} Z`;
-  return (
-    <Svg width={w} height={h} style={StyleSheet.absoluteFill}>
-      <Defs>
-        <LinearGradient id={`${u}m`} x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor="#3B3F86" />
-          <Stop offset="1" stopColor="#151937" />
-        </LinearGradient>
-        <LinearGradient id={`${u}r`} x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor="#4A3F8C" />
-          <Stop offset="1" stopColor="#1A1B40" />
-        </LinearGradient>
-        <RadialGradient id={`${u}g`} cx="50%" cy="100%" r="60%">
-          <Stop offset="0" stopColor="#FFB86B" stopOpacity={0.35} />
-          <Stop offset="1" stopColor="#FFB86B" stopOpacity={0} />
-        </RadialGradient>
-      </Defs>
-      <Circle cx={w / 2} cy={h} r={w * 0.4} fill={`url(#${u}g)`} />
-      <Path d={L} fill={`url(#${u}m)`} />
-      <Path d={`M${w * 0.12} ${h * 0.12} L${w * 0.2} ${h * 0.3} L${w * 0.27} ${h * 0.22} L${w * 0.42} ${h}`} stroke="#B9C2FF" strokeOpacity={0.45} strokeWidth={2} fill="none" />
-      <Path d={snowL} fill="#EEF2FF" opacity={0.9} />
-      <Path d={R} fill={`url(#${u}r)`} />
-      <Path d={`M${w * 0.58} ${h} L${w * 0.72} ${h * 0.2} L${w * 0.8} ${h * 0.04}`} stroke="#C9C2FF" strokeOpacity={0.5} strokeWidth={2} fill="none" />
-      <Path d={snowR} fill="#EEF2FF" opacity={0.9} />
-      <G opacity={0.85}>
-        {[0.06, 0.1, 0.16, 0.31, 0.36].map((x, k) => (
-          <Path key={`l${k}`} d={pine(w * x, h - 4 - (k % 2) * 8, 0.9 + (k % 3) * 0.2)} fill="#0F1330" />
-        ))}
-        {[0.66, 0.7, 0.86, 0.92, 0.96].map((x, k) => (
-          <Path key={`r${k}`} d={pine(w * x, h - 4 - (k % 2) * 8, 0.9 + (k % 3) * 0.2)} fill="#0F1330" />
-        ))}
-      </G>
-      <Path d={`M${w * 0.32} ${h} Q${w * 0.36} ${h - 22} ${w * 0.5} ${h - 24} Q${w * 0.64} ${h - 22} ${w * 0.68} ${h} Z`} fill="#26294F" />
-      <Path d={`M${w * 0.34} ${h - 8} Q${w * 0.4} ${h - 22} ${w * 0.5} ${h - 23} Q${w * 0.6} ${h - 22} ${w * 0.66} ${h - 8}`} stroke="#8F97E8" strokeOpacity={0.5} strokeWidth={2} fill="none" />
-    </Svg>
-  );
-}
-
-/** El eco: la palabra sale de Noi y rebota de montaña en montaña, cada vez más pequeña y lejana. */
-function Echo({ run, text, w, h, from }: { run: number; text: string; w: number; h: number; from: { x: number; y: number } }) {
-  if (!run) return null;
-  const pts = [from, { x: w * 0.2, y: h * 0.36 }, { x: w * 0.78, y: h * 0.28 }, { x: w * 0.3, y: h * 0.5 }];
-  return (
-    <View key={run} pointerEvents="none" style={StyleSheet.absoluteFill}>
-      {[0, 1, 2].map((k) => (
-        <Bounce key={k} k={k} text={text} a={pts[k]} b={pts[k + 1]} />
-      ))}
-    </View>
-  );
-}
-
-function Bounce({ k, text, a, b }: { k: number; text: string; a: { x: number; y: number }; b: { x: number; y: number } }) {
-  const t = useSharedValue(0);
-  const ring = useSharedValue(0);
-  useEffect(() => {
-    t.value = withDelay(k * 470, withTiming(1, { duration: 560, easing: Easing.inOut(Easing.quad) }));
-    ring.value = withDelay(k * 470 + 500, withTiming(1, { duration: 620, easing: Easing.out(Easing.cubic) }));
-    const swish = k === 0 ? setTimeout(() => fx.swish(), 480) : undefined;
-    return () => clearTimeout(swish);
-  }, [k, t, ring]);
-  const s = 1 - k * 0.22;
-  const st = useAnimatedStyle(() => {
-    const v = t.value;
-    const x = a.x + (b.x - a.x) * v;
-    const y = a.y + (b.y - a.y) * v - Math.sin(v * Math.PI) * 26;
-    const o = v <= 0 ? 0 : v < 0.15 ? v / 0.15 : v > 0.78 ? Math.max(0, (1 - v) / 0.22) : 1;
-    return { opacity: o * (0.95 - k * 0.22), transform: [{ translateX: x - 110 }, { translateY: y - 26 }, { scale: s * (0.7 + 0.3 * Math.sin(v * Math.PI * 0.5 + 0.5)) }] };
-  });
-  const rs = useAnimatedStyle(() => ({ opacity: ring.value <= 0 ? 0 : (1 - ring.value) * 0.8, transform: [{ translateX: b.x - 30 }, { translateY: b.y - 30 }, { scale: 0.3 + ring.value * 1.4 }] }));
-  return (
-    <>
-      <Animated.View style={[styles.ring, rs]} />
-      <Animated.View style={[styles.echo, st]}>
-        <View style={styles.echoHalo}>
-          <Text style={[styles.echoText, { fontSize: text.length > 14 ? 19 : text.length > 6 ? 26 : 34, lineHeight: text.length > 14 ? 30 : text.length > 6 ? 40 : 52 }]} numberOfLines={1}>
-            {text}
-          </Text>
-        </View>
-      </Animated.View>
-    </>
-  );
-}
-
-/** Tu voz como una cordillera de luz que crece mientras grabas; al escucharte, una línea la recorre. */
-function Ridge({
-  levels,
-  live,
-  head,
-  playing,
-  width,
-  height,
-  empty,
-  noMic,
-}: {
-  levels: SharedValue<number[]>;
-  live: SharedValue<number>;
-  head: SharedValue<number>;
-  playing: boolean;
-  width: number;
-  height: number;
-  empty: boolean;
-  noMic: boolean;
-}) {
-  const u = useId().replace(/[^a-zA-Z0-9]/g, '');
-  const props = useAnimatedProps(() => {
-    const v = levels.value;
-    const n = v.length;
-    if (n < 2) return { d: `M0 ${height} L${width} ${height} Z` };
-    const span = live.value ? Math.max(n, MAX_MS / TICK) : n;
-    let d = `M0 ${height}`;
-    for (let k = 0; k < n; k++) {
-      const x = (k / (span - 1)) * width;
-      const y = height - 2 - v[k] * (height - 6);
-      d += ` L${Math.round(x * 10) / 10} ${Math.round(y * 10) / 10}`;
-    }
-    d += ` L${Math.round(((n - 1) / (span - 1)) * width * 10) / 10} ${height} Z`;
-    return { d };
-  });
-  const hs = useAnimatedStyle(() => ({ opacity: playing ? 1 : 0, transform: [{ translateX: head.value * width - 1 }] }));
-  return (
-    <View style={{ width, height }}>
-      <Svg width={width} height={height}>
-        <Defs>
-          <LinearGradient id={`${u}f`} x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor="#FFD089" />
-            <Stop offset="0.5" stopColor="#FF8A5B" />
-            <Stop offset="1" stopColor="#B83A7A" stopOpacity={0.6} />
-          </LinearGradient>
-        </Defs>
-        <Path d={`M0 ${height - 1} L${width} ${height - 1}`} stroke="rgba(255,255,255,0.18)" strokeWidth={2} strokeDasharray="4 6" />
-        <AnimatedPath animatedProps={props} fill={`url(#${u}f)`} stroke="#FFE3B0" strokeWidth={1.5} />
-      </Svg>
-      {empty ? (
-        <Text style={styles.ridgeHint} numberOfLines={1}>
-          {noMic ? 'Aquí saldría tu voz si hubiera micro' : 'Aquí se dibuja tu voz'}
-        </Text>
-      ) : null}
-      <Animated.View style={[styles.head, { height }, hs]} />
-    </View>
-  );
-}
-
-function RoundBtn({ icon, label, tint, deep, onPress, disabled, small }: { icon: 'speaker' | 'play'; label: string; tint: string; deep: string; onPress: () => void; disabled?: boolean; small?: boolean }) {
-  return (
-    <View style={{ alignItems: 'center', gap: 4, opacity: disabled ? 0.4 : 1 }}>
-      <Press3D onPress={onPress} disabled={disabled} style={{ width: small ? 50 : 58, height: small ? 54 : 62 }} depth={14} accessibilityLabel={label === 'Noi' ? 'Escuchar a Noi' : 'Escucharte'}>
-        <View style={[styles.roundEdge, { backgroundColor: deep }]}>
-          <View style={[styles.roundFace, { backgroundColor: tint }]}>
-            <View style={styles.roundShine} />
-            <Icon name={icon} size={26} color="#FFFFFF" />
-          </View>
-        </View>
-      </Press3D>
-      <Text style={styles.roundLabel}>{label}</Text>
-    </View>
-  );
-}
-
-/** El gran micro: dorado y latiendo cuando es tu turno; rojo con ondas mientras graba. */
-function Mic({ recording, ready, label, onPress, small }: { recording: boolean; ready: boolean; label: string; onPress: () => void; small?: boolean }) {
-  const size = small ? 70 : 84;
-  return (
-    <View style={{ alignItems: 'center', gap: 4 }}>
-      <View style={{ width: size, height: size + 6, alignItems: 'center', justifyContent: 'center' }}>
-        {ready || recording ? <Glow size={size * 1.8} tint={recording ? '#FF5D5D' : '#FFD166'} strength={0.6} style={{ position: 'absolute' }} /> : null}
-        <Waves active={recording} size={size * 1.9} tint="#FFB3B3" />
-        <Pop trigger={`${recording}${ready}`} scale={1.12}>
-          <Press3D onPress={onPress} style={{ width: size, height: size + 6 }} depth={18} accessibilityLabel={recording ? 'Parar la grabación' : 'Grabar tu voz'}>
-            <View style={[styles.micEdge, { borderRadius: size / 2, backgroundColor: recording ? color.lacaHondo : color.azafranHondo }]}>
-              <View style={[styles.micFace, { borderRadius: size / 2, backgroundColor: recording ? color.laca : color.azafran }]}>
-                <View style={styles.roundShine} />
-                {recording ? <View style={styles.stop} /> : <Icon name="mic" size={size * 0.45} color={color.tinta} />}
-              </View>
-            </View>
-          </Press3D>
-        </Pop>
-      </View>
-      <Text style={[styles.roundLabel, { color: '#FFFFFF' }]}>{label}</Text>
     </View>
   );
 }
@@ -626,45 +823,25 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     elevation: 8,
   },
+  dim: { color: 'rgba(29,35,71,0.3)' },
+  romRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', columnGap: 7 },
   es: { fontFamily: font.uiHeavy, fontSize: 15.5, color: color.tinta2, textAlign: 'center', marginTop: 1 },
-  echo: { position: 'absolute', left: 0, top: 0, width: 220, alignItems: 'center' },
-  echoHalo: {
-    paddingHorizontal: 14,
-    borderRadius: 30,
-    backgroundColor: 'rgba(255,205,120,0.16)',
-    shadowColor: '#FFC56B',
-    shadowOpacity: 0.9,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 0 },
-  },
-  echoText: {
-    fontFamily: font.thaiBold,
-    color: '#FFF6DE',
-    textShadowColor: 'rgba(255,180,70,1)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 16,
-  },
-  ring: { position: 'absolute', left: 0, top: 0, width: 60, height: 60, borderRadius: 30, borderWidth: 4, borderColor: '#FFD592' },
-  viz: { marginTop: 6, borderRadius: 20, backgroundColor: 'rgba(14,17,40,0.62)', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.16)', paddingHorizontal: 12, paddingVertical: 8, gap: 4 },
-  vizRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  vizLabel: { width: 32, fontFamily: font.uiHeavy, fontSize: 13, color: '#BFD6FF' },
-  ridgeHint: { position: 'absolute', left: 0, right: 0, top: '30%', textAlign: 'center', fontFamily: font.uiBold, fontSize: 12.5, color: 'rgba(255,255,255,0.45)' },
-  head: { position: 'absolute', left: 0, top: 0, width: 3, borderRadius: 2, backgroundColor: '#FFFFFF' },
-  tip: { textAlign: 'center', fontFamily: font.uiBold, fontSize: 14, color: '#E9ECFA', marginTop: 8, minHeight: 20 },
+  piece: { position: 'absolute', right: 10, top: -11, height: 22, paddingHorizontal: 9, borderRadius: 11, backgroundColor: color.buatong, justifyContent: 'center', borderWidth: 2, borderColor: '#FFFFFF' },
+  pieceText: { fontFamily: font.uiHeavy, fontSize: 11.5, color: color.tinta },
+  viz: { marginTop: 6, borderRadius: 20, backgroundColor: 'rgba(14,17,40,0.62)', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.16)', paddingHorizontal: 12, paddingVertical: 7, gap: 2 },
+  legend: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  swatch: { width: 14, height: 5, borderRadius: 3 },
+  vizTag: { fontFamily: font.uiHeavy, fontSize: 11.5, letterSpacing: 0.3, color: '#BFD6FF' },
+  axis: { fontFamily: font.uiBold, fontSize: 10.5, color: 'rgba(255,255,255,0.5)' },
+  tip: { textAlign: 'center', fontFamily: font.uiBold, fontSize: 14, lineHeight: 18, color: '#E9ECFA', marginTop: 8, minHeight: 38 },
+  verdict: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 6, minHeight: 40, paddingHorizontal: 4 },
+  stars: { flexDirection: 'row', gap: 1 },
+  verdictTitle: { fontFamily: font.displayBold, fontSize: 16, color: '#FFFFFF' },
+  hintRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  hint: { flex: 1, fontFamily: font.uiBold, fontSize: 13, lineHeight: 16, color: '#DCE2FA' },
   controls: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-evenly', marginTop: 4 },
-  noMic: { width: 130, height: 90, alignItems: 'center', justifyContent: 'center', gap: 6 },
+  noMic: { width: 120, height: 86, alignItems: 'center', justifyContent: 'center', gap: 6 },
   noMicText: { fontFamily: font.uiBold, fontSize: 12.5, color: '#C9D0EE', textAlign: 'center' },
-  roundEdge: { flex: 1, borderRadius: 29, paddingBottom: 4 },
-  roundFace: { flex: 1, borderRadius: 29, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  roundShine: { position: 'absolute', left: 10, right: 10, top: 4, height: '32%', borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.32)' },
-  roundLabel: { fontFamily: font.uiHeavy, fontSize: 13, color: '#C9D0EE' },
-  micEdge: { flex: 1, borderRadius: 42, paddingBottom: 6, shadowColor: '#000000', shadowOpacity: 0.35, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 8 },
-  micFace: { flex: 1, borderRadius: 42, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  stop: { width: 26, height: 26, borderRadius: 6, backgroundColor: '#FFFFFF' },
-  rateRow: { flexDirection: 'row', gap: 8, marginTop: 'auto', paddingBottom: 14, paddingTop: 10 },
-  rateEdge: { flex: 1, borderRadius: 18, paddingBottom: 5 },
-  rateFace: { flex: 1, borderRadius: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, overflow: 'hidden', paddingHorizontal: 6 },
-  rateShine: { position: 'absolute', left: 8, right: 8, top: 4, height: '30%', borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.28)' },
-  rateEmoji: { fontSize: 18 },
-  rateText: { fontFamily: font.displayBold, fontSize: 15.5, color: '#FFFFFF' },
+  bottom: { marginTop: 'auto', paddingTop: 8, paddingBottom: 12, gap: 8, minHeight: 60, justifyContent: 'flex-end' },
+  row: { flexDirection: 'row', gap: 8 },
 });

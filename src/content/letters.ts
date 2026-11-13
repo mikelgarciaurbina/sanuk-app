@@ -1,4 +1,4 @@
-import type { Consonant, Vowel } from './types';
+import type { Consonant, ToneId, Vowel } from './types';
 
 /** Las 44 consonantes con su palabra-guía (como se enseñan en las escuelas tailandesas). */
 export const CONSONANTS: Consonant[] = [
@@ -56,8 +56,12 @@ export const LETTER_SETS: Record<string, string[]> = {
   media: ['ก', 'จ', 'ด', 'ต', 'บ', 'ป', 'อ'],
   baja: ['ม', 'น', 'ร', 'ล', 'ว', 'ย', 'ง', 'ค', 'ช', 'ท', 'พ', 'ฟ'],
   alta: ['ข', 'ฉ', 'ถ', 'ผ', 'ฝ', 'ส', 'ห'],
-  raras: ['ฎ', 'ฏ', 'ฐ', 'ฑ', 'ฒ', 'ณ', 'ศ', 'ษ', 'ฆ', 'ฌ', 'ญ', 'ธ', 'ภ', 'ซ', 'ฬ', 'ฮ'],
+  // las 18 que faltan: primero las nueve que salen en palabras de todos los días; ฃ y ฅ ya no se usan, pero siguen en el alfabeto
+  raras: ['ซ', 'ฮ', 'ญ', 'ธ', 'ภ', 'ศ', 'ษ', 'ณ', 'ฆ', 'ฌ', 'ฐ', 'ฎ', 'ฏ', 'ฑ', 'ฒ', 'ฬ', 'ฃ', 'ฅ'],
 };
+
+/** De las raras, cuántas son de uso diario (las primeras de su grupo): las que enseña su lección. */
+export const FREQUENT_RARE = 9;
 
 /** Las 26 consonantes de uso diario (media + baja + alta). */
 export const COMMON_LETTERS: string[] = [...LETTER_SETS.media, ...LETTER_SETS.baja, ...LETTER_SETS.alta];
@@ -76,7 +80,7 @@ export const LETTER_EMOJI: Record<string, string> = {
 };
 
 /** Grupos de letras que se confunden a primera vista (para elegir distractores con trampa). */
-export const LOOKALIKES = ['กถภฎฏ', 'บปษ', 'ดคตศ', 'มนห', 'ชซ', 'ผฝพฟ', 'ขฃชซ', 'ฉณ', 'ยธ', 'วอ', 'รธ', 'ลส', 'ทฑ', 'งจ'];
+export const LOOKALIKES = ['กถภฎฏ', 'บปษ', 'ดคตศ', 'มนห', 'ชซ', 'ผฝพฟ', 'ขฃชซ', 'ฉณ', 'ยธ', 'วอ', 'รธ', 'ลส', 'ทฑ', 'งจ', 'คฅศ', 'ฆม', 'ฌณญฒ', 'ฐธ', 'ฑฒ', 'พฬ', 'อฮ', 'ญถ'];
 
 /** Letras que se parecen a `ch` (sin ella misma). */
 export const lookalikesOf = (ch: string): string[] => [...new Set(LOOKALIKES.filter((g) => g.includes(ch)).flatMap((g) => [...g]))].filter((c) => c !== ch);
@@ -84,8 +88,9 @@ export const lookalikesOf = (ch: string): string[] => [...new Set(LOOKALIKES.fil
 
 /**
  * Trazos de «Une los puntos» (caja 0–100, y hacia abajo), en el orden en que se escriben a mano:
- * se empieza por la cabeza (el bucle) en el sentido correcto, salvo ก, que no tiene cabeza y empieza abajo
- * a la izquierda. Algunas letras vuelven sobre su propio trazo (ค, ท, ล, ส) y ส lleva un segundo trazo.
+ * se empieza por la cabeza (el bucle) en el sentido correcto, salvo ก y ธ, que no tienen cabeza (ก empieza abajo
+ * a la izquierda; ธ, arriba, por el palo corto). Algunas letras vuelven sobre su propio trazo (ค, ท, ล, ส, ศ, ซ, ฆ)
+ * y cuatro llevan un segundo trazo: la cola de ส y ศ, el rabito de ษ y la parte de abajo de ญ.
  * `glyph` es el contorno de la letra en Noto Sans Thai Looped, en la misma caja; `base` y `xh`, su línea de base
  * y la altura de la x (las pautas del cuaderno).
  * Comprobados dibujándolos sobre el esqueleto del glifo.
@@ -143,30 +148,135 @@ export const LETTER_TRACE: Record<string, { base: number; xh: number; strokes: [
     glyph: 'M30.4 90Q23.3 90 19.2 85.8Q15.2 81.6 15.2 74.2L15.2 59.9Q15.2 49.4 20.7 43.8Q26.3 38.2 36.2 38.2Q40.8 38.2 45.1 39.8Q49.3 41.4 53.2 44.5Q57.2 47.5 60 51.8L60.4 51.8L60.4 39.7Q60.4 31.5 55.5 27.3Q50.7 23.1 40.8 23.1Q35 23.1 28.9 24.8Q22.7 26.5 15.9 29.7L15.9 18Q21.4 15.3 28.9 13.8Q36.4 12.3 43.8 12.3Q49.6 12.3 54.5 13.8Q59.3 15.4 62.8 18.1Q66.3 20.8 68.1 24.8Q71.7 27.4 73.3 31.3Q75 35.2 75 41.6L75 88.9L60.4 88.9L60.4 76.4Q60.4 70.6 58.7 65.5Q57 60.5 53.9 56.7Q50.8 52.9 46.7 50.7Q42.6 48.4 37.9 48.4Q33.5 48.4 31.2 51.2Q29 54 29 59.4L29 62.5Q29 63.7 28.8 65Q28.5 66.4 28.1 67.5Q25.3 67.5 23.2 70Q21.1 72.5 21 75.8L19.2 75.3Q19.5 69.6 22.5 66.6Q25.6 63.6 31.1 63.6Q37.3 63.6 41.1 67.2Q44.9 70.8 44.9 76.6Q44.9 82.7 41 86.4Q37 90 30.4 90ZM30.4 82.6Q33.3 82.6 34.8 81Q36.4 79.5 36.4 76.8Q36.4 74.1 34.8 72.6Q33.3 71.1 30.4 71.1Q27.6 71.1 26.1 72.6Q24.5 74.1 24.5 76.8Q24.5 79.5 26.1 81Q27.6 82.6 30.4 82.6ZM65.4 31.7L59.6 24.8Q64.6 22 67.5 18.3Q70.5 14.6 71.2 10L84.8 10Q84.4 15.7 79.5 21.1Q74.6 26.5 65.4 31.7Z' },
   'ห': { base: 90, xh: 9.4, strokes: [[[34,25],[33,29],[31,31],[28,33],[24,33],[21,33],[18,31],[16,28],[15,24],[15,21],[17,17],[19,15],[22,14],[26,14],[29,15],[32,17],[32,28],[36,41],[33,55],[33,70],[33,82],[37,75],[43,63],[48,50],[57,41],[62,35],[64,26],[66,17],[73,14],[80,15],[85,22],[81,31],[80,42],[81,56],[81,70],[81,82]]],
     glyph: 'M25.8 90L25.8 42.6Q25.8 40.2 26.1 38.2Q26.4 36.2 27 33.7Q30.9 33.3 33 31.3Q35 29.3 35.2 25.9L36.9 25.9Q36.9 31.7 33.6 35Q30.4 38.4 24.5 38.4Q18.2 38.4 14.1 34.5Q10.1 30.6 10.1 24.2Q10.1 17.7 14.3 13.8Q18.6 10 25.7 10Q32.8 10 37 13.8Q41.1 17.7 41.1 24.2L41.1 42.1Q41.1 46.2 40.9 49.4Q40.6 52.7 39.9 56.1L40.4 56.1Q42.3 51.7 44.6 47.9Q47 44 49.4 41.3Q53.8 36.5 58.4 34Q63.1 31.6 68.1 31.3L73 31.3Q78.7 32.7 82.1 34.9Q85.5 37.1 87.2 40.4Q88.8 43.6 88.8 48.6L88.8 90L73.6 90L73.6 50.3Q73.6 45.7 72.1 43.8Q70.5 41.8 67.1 41.8Q63.7 41.8 59.7 44.5Q55.7 47.3 51.9 52.4Q48.5 56.8 46 61.8Q43.5 66.9 42.3 71.8Q41.1 76.8 41.1 81.2L41.1 90ZM25.2 30.1Q28.2 30.1 29.8 28.6Q31.3 27 31.3 24.2Q31.3 21.3 29.8 19.8Q28.2 18.2 25.2 18.2Q22.3 18.2 20.6 19.8Q19 21.3 19 24.2Q19 27 20.6 28.6Q22.3 30.1 25.2 30.1ZM74.8 37.1Q67.8 37.1 63.6 33.5Q59.4 29.9 59.4 23.5Q59.4 17.2 63.6 13.6Q67.8 10 74.8 10Q81.7 10 85.8 13.7Q89.9 17.4 89.9 23.5Q89.9 29.7 85.8 33.4Q81.7 37.1 74.8 37.1ZM74.8 30.1Q77.6 30.1 79.2 28.6Q80.9 27 80.9 24.2Q80.9 21.3 79.2 19.8Q77.6 18.2 74.8 18.2Q71.8 18.2 70.1 19.8Q68.5 21.3 68.5 24.2Q68.5 27 70.1 28.6Q71.8 30.1 74.8 30.1Z' },
+  // Las raras de uso diario. ธ tampoco tiene cabeza: empieza en el palito de dentro y acaba en la bandera de arriba. La cabeza
+  // con muesca de ซ y ฆ gira al revés que la de ช: sale por abajo, sube al pico y vuelve a bajar por el palo. ศ, ษ y ญ llevan un
+  // segundo trazo (la cola, el rabito de dentro, la parte de abajo); ศ vuelve sobre su trazo, como ค.
+  'ซ': { base: 90, xh: 9.4, strokes: [[[36,28],[38,23],[38,20],[36,17],[33,15],[30,14],[26,14],[23,15],[20,18],[19,21],[18,24],[19,28],[21,30],[24,32],[28,33],[33,32],[39,30],[41,29],[48,19],[50,15],[49,21],[47,33],[45,39],[40,46],[37,55],[36,67],[36,80],[36,84],[41,84],[53,84],[65,84],[71,83],[73,81],[75,78],[76,69],[76,57],[74,47],[70,40],[66,36],[69,33],[76,24],[79,17]]],
+    glyph: 'M21 90L21 81.3L28.2 79.2L28.2 59.4Q28.2 55.7 28.9 52.7Q29.6 49.7 31.7 46.7Q33.8 43.6 37.3 39.6Q39.6 37 40.9 35.2Q42.3 33.4 42.9 31.7Q43.5 30 44 27.6L43.5 27.4Q41.4 31.6 37.4 34.1Q33.3 36.7 28.8 36.7Q22.1 36.7 18.1 33Q14 29.4 14 23.5Q14 17.2 17.9 13.6Q21.7 10 28.2 10Q34.3 10 38.1 13.4Q41.8 16.8 41.8 22.3Q41.8 27.2 38.3 30.1L37.7 28.3Q39.7 26.6 41.6 23.8Q43.5 21.1 44.9 17.7Q46.2 14.4 46.7 11.1L54.5 11.1L54.5 20.4Q54.5 25.3 54 29.1Q53.5 33 52.3 36.1Q51.2 39.2 49.2 42.3Q46.8 46 45.5 48.7Q44.1 51.3 43.6 53.8Q43.1 56.2 43.1 59.2L43.1 78.7L62.3 78.7Q65.5 78.7 67 77Q68.5 75.4 68.5 72.1L68.5 49.7Q68.5 45.3 66.5 43Q64.5 40.6 60.4 40.1L60.4 31.7Q66 31.1 68.8 26.7Q71.6 22.3 71.6 14.4L71.6 11.1L86 11.1L86 14.4Q86 23.6 82.5 28.9Q79 34.3 71.9 36.1L71.9 36.5Q83.7 39.6 83.7 51.4L83.7 73.8Q83.7 81.9 80 86Q76.3 90 68.8 90ZM28.4 29.4Q31.3 29.4 32.9 27.9Q34.5 26.3 34.5 23.5Q34.5 20.6 32.9 19.1Q31.3 17.5 28.4 17.5Q25.4 17.5 23.8 19.1Q22.1 20.6 22.1 23.5Q22.1 26.3 23.8 27.9Q25.4 29.4 28.4 29.4Z' },
+  'ฮ': { base: 90, xh: 12.3, strokes: [[[25,53],[29,57],[34,60],[37,60],[40,58],[42,56],[43,53],[43,50],[42,46],[40,44],[37,42],[31,42],[27,43],[24,45],[21,50],[20,54],[20,59],[24,68],[26,77],[28,81],[31,83],[35,84],[47,85],[59,85],[65,84],[68,82],[69,80],[71,73],[71,61],[71,49],[71,37],[70,30],[67,26],[61,21],[52,18],[41,17],[30,18],[25,21],[23,23],[23,25],[23,28],[25,32],[27,33],[32,35],[42,35],[51,35],[61,32],[67,27],[75,17],[82,11]]],
+    glyph: 'M32 90Q25 90 21.5 86.4Q17.9 82.9 17.9 75.9L17.9 52.4Q17.9 45.3 22 41.5Q26 37.6 32.8 37.6Q39.4 37.6 43.4 41.2Q47.5 44.7 47.5 50.9Q47.5 57 43.7 60.7Q39.9 64.3 33.9 64.3Q28.3 64.3 25.3 61.1Q22.3 58 21.9 52.5L23.5 51.8Q23.7 54.2 24.7 55.7Q25.7 57.3 27.4 58.2Q29 59.1 31.1 59.5Q31.5 60.9 31.6 62.8Q31.7 64.7 31.7 67.4L31.7 74.1Q31.7 77.1 33 78.5Q34.3 79.9 37.1 79.9L57.7 79.9Q60.6 79.9 62.2 78.3Q63.9 76.7 63.9 73.7L63.9 42.8Q63.9 38.9 63.7 36.9Q63.5 34.9 62.9 33.1L68.8 31.9Q65.4 35.3 58.4 37.4Q51.4 39.5 42.8 39.5Q30.2 39.5 22.7 36Q15.2 32.4 15.2 26.7Q15.2 20.3 22.9 16.6Q30.5 12.9 43.5 12.9Q54.2 12.9 61.8 16.4Q69.5 19.8 72.4 26Q75.4 28.2 76.8 31.7Q78.2 35.2 78.2 39.9L78.2 75.6Q78.2 82.6 74.6 86.3Q71 90 63.9 90ZM33.1 56.6Q35.8 56.6 37.4 55.1Q39 53.6 39 51Q39 48.3 37.4 46.8Q35.8 45.3 33.1 45.3Q30.2 45.3 28.7 46.8Q27.1 48.3 27.1 51Q27.1 53.6 28.7 55.1Q30.2 56.6 33.1 56.6ZM42.7 32.3Q49 32.3 54 30.9Q59.1 29.4 61.8 27.2Q59.5 24.4 54.3 22.6Q49.1 20.9 43.1 20.9Q35.8 20.9 31.8 22.4Q27.8 23.9 27.8 26.8Q27.8 29.7 31.4 31Q35 32.3 42.7 32.3ZM71.9 31.5L65.8 24.1Q68 21.4 69.5 17.7Q71 14 71.5 10L84.8 10Q83.7 16.4 80.6 21.8Q77.4 27.2 71.9 31.5Z' },
+  'ญ': { base: 65.7, xh: 10, strokes: [[[21,55],[26,51],[29,50],[32,52],[33,54],[34,57],[33,60],[32,62],[28,64],[25,64],[22,62],[20,60],[18,56],[17,51],[19,47],[24,41],[29,35],[32,33],[28,32],[19,30],[17,28],[16,25],[17,23],[21,20],[26,16],[33,14],[43,14],[48,16],[51,19],[53,24],[55,33],[55,45],[55,57],[54,62],[58,62],[69,62],[78,61],[81,57],[82,51],[82,39],[82,28],[82,17]],[[60,83],[64,80],[64,77],[62,74],[60,73],[57,72],[54,73],[51,75],[50,78],[50,81],[51,83],[54,86],[57,87],[64,87],[74,83],[82,78],[85,73]]],
+    glyph: 'M61.1 90Q54.5 90 50.5 86.9Q48.8 85.5 47.8 83.5Q46.9 81.5 46.9 79.3Q46.9 75 49.8 72.3Q52.6 69.6 57.1 69.6Q61.8 69.6 64.5 72Q67.2 74.3 67.2 78.4Q67.2 81.4 65.4 83.3Q63.6 85.2 60 85.9L57.9 83.6Q58.7 83.8 59.5 83.9Q60.2 84 61.2 84Q63.9 84 66.9 83.1Q69.9 82.3 73 80.6Q76.2 78.9 79.5 76.7Q82.7 74.4 85.6 71.6L85.8 71.6L85.8 81.5Q84 83.2 81.1 84.8Q78.3 86.4 74.9 87.5Q71.5 88.7 68 89.4Q64.5 90 61.1 90ZM57.1 83.3Q59.2 83.3 60.3 82.2Q61.4 81.1 61.4 79.2Q61.4 77.3 60.3 76.1Q59.2 75 57.1 75Q55 75 53.9 76.1Q52.8 77.3 52.8 79.2Q52.8 81.1 53.9 82.2Q55 83.3 57.1 83.3ZM26.7 66.5Q21.7 66.5 18.7 63.5Q15.7 60.6 15.7 55.1L15.7 48.6Q15.7 42.8 18.2 39.5Q20.7 36.1 25.7 34.8L25.7 34.4L12.9 30.6L12.9 29.3Q12.9 23.4 15.9 19.1Q18.9 14.8 24.3 12.4Q29.7 10 36.9 10Q48.6 10 54.3 15.3Q60 20.6 60 31L60 58L72.1 58Q74.5 58 75.5 57Q76.6 55.9 76.6 53.6L76.6 11.2L87.1 11.2L87.1 55.3Q87.1 60.4 84.5 63Q81.8 65.7 76.7 65.7L44.8 65.7L44.8 59.7L49.5 58.2L49.5 31.1Q49.5 24.6 46.3 21.3Q43.1 17.9 36.8 17.9Q30.4 17.9 26.7 21.1Q22.9 24.2 22.9 29.3L22.9 30.9L18.8 25.3L35.6 31.6L35 37.3Q30.4 37.8 28.3 40Q26.2 42.1 26.2 46.1L26.2 46.8Q26.2 47.5 26.1 48.5Q25.9 49.5 25.6 50.8Q23.1 51.1 21.5 52.5Q20 53.9 19.9 56.2L18.6 55.8Q18.9 51.7 21.1 49.5Q23.3 47.3 27.4 47.3Q31.8 47.3 34.5 49.9Q37.2 52.5 37.2 56.8Q37.2 61.1 34.4 63.8Q31.5 66.5 26.7 66.5ZM26.7 61.1Q28.8 61.1 29.9 60Q31 58.8 31 56.9Q31 54.9 29.9 53.8Q28.8 52.7 26.7 52.7Q24.8 52.7 23.6 53.8Q22.5 54.9 22.5 56.9Q22.5 58.8 23.6 60Q24.8 61.1 26.7 61.1Z' },
+  'ธ': { base: 90, xh: 9.7, strokes: [[[31,57],[31,69],[31,80],[31,84],[35,84],[47,85],[59,85],[68,84],[71,82],[73,80],[74,75],[75,64],[74,52],[72,46],[70,44],[67,42],[58,41],[47,39],[36,38],[29,37],[26,35],[25,32],[26,28],[28,22],[31,19],[35,17],[44,16],[55,17],[66,18],[76,18],[78,17],[82,13]]],
+    glyph: 'M17.6 90L17.6 81.4L23.6 79.5L23.6 50L38.5 50L38.5 79.4L61.1 79.4Q64.3 79.4 65.8 77.8Q67.3 76.1 67.3 72.9L67.3 54.8Q67.3 50.6 65.9 48.6Q64.5 46.6 60 46.2L17.4 40.8L17.4 31.9Q17.4 24.6 20.7 19.8Q24.1 14.9 29.8 12.5Q35.5 10 42.6 10Q48.9 10 53.7 10.8Q58.4 11.7 62.4 12.5Q66.3 13.4 70.4 13.4Q73.5 13.4 76.9 12.7Q80.2 12 82.6 11L82.6 22Q80.6 23.3 77.7 24Q74.8 24.7 71.4 24.7Q67 24.7 62.7 23.9Q58.3 23 53.8 22.2Q49.4 21.3 44.7 21.3Q38.8 21.3 35.7 23.9Q32.5 26.4 32.5 31.3L32.5 32.3L65.3 36.6Q71.4 37.3 75.1 39.3Q78.8 41.4 80.5 45Q82.2 48.6 82.2 54.2L82.2 75Q82.2 82.4 78.3 86.2Q74.5 90 67.2 90Z' },
+  'ภ': { base: 88.9, xh: 10, strokes: [[[36,73],[31,69],[26,67],[24,67],[21,69],[18,72],[17,75],[18,79],[19,82],[21,84],[25,86],[30,86],[33,85],[36,82],[39,77],[41,70],[39,60],[38,54],[38,51],[41,47],[44,45],[41,43],[29,38],[25,36],[24,33],[24,30],[25,28],[31,24],[39,18],[47,16],[58,16],[68,18],[73,22],[76,26],[79,35],[79,46],[79,58],[79,70],[79,81]]],
+    glyph: 'M27.6 90Q21 90 17 86.3Q13.1 82.5 13.1 76.3Q13.1 70.4 16.9 66.6Q20.8 62.8 26.8 62.8Q32.1 62.8 35.3 65.7Q38.6 68.6 38.8 73.5L37.1 73.5Q36.8 70.6 34.5 68.4Q32.2 66.3 29.6 66.4Q29 65.1 28.8 63.5Q28.6 61.8 28.6 59.9L28.6 58.6Q28.6 52.9 30.8 49.9Q32.9 46.8 37.9 45.4L37.9 44.9L19.2 39.2L19.2 37.4Q19.2 28.9 23.4 22.8Q27.6 16.7 35.4 13.3Q43.2 10 53.8 10Q70.6 10 78.8 17.4Q86.9 24.9 86.9 39.7L86.9 88.9L72.1 88.9L72.1 39.9Q72.1 30.6 67.4 25.9Q62.6 21.3 53.3 21.3Q44 21.3 38.8 25.5Q33.5 29.7 33.5 37.4L33.5 39.6L27.5 31.7L51.9 40.7L51 48.8Q48.1 49.4 46.3 50.8Q44.4 52.1 43.8 54.4Q43.2 56.8 43.2 60.7L43.2 74.2Q43.2 81.7 39.2 85.8Q35.1 90 27.6 90ZM27.5 82.4Q30.4 82.4 32 80.8Q33.6 79.2 33.6 76.4Q33.6 73.6 32 72.1Q30.4 70.6 27.5 70.6Q24.7 70.6 23.1 72.1Q21.5 73.6 21.5 76.4Q21.5 79.2 23.1 80.8Q24.7 82.4 27.5 82.4Z' },
+  'ศ': { base: 90, xh: 12.3, strokes: [[[40,53],[40,59],[42,62],[45,63],[49,63],[53,61],[55,59],[56,57],[57,53],[56,50],[54,47],[51,45],[48,44],[43,45],[40,46],[36,50],[31,59],[25,68],[23,76],[23,83],[22,77],[20,65],[18,53],[18,42],[20,32],[24,26],[30,21],[39,18],[50,18],[61,21],[66,24],[69,28],[71,35],[72,47],[72,59],[72,71],[72,83]],[[64,22],[69,24],[73,21],[77,17],[81,14],[85,12]]],
+    glyph: 'M15.4 90L15.4 80.2Q15.4 73.2 14.2 67.8Q13.1 62.4 12 57Q10.9 51.6 10.9 44.7Q10.9 34.5 14.9 27.3Q19 20.1 26.8 16.2Q34.5 12.3 45.5 12.3Q52.3 12.3 57.7 13.9Q63.1 15.5 67 18.5Q70.8 21.6 72.6 26.3Q76.3 28.2 78 32.6Q79.8 36.9 79.8 43.1L79.8 90L65.3 90L65.3 42.7Q65.3 33.2 60.1 28.3Q54.9 23.4 45.6 23.4Q35.8 23.4 30.1 28.8Q24.4 34.2 24.4 43.9L24.4 45.3Q24.4 48.3 24.7 51.1Q25 53.9 25.1 56.6Q25.2 59.2 25.1 62.1L25.5 62.1Q27.3 55.1 30.2 50.3Q33.2 45.6 37.4 43Q41.7 40.5 46.7 40.5Q53.3 40.5 57 44.1Q60.8 47.6 60.8 53.6Q60.8 59.4 57 62.9Q53.3 66.5 47 66.5Q41.8 66.5 38.3 63.7Q34.8 61 34.8 57Q34.8 52 38.9 50.5L40 55.9Q37.7 57.6 35.7 60.1Q33.7 62.6 32.4 66.1Q31.1 69.5 30.3 73.3Q29.5 77.1 29.5 81.2L29.5 90ZM46.9 59.2Q49.6 59.2 51.1 57.7Q52.6 56.2 52.6 53.6Q52.6 50.9 51 49.4Q49.5 47.9 46.7 47.9Q43.8 47.9 42.3 49.4Q40.8 50.9 40.8 53.6Q40.8 56.2 42.4 57.7Q44 59.2 46.9 59.2ZM69.4 32.7L63.7 25Q68.7 22 71.6 18.2Q74.5 14.4 75.3 10L89.1 10Q88.7 15.9 83.6 21.9Q78.6 27.9 69.4 32.7Z' },
+  'ษ': { base: 85.5, xh: 14, strokes: [[[31,29],[28,33],[23,36],[19,35],[17,34],[14,29],[14,26],[15,23],[17,20],[20,19],[24,18],[28,19],[30,20],[33,24],[35,29],[35,34],[32,43],[31,53],[31,65],[31,77],[31,81],[36,81],[48,80],[60,80],[68,80],[70,79],[72,77],[74,70],[74,58],[74,46],[74,34],[74,22]],[[56,52],[60,49],[61,46],[61,44],[59,41],[57,39],[54,38],[50,38],[47,39],[45,41],[43,44],[43,47],[43,50],[45,52],[49,55],[56,56],[62,56],[70,52],[80,47],[87,42],[89,38]]],
+    glyph: 'M16.8 85.5L16.8 77.8L24.1 75.9L24.1 43.5Q24.1 41.3 24.3 39.6Q24.5 37.8 25.1 35.5Q28.5 35.2 30.4 33.4Q32.3 31.6 32.4 28.6L33.8 28.6Q33.8 33.8 30.9 36.7Q28 39.7 23 39.7Q17.3 39.7 13.6 36.2Q10 32.8 10 27.1Q10 21.3 13.8 17.9Q17.5 14.5 23.8 14.5Q30.1 14.5 33.8 17.9Q37.5 21.3 37.5 27.1L37.5 75.7L61.9 75.7Q64.8 75.7 66.2 74.3Q67.5 72.9 67.5 70L67.5 15.5L80.4 15.5L80.4 72.1Q80.4 78.7 77.1 82.1Q73.8 85.5 67.1 85.5ZM23.5 32.4Q26.1 32.4 27.5 31Q29 29.6 29 27.1Q29 24.6 27.5 23.2Q26.1 21.8 23.5 21.8Q20.9 21.8 19.5 23.2Q18.1 24.6 18.1 27.1Q18.1 29.6 19.5 31Q20.9 32.4 23.5 32.4ZM57.5 59.4Q49.6 59.4 45 56.5Q39.2 52.9 39.2 46.2Q39.2 40.8 42.7 37.4Q46.2 34 51.9 34Q57.8 34 61.3 37.2Q64.7 40.3 64.7 45.6Q64.7 49.6 62.4 52.3Q60.1 54.9 56.3 55L56.3 51.6Q57.4 52 59.2 52Q62.1 52 65.9 50.8Q69.7 49.5 74 47.3Q78.3 45.1 82.4 42.3Q86.5 39.6 89.6 36.4L90 36.4L90 48.1Q86.9 50.5 82.8 52.6Q78.7 54.7 74.2 56.2Q69.7 57.8 65.5 58.6Q61.2 59.4 57.5 59.4ZM51.9 51.8Q54.5 51.8 56 50.3Q57.4 48.9 57.4 46.4Q57.4 44 56 42.5Q54.5 41.1 51.9 41.1Q49.2 41.1 47.8 42.5Q46.4 44 46.4 46.4Q46.4 48.9 47.8 50.3Q49.2 51.8 51.9 51.8Z' },
+  'ณ': { base: 78.1, xh: 21.1, strokes: [[[19,67],[23,63],[27,62],[29,64],[31,66],[32,69],[31,72],[30,74],[27,76],[25,76],[22,76],[19,75],[17,72],[15,66],[15,61],[16,58],[21,52],[27,46],[29,45],[25,44],[17,42],[14,40],[13,37],[14,35],[16,33],[21,29],[27,26],[37,25],[45,27],[48,30],[51,34],[52,42],[53,54],[53,67],[53,72],[57,71],[65,67],[69,66],[71,66],[72,70],[73,73],[75,75],[78,76],[81,76],[84,75],[86,72],[87,69],[86,66],[85,64],[82,62],[79,61],[79,58],[80,48],[81,39],[81,28]]],
+    glyph: 'M24.1 78.9Q19 78.9 16 75.9Q12.9 72.9 12.9 67.2L12.9 60.6Q12.9 54.7 15.5 51.3Q18 47.8 23.1 46.5L23.1 46.1L10 42.2L10 40.9Q10 34.9 13.1 30.5Q16.1 26 21.6 23.6Q27.1 21.1 34.6 21.1Q46.5 21.1 52.3 26.5Q58.1 32 58.1 42.6L58.1 54.5Q58.1 59.1 58.1 62.1Q58.1 65.1 57.9 67.9L58.3 67.9Q59.8 66.1 63.1 63.7Q66.3 61.3 69.7 59.6Q72.3 58.3 73.5 57.4Q74.7 56.4 75 55.1Q75.4 53.7 75.4 51.4L75.4 22.3L86.1 22.3L86.1 50.8Q86.1 53.8 85.3 55.7Q84.6 57.6 82.5 59.1Q80.5 60.6 76.8 62.2L75.3 63.8Q70.5 66.4 67.1 68.6Q63.7 70.9 61.5 73.1Q59.2 75.4 57.5 78.1L47.4 78.1L47.4 42.7Q47.4 36.1 44.1 32.7Q40.9 29.2 34.5 29.2Q27.9 29.2 24.1 32.5Q20.2 35.7 20.2 40.9L20.2 42.5L16 36.8L33.3 43.2L32.6 49Q27.9 49.6 25.8 51.8Q23.6 53.9 23.6 57.9L23.6 58.7Q23.6 59.5 23.5 60.5Q23.3 61.5 23 62.8Q20.4 63.1 18.8 64.6Q17.2 66 17.1 68.3L15.8 67.9Q16.1 63.7 18.4 61.5Q20.6 59.2 24.8 59.2Q29.3 59.2 32.1 61.9Q34.9 64.6 34.9 68.9Q34.9 73.4 32 76.1Q29 78.9 24.1 78.9ZM24.1 73.4Q26.2 73.4 27.4 72.2Q28.5 71.1 28.5 69Q28.5 67 27.4 65.9Q26.2 64.8 24.1 64.8Q22.1 64.8 21 65.9Q19.8 67 19.8 69Q19.8 71.1 21 72.2Q22.1 73.4 24.1 73.4ZM79.4 78.9Q74.6 78.9 71.6 76.1Q68.6 73.4 68.6 68.8Q68.6 64.2 71.7 61.5Q74.7 58.8 79.4 58.8Q84.1 58.8 87 61.5Q90 64.2 90 68.8Q90 73.4 87 76.1Q84.1 78.9 79.4 78.9ZM79.4 73.1Q81.4 73.1 82.5 71.9Q83.6 70.8 83.6 68.7Q83.6 66.8 82.5 65.7Q81.4 64.5 79.4 64.5Q77.3 64.5 76.1 65.7Q75 66.8 75 68.7Q75 70.8 76.1 71.9Q77.3 73.1 79.4 73.1Z' },
+  'ฆ': { base: 88.9, xh: 9.4, strokes: [[[35,27],[37,23],[37,20],[35,17],[33,15],[29,14],[25,14],[22,15],[19,18],[18,21],[18,24],[19,28],[20,30],[24,32],[27,33],[32,32],[38,30],[41,28],[46,21],[49,15],[49,19],[46,31],[45,37],[40,45],[38,54],[37,61],[40,73],[40,79],[38,82],[36,84],[32,86],[28,86],[23,84],[21,82],[19,79],[19,76],[20,71],[22,68],[24,67],[28,66],[33,66],[44,70],[55,73],[65,78],[73,81],[78,83],[78,79],[79,67],[79,55],[79,43],[79,31],[79,19]]],
+    glyph: 'M72 88.9Q68.5 85.8 63.5 82.7Q58.5 79.7 52.5 76.6Q46.5 73.5 39.8 70.7L30 66.1Q29.6 64.1 29.4 62Q29.2 59.9 29.2 57.6L29.2 56.9Q29.2 53.5 29.9 50.6Q30.7 47.6 32.2 44.8Q33.8 42 36.4 39.2Q38.7 36.6 39.9 34.9Q41.2 33.2 41.9 31.5Q42.6 29.7 43 27.3L42.6 27.2Q40.3 31.3 36.4 33.8Q32.4 36.3 28 36.3Q21.5 36.3 17.5 32.7Q13.5 29.2 13.5 23.3Q13.5 17.1 17.3 13.6Q21 10 27.5 10Q33.5 10 37.2 13.4Q40.9 16.7 40.9 22.2Q40.9 26.9 37.4 29.9L36.9 28Q38.8 26.4 40.7 23.6Q42.6 20.9 43.9 17.6Q45.2 14.3 45.7 11.1L53.4 11.1L53.4 20.2Q53.4 25.1 52.9 28.9Q52.4 32.7 51.3 35.7Q50.3 38.8 48.3 41.7Q46.6 44.7 45.7 46.8Q44.7 48.9 44.4 51.3Q44.1 53.8 44.1 57.6L44.1 66.5L39.8 62.9Q45.5 64.1 51.3 66.3Q57.1 68.5 62.2 71Q67.3 73.6 71.4 76.4L72 76.4Q71.7 72.1 71.6 67.2Q71.5 62.3 71.5 54.6L71.5 11.1L86.5 11.1L86.5 88.9ZM27.6 29.2Q30.6 29.2 32.1 27.6Q33.6 26.1 33.6 23.3Q33.6 20.5 32.1 19Q30.6 17.4 27.6 17.4Q24.7 17.4 23.1 19Q21.5 20.5 21.5 23.3Q21.5 26.1 23.1 27.6Q24.7 29.2 27.6 29.2ZM29.6 90Q22.6 90 18.4 86.1Q14.2 82.2 14.2 75.9Q14.2 69.4 18.4 65.6Q22.6 61.7 29.6 61.7Q36.7 61.7 41 65.6Q45.2 69.4 45.2 75.9Q45.2 82.2 41 86.1Q36.7 90 29.6 90ZM29.2 81.9Q32.1 81.9 33.7 80.3Q35.3 78.7 35.3 75.9Q35.3 73.2 33.7 71.6Q32.1 70 29.2 70Q26.2 70 24.6 71.6Q23 73.2 23 75.9Q23 78.7 24.6 80.3Q26.2 81.9 29.2 81.9Z' },
 };
 
-export const VOWELS: Vowel[] = [
-  { ch: '–ะ', rom: 'a', long: false, pos: 'despues' },
-  { ch: '–า', rom: 'aa', long: true, pos: 'despues' },
-  { ch: '–ิ', rom: 'i', long: false, pos: 'arriba' },
-  { ch: '–ี', rom: 'ii', long: true, pos: 'arriba' },
-  { ch: '–ึ', rom: 'ʉ', long: false, pos: 'arriba' },
-  { ch: '–ือ', rom: 'ʉʉ', long: true, pos: 'arriba' },
-  { ch: '–ุ', rom: 'u', long: false, pos: 'abajo' },
-  { ch: '–ู', rom: 'uu', long: true, pos: 'abajo' },
-  { ch: 'เ–', rom: 'ee', long: true, pos: 'antes' },
-  { ch: 'แ–', rom: 'ɛɛ', long: true, pos: 'antes' },
-  { ch: 'โ–', rom: 'oo', long: true, pos: 'antes' },
-  { ch: '–อ', rom: 'ɔɔ', long: true, pos: 'despues' },
-  { ch: 'เ–อ', rom: 'əə', long: true, pos: 'rodea' },
-  { ch: 'เ–ีย', rom: 'ia', long: true, pos: 'rodea' },
-  { ch: 'เ–ือ', rom: 'ʉa', long: true, pos: 'rodea' },
-  { ch: '–ัว', rom: 'ua', long: true, pos: 'rodea' },
-  { ch: 'ไ–', rom: 'ai', long: false, pos: 'antes' },
-  { ch: 'ใ–', rom: 'ai', long: false, pos: 'antes' },
-  { ch: 'เ–า', rom: 'ao', long: false, pos: 'rodea' },
-  { ch: '–ำ', rom: 'am', long: false, pos: 'despues' },
+// ——— Vocales ———
+
+/** Grupo con el que se enseña cada forma de vocal (lecciones `vocales`, `cortas` y `compuestas`). */
+export type VowelSet = 'vocales' | 'cortas' | 'compuestas';
+
+/**
+ * Una forma escrita de vocal. `ch` la dibuja sobre el círculo de referencia (◌ = la consonante): lo que va delante del
+ * círculo se escribe antes de la consonante; los signos de encima o debajo van pegados a ella y lo demás, detrás.
+ */
+export type VowelForm = Vowel & {
+  /** clave única (casi siempre, `ch`) */
+  id: string;
+  set: VowelSet;
+  /** cómo se llama en español: «a larga», «e corta»… */
+  es: string;
+  /** sin consonante final, ¿deja la sílaba viva? (vocal larga, o corta que acaba en -i, -o o -m) */
+  live: boolean;
+  /** true: solo con consonante final · false: solo sin ella · sin definir: las dos */
+  closed?: boolean;
+  /** forma principal: la que se busca en la cueva (las variantes se aprenden montando sílabas) */
+  cave?: boolean;
+  /** el sonido solo, sobre la อ muda, para la voz: «อา» */
+  say: string;
+  /** palabra de ejemplo */
+  ex: { th: string; rom: string; es: string; emoji: string };
+};
+
+type VowelOpts = { id?: string; live?: boolean; closed?: boolean; cave?: boolean };
+const vw = (ch: string, rom: string, long: boolean, pos: Vowel['pos'], set: VowelSet, es: string, say: string, ex: [string, string, string, string], o: VowelOpts = {}): VowelForm => ({
+  id: o.id ?? ch,
+  ch,
+  rom,
+  long,
+  pos,
+  set,
+  es,
+  say,
+  live: o.live ?? long,
+  closed: o.closed,
+  cave: o.cave,
+  ex: { th: ex[0], rom: ex[1], es: ex[2], emoji: ex[3] },
+});
+
+/**
+ * Las vocales, con todas sus formas escritas: largas simples, cortas (con su forma abierta y su forma con
+ * consonante final: ◌ะ / ◌ั, เ◌ะ / เ◌็, โ◌ะ / nada) y compuestas (เ◌ีย, เ◌ือ, ◌ัว, เ◌า, ไ◌, ใ◌, ◌ำ, เ◌อ).
+ */
+export const VOWELS: VowelForm[] = [
+  // largas simples
+  vw('◌า', 'aa', true, 'despues', 'vocales', 'a larga', 'อา', ['ตา', 'taa', 'ojo', '👁️'], { cave: true }),
+  vw('◌ี', 'ii', true, 'arriba', 'vocales', 'i larga', 'อี', ['ดี', 'dii', 'bueno', '👍'], { cave: true }),
+  vw('◌ู', 'uu', true, 'abajo', 'vocales', 'u larga', 'อู', ['งู', 'nguu', 'serpiente', '🐍'], { cave: true }),
+  vw('เ◌', 'ee', true, 'antes', 'vocales', 'e larga', 'เอ', ['เลข', 'lêek', 'número', '🔢'], { cave: true }),
+  vw('แ◌', 'ɛɛ', true, 'antes', 'vocales', 'e abierta larga', 'แอ', ['แม่', 'mɛ̂ɛ', 'mamá', '👩'], { cave: true }),
+  vw('โ◌', 'oo', true, 'antes', 'vocales', 'o larga', 'โอ', ['โลก', 'lôok', 'mundo', '🌍'], { cave: true }),
+  vw('◌อ', 'ɔɔ', true, 'despues', 'vocales', 'o abierta larga', 'ออ', ['รอ', 'rɔɔ', 'esperar', '⏳'], { cave: true }),
+  vw('◌ือ', 'ʉʉ', true, 'rodea', 'vocales', 'ʉ larga', 'อือ', ['มือ', 'mʉʉ', 'mano', '✋'], { closed: false, cave: true }),
+  vw('◌ื', 'ʉʉ', true, 'arriba', 'vocales', 'ʉ larga (con final)', 'อือ', ['คืน', 'khʉʉn', 'noche', '🌙'], { closed: true }),
+  // cortas
+  vw('◌ะ', 'a', false, 'despues', 'cortas', 'a corta', 'อะ', ['พระ', 'phrá', 'monje', '🙏'], { closed: false, cave: true }),
+  vw('◌ั', 'a', false, 'arriba', 'cortas', 'a corta (con final)', 'อะ', ['ฟัน', 'fan', 'diente', '🦷'], { closed: true, cave: true }),
+  vw('◌ิ', 'i', false, 'arriba', 'cortas', 'i corta', 'อิ', ['ลิง', 'ling', 'mono', '🐒'], { cave: true }),
+  vw('◌ึ', 'ʉ', false, 'arriba', 'cortas', 'ʉ corta', 'อึ', ['ผึ้ง', 'phʉ̂ng', 'abeja', '🐝'], { cave: true }),
+  vw('◌ุ', 'u', false, 'abajo', 'cortas', 'u corta', 'อุ', ['ยุง', 'yung', 'mosquito', '🦟'], { cave: true }),
+  vw('เ◌ะ', 'e', false, 'rodea', 'cortas', 'e corta', 'เอะ', ['เตะ', 'tè', 'dar una patada', '⚽'], { closed: false, cave: true }),
+  vw('เ◌็', 'e', false, 'rodea', 'cortas', 'e corta (con final)', 'เอะ', ['เป็ด', 'pèt', 'pato', '🦆'], { closed: true, cave: true }),
+  // con marca de tono, la ◌็ no se escribe: เก่ง, เล่น, เต้น se leen con «e» corta
+  vw('เ◌', 'e', false, 'antes', 'cortas', 'e corta (con marca de tono)', 'เอะ', ['เล่น', 'lên', 'jugar', '🎲'], { id: 'เ◌~', closed: true }),
+  vw('แ◌ะ', 'ɛ', false, 'rodea', 'cortas', 'e abierta corta', 'แอะ', ['แกะ', 'gɛ̀', 'oveja', '🐑'], { closed: false, cave: true }),
+  vw('แ◌็', 'ɛ', false, 'rodea', 'cortas', 'e abierta corta (con final)', 'แอะ', ['แข็ง', 'khɛ̌ng', 'duro', '🪨'], { closed: true }),
+  vw('โ◌ะ', 'o', false, 'rodea', 'cortas', 'o corta', 'โอะ', ['โต๊ะ', 'tó', 'mesa', '🪑'], { closed: false, cave: true }),
+  // entre dos consonantes sin vocal escrita se lee una «o» corta: คน, นก, ผม
+  vw('◌', 'o', false, 'despues', 'cortas', 'o corta escondida', 'โอะ', ['คน', 'khon', 'persona', '🧑'], { closed: true }),
+  vw('เ◌าะ', 'ɔ', false, 'rodea', 'cortas', 'o abierta corta', 'เอาะ', ['เกาะ', 'gɔ̀', 'isla', '🏝️'], { closed: false, cave: true }),
+  vw('เ◌อะ', 'ə', false, 'rodea', 'cortas', 'ə corta', 'เออะ', ['เยอะ', 'yə́', 'mucho', '📚'], { closed: false }),
+  // compuestas
+  vw('เ◌ีย', 'ia', true, 'rodea', 'compuestas', 'ia', 'เอีย', ['เรียน', 'rian', 'estudiar', '📖'], { cave: true }),
+  vw('เ◌ือ', 'ʉa', true, 'rodea', 'compuestas', 'ʉa', 'เอือ', ['เสือ', 'sʉ̌a', 'tigre', '🐯'], { cave: true }),
+  vw('◌ัว', 'ua', true, 'rodea', 'compuestas', 'ua', 'อัว', ['วัว', 'wua', 'vaca', '🐮'], { closed: false, cave: true }),
+  vw('◌ว', 'ua', true, 'despues', 'compuestas', 'ua (con final)', 'อัว', ['สวน', 'sǔan', 'jardín', '🌳'], { closed: true }),
+  vw('ไ◌', 'ai', false, 'antes', 'compuestas', 'ai (mái má-laai)', 'ไอ', ['ไฟ', 'fai', 'fuego', '🔥'], { live: true, closed: false, cave: true }),
+  vw('ใ◌', 'ai', false, 'antes', 'compuestas', 'ai (mái múan)', 'ใอ', ['ใจ', 'jai', 'corazón', '❤️'], { live: true, closed: false, cave: true }),
+  vw('เ◌า', 'ao', false, 'rodea', 'compuestas', 'ao', 'เอา', ['เต่า', 'tào', 'tortuga', '🐢'], { live: true, closed: false, cave: true }),
+  vw('◌ำ', 'am', false, 'despues', 'compuestas', 'am', 'อำ', ['น้ำ', 'náam', 'agua', '💧'], { live: true, closed: false, cave: true }),
+  vw('เ◌อ', 'əə', true, 'rodea', 'compuestas', 'ə larga', 'เออ', ['เจอ', 'jəə', 'encontrarse', '🤝'], { closed: false, cave: true }),
+  vw('เ◌ิ', 'əə', true, 'rodea', 'compuestas', 'ə larga (con final)', 'เออ', ['เดิน', 'dəən', 'caminar', '🚶'], { closed: true }),
+  vw('เ◌ย', 'əəi', true, 'rodea', 'compuestas', 'əəi', 'เอย', ['เนย', 'nəəi', 'mantequilla', '🧈'], { closed: false }),
 ];
+
+export const vowelOf = (id: string): VowelForm | undefined => VOWELS.find((v) => v.id === id);
+
+/** Signos de vocal que se escriben pegados a la consonante, encima o debajo. */
+const ON_CONSONANT = 'ัิีึืุู็';
+
+/** Las piezas de una forma de vocal: lo que va delante de la consonante, pegado a ella (encima o debajo) y detrás. */
+export function vowelParts(ch: string): { pre: string; on: string; post: string } {
+  const [pre, rest = ''] = ch.split('◌');
+  const marks = [...rest];
+  return { pre, on: marks.filter((x) => ON_CONSONANT.includes(x)).join(''), post: marks.filter((x) => !ON_CONSONANT.includes(x)).join('') };
+}
+
+/** La vocal escrita sobre una consonante (por defecto, la อ muda con la que se nombran las vocales): «อา», «เอีย». */
+export function vowelOn(ch: string, c = 'อ'): string {
+  const p = vowelParts(ch);
+  return p.pre + c + p.on + p.post;
+}
 
 export const TONE_MARKS = [
   { ch: '่', name: 'ไม้เอก', rom: 'mái èek' },
@@ -175,83 +285,496 @@ export const TONE_MARKS = [
   { ch: '๋', name: 'ไม้จัตวา', rom: 'mái jàt-tà-waa' },
 ];
 
+// ——— La regla del tono ———
 
+export type LetterClass = Consonant['cls'];
 
-/** Sílaba de «Bloques de sílabas»: consonante (c) + vocal (v) + marca de tono (t) + consonante final (f).
- *  `level`: 1 = sin marca · 2 = con marca de tono · 3 = con consonante final. */
-export type SyllableBlock = { th: string; rom: string; es: string; c: string; v: string; t: string; f: string; vpos: Vowel['pos']; level: 1 | 2 | 3 };
-
-const syl = (th: string, rom: string, es: string, c: string, v: string, t: string, f: string, vpos: Vowel['pos'], level: 1 | 2 | 3): SyllableBlock => ({ th, rom, es, c, v, t, f, vpos, level });
-
-export const SYLLABLE_BANK: SyllableBlock[] = [
-  // 1 · consonante + vocal
-  syl('มา', 'maa', 'venir', 'ม', 'า', '', '', 'despues', 1),
-  syl('ดี', 'dii', 'bueno', 'ด', 'ี', '', '', 'arriba', 1),
-  syl('ปู', 'puu', 'cangrejo', 'ป', 'ู', '', '', 'abajo', 1),
-  syl('ตา', 'taa', 'ojo', 'ต', 'า', '', '', 'despues', 1),
-  syl('นา', 'naa', 'arrozal', 'น', 'า', '', '', 'despues', 1),
-  syl('ปี', 'pii', 'año', 'ป', 'ี', '', '', 'arriba', 1),
-  syl('ใจ', 'jai', 'corazón', 'จ', 'ใ', '', '', 'antes', 1),
-  syl('โต', 'too', 'crecer', 'ต', 'โ', '', '', 'antes', 1),
-  syl('หู', 'hǔu', 'oreja', 'ห', 'ู', '', '', 'abajo', 1),
-  syl('สี', 'sǐi', 'color', 'ส', 'ี', '', '', 'arriba', 1),
-  syl('ขา', 'khǎa', 'pierna', 'ข', 'า', '', '', 'despues', 1),
-  syl('มี', 'mii', 'tener', 'ม', 'ี', '', '', 'arriba', 1),
-  syl('ไป', 'pai', 'ir', 'ป', 'ไ', '', '', 'antes', 1),
-  syl('งู', 'nguu', 'serpiente', 'ง', 'ู', '', '', 'abajo', 1),
-  syl('ไฟ', 'fai', 'fuego, luz', 'ฟ', 'ไ', '', '', 'antes', 1),
-  syl('ดำ', 'dam', 'negro', 'ด', 'ำ', '', '', 'despues', 1),
-  syl('ทำ', 'tham', 'hacer', 'ท', 'ำ', '', '', 'despues', 1),
-  // 2 · con marca de tono
-  syl('ไม่', 'mâi', 'no', 'ม', 'ไ', '่', '', 'antes', 2),
-  syl('แม่', 'mɛ̂ɛ', 'mamá', 'ม', 'แ', '่', '', 'antes', 2),
-  syl('พ่อ', 'phɔ̂ɔ', 'papá', 'พ', 'อ', '่', '', 'despues', 2),
-  syl('ป้า', 'pâa', 'tía (mayor)', 'ป', 'า', '้', '', 'despues', 2),
-  syl('ไก่', 'gài', 'pollo', 'ก', 'ไ', '่', '', 'antes', 2),
-  syl('ไข่', 'khài', 'huevo', 'ข', 'ไ', '่', '', 'antes', 2),
-  syl('ม้า', 'máa', 'caballo', 'ม', 'า', '้', '', 'despues', 2),
-  syl('ห้า', 'hâa', 'cinco', 'ห', 'า', '้', '', 'despues', 2),
-  syl('ปู่', 'pùu', 'abuelo (paterno)', 'ป', 'ู', '่', '', 'abajo', 2),
-  syl('ย่า', 'yâa', 'abuela (paterna)', 'ย', 'า', '่', '', 'despues', 2),
-  syl('ฟ้า', 'fáa', 'cielo', 'ฟ', 'า', '้', '', 'despues', 2),
-  syl('ป่า', 'pàa', 'bosque', 'ป', 'า', '่', '', 'despues', 2),
-  syl('ไม้', 'máai', 'madera', 'ม', 'ไ', '้', '', 'antes', 2),
-  syl('ได้', 'dâi', 'poder', 'ด', 'ไ', '้', '', 'antes', 2),
-  syl('รู้', 'rúu', 'saber', 'ร', 'ู', '้', '', 'abajo', 2),
-  syl('น้ำ', 'náam', 'agua', 'น', 'ำ', '้', '', 'despues', 2),
-  syl('ให้', 'hâi', 'dar', 'ห', 'ใ', '้', '', 'antes', 2),
-  // 3 · con consonante final
-  syl('กิน', 'gin', 'comer', 'ก', 'ิ', '', 'น', 'arriba', 3),
-  syl('นอน', 'nɔɔn', 'dormir', 'น', 'อ', '', 'น', 'despues', 3),
-  syl('ร้อน', 'rɔ́ɔn', 'calor', 'ร', 'อ', '้', 'น', 'despues', 3),
-  syl('ช้าง', 'cháang', 'elefante', 'ช', 'า', '้', 'ง', 'despues', 3),
-  syl('ลิง', 'ling', 'mono', 'ล', 'ิ', '', 'ง', 'arriba', 3),
-  syl('ทาง', 'thaang', 'camino', 'ท', 'า', '', 'ง', 'despues', 3),
-  syl('สาม', 'sǎam', 'tres', 'ส', 'า', '', 'ม', 'despues', 3),
-  syl('ขาว', 'khǎao', 'blanco', 'ข', 'า', '', 'ว', 'despues', 3),
-  syl('ดาว', 'daao', 'estrella', 'ด', 'า', '', 'ว', 'despues', 3),
-  syl('แมว', 'mɛɛo', 'gato', 'ม', 'แ', '', 'ว', 'antes', 3),
-  syl('ปาก', 'pàak', 'boca', 'ป', 'า', '', 'ก', 'despues', 3),
-  syl('มาก', 'mâak', 'mucho', 'ม', 'า', '', 'ก', 'despues', 3),
-  syl('พูด', 'phûut', 'hablar', 'พ', 'ู', '', 'ด', 'abajo', 3),
-  syl('จาน', 'jaan', 'plato', 'จ', 'า', '', 'น', 'despues', 3),
-  syl('บ้าน', 'bâan', 'casa', 'บ', 'า', '้', 'น', 'despues', 3),
-  syl('สอง', 'sɔ̌ɔng', 'dos', 'ส', 'อ', '', 'ง', 'despues', 3),
-  syl('ข้าว', 'khâao', 'arroz', 'ข', 'า', '้', 'ว', 'despues', 3),
-  syl('โมง', 'moong', 'hora', 'ม', 'โ', '', 'ง', 'antes', 3),
-  syl('แดง', 'dɛɛng', 'rojo', 'ด', 'แ', '', 'ง', 'antes', 3),
-  syl('ลูก', 'lûuk', 'hijo, hija', 'ล', 'ู', '', 'ก', 'abajo', 3),
-  syl('ถุง', 'thǔng', 'bolsa', 'ถ', 'ุ', '', 'ง', 'abajo', 3),
-  syl('ขาย', 'khǎai', 'vender', 'ข', 'า', '', 'ย', 'despues', 3),
-  syl('ยาย', 'yaai', 'abuela (materna)', 'ย', 'า', '', 'ย', 'despues', 3),
-  syl('เก่ง', 'gèng', 'hábil', 'ก', 'เ', '่', 'ง', 'antes', 3),
-  syl('ปิด', 'pìt', 'cerrar', 'ป', 'ิ', '', 'ด', 'arriba', 3),
-  syl('ร้าน', 'ráan', 'tienda', 'ร', 'า', '้', 'น', 'despues', 3),
-];
-
-/** Escribe una sílaba en el orden del texto thai: la vocal «antes» va delante; la marca de tono, tras la vocal de arriba o abajo. */
-export function composeSyllable(c: string, v: string, t: string, f: string, vpos: Vowel['pos']): string {
-  if (vpos === 'antes') return v + c + t + f;
-  if (vpos === 'despues') return c + t + v + f;
-  return c + v + t + f;
+/**
+ * El tono que sale de la escritura: clase de la consonante + sílaba viva o muerta (y, si es muerta y de clase baja,
+ * vocal larga o corta) + marca de tono.
+ */
+export function toneByRule(cls: LetterClass, live: boolean, long: boolean, mark: string): ToneId {
+  if (mark === '่') return cls === 'baja' ? 'F' : 'L';
+  if (mark === '้') return cls === 'baja' ? 'H' : 'F';
+  if (mark === '๊') return 'H';
+  if (mark === '๋') return 'R';
+  if (live) return cls === 'alta' ? 'R' : 'M';
+  return cls === 'baja' ? (long ? 'F' : 'H') : 'L';
 }
+
+/** Cómo suena una consonante al final de la sílaba: k, t, p (la cortan en seco) o n, ng, m, i, o (la dejan viva). */
+export const finalSound = (f: string): string => consonantOf(f)?.final ?? '';
+export const liveFinal = (f: string): boolean => !['k', 't', 'p'].includes(finalSound(f));
+
+// ——— Sílabas ———
+
+/**
+ * Una sílaba de «Bloques de sílabas», siempre una palabra de verdad: consonante (c) + vocal (v, id de VOWELS) +
+ * marca de tono (t) + consonante final (f). `lead` es la ห o la อ muda que va delante (หมา, อยู่): no suena, pero
+ * pone la clase. Lo demás se calcula: clase, viva o muerta, larga o corta y el tono que da la regla.
+ */
+export type Syllable = {
+  th: string;
+  rom: string;
+  es: string;
+  /** consonante que suena al empezar (dos si es un grupo: ปล, กล, คร) */
+  c: string;
+  lead: string;
+  v: string;
+  t: string;
+  f: string;
+  form: VowelForm;
+  cls: LetterClass;
+  live: boolean;
+  long: boolean;
+  tone: ToneId;
+  /** 1 = consonante + vocal · 2 = con marca de tono · 3 = con consonante final */
+  level: 1 | 2 | 3;
+  /** empieza por una sola consonante, sin ห ni อ muda: se puede montar con bloques */
+  simple: boolean;
+};
+
+/** Escribe una sílaba en el orden del texto thai: vocal de delante, consonantes, signo pegado, marca de tono, lo de detrás y la final. */
+export function composeSyllable(c: string, v: string, t: string, f: string, lead = ''): string {
+  const p = vowelParts(vowelOf(v)?.ch ?? '◌');
+  return p.pre + lead + c + p.on + t + p.post + f;
+}
+
+const TONE_ACCENT: Record<ToneId, string> = { M: '', L: '̀', F: '̂', H: '́', R: '̌' };
+
+/** Pone la tilde del tono sobre la primera vocal de una transcripción sin tono. */
+export function withTone(plain: string, tone: ToneId): string {
+  const k = [...plain].findIndex((ch) => 'aeiouɛɔʉə'.includes(ch));
+  if (k < 0) return plain;
+  const chars = [...plain];
+  return (chars.slice(0, k + 1).join('') + TONE_ACCENT[tone] + chars.slice(k + 1).join('')).normalize('NFC');
+}
+
+/** Transcripción de una sílaba a partir de sus piezas (la ห y la อ mudas no suenan). */
+export function romOf(c: string, v: string, f: string, tone: ToneId): string {
+  const form = vowelOf(v);
+  const start = [...c].map((ch) => (ch === 'อ' ? '' : (consonantOf(ch)?.sound ?? ''))).join('');
+  const vowel = form?.rom ?? '';
+  const end = f === 'ย' ? (/(ua|ʉa)$/.test(vowel) ? 'y' : 'i') : f === 'ว' ? (vowel === 'i' ? 'u' : 'o') : f ? finalSound(f) : '';
+  return withTone(start + vowel + end, tone);
+}
+
+const syl = (th: string, rom: string, es: string, c: string, v: string, t = '', f = '', lead = ''): Syllable => {
+  const form = vowelOf(v) ?? VOWELS[0];
+  const cls = consonantOf(lead || [...c][0])?.cls ?? 'media';
+  const live = f ? liveFinal(f) : form.live;
+  return { th, rom, es, c, lead, v, t, f, form, cls, live, long: form.long, tone: toneByRule(cls, live, form.long, t), level: f ? 3 : t ? 2 : 1, simple: !lead && [...c].length === 1 };
+};
+
+export const SYLLABLES: Syllable[] = [
+  // consonante + vocal larga
+  syl('มา', 'maa', 'venir', 'ม', '◌า'),
+  syl('ตา', 'taa', 'ojo', 'ต', '◌า'),
+  syl('นา', 'naa', 'arrozal', 'น', '◌า'),
+  syl('ยา', 'yaa', 'medicina', 'ย', '◌า'),
+  syl('ชา', 'chaa', 'té', 'ช', '◌า'),
+  syl('กา', 'gaa', 'cuervo', 'ก', '◌า'),
+  syl('พา', 'phaa', 'llevar (a alguien)', 'พ', '◌า'),
+  syl('ลา', 'laa', 'despedirse', 'ล', '◌า'),
+  syl('ขา', 'khǎa', 'pierna', 'ข', '◌า'),
+  syl('หา', 'hǎa', 'buscar', 'ห', '◌า'),
+  syl('ฝา', 'fǎa', 'tapa', 'ฝ', '◌า'),
+  syl('ดี', 'dii', 'bueno', 'ด', '◌ี'),
+  syl('ปี', 'pii', 'año', 'ป', '◌ี'),
+  syl('มี', 'mii', 'tener', 'ม', '◌ี'),
+  syl('ตี', 'tii', 'golpear', 'ต', '◌ี'),
+  syl('สี', 'sǐi', 'color', 'ส', '◌ี'),
+  syl('ผี', 'phǐi', 'fantasma', 'ผ', '◌ี'),
+  syl('ปู', 'puu', 'cangrejo', 'ป', '◌ู'),
+  syl('งู', 'nguu', 'serpiente', 'ง', '◌ู'),
+  syl('ดู', 'duu', 'mirar', 'ด', '◌ู'),
+  syl('หู', 'hǔu', 'oreja', 'ห', '◌ู'),
+  syl('ถู', 'thǔu', 'frotar', 'ถ', '◌ู'),
+  syl('โต', 'too', 'crecer', 'ต', 'โ◌'),
+  syl('เท', 'thee', 'verter', 'ท', 'เ◌'),
+  syl('แพ', 'phɛɛ', 'balsa', 'พ', 'แ◌'),
+  syl('รอ', 'rɔɔ', 'esperar', 'ร', '◌อ'),
+  syl('พอ', 'phɔɔ', 'suficiente', 'พ', '◌อ'),
+  syl('คอ', 'khɔɔ', 'cuello', 'ค', '◌อ'),
+  syl('ขอ', 'khɔ̌ɔ', 'pedir', 'ข', '◌อ'),
+  syl('มือ', 'mʉʉ', 'mano', 'ม', '◌ือ'),
+  syl('ถือ', 'thʉ̌ʉ', 'sostener', 'ถ', '◌ือ'),
+  syl('ปลา', 'plaa', 'pez', 'ปล', '◌า'),
+  syl('ครู', 'khruu', 'maestro', 'คร', '◌ู'),
+  // ห delante: no suena y sube la clase
+  syl('หมา', 'mǎa', 'perro', 'ม', '◌า', '', '', 'ห'),
+  syl('หมู', 'mǔu', 'cerdo', 'ม', '◌ู', '', '', 'ห'),
+  syl('หนู', 'nǔu', 'ratón', 'น', '◌ู', '', '', 'ห'),
+  syl('หมอ', 'mɔ̌ɔ', 'médico', 'ม', '◌อ', '', '', 'ห'),
+  syl('หนี', 'nǐi', 'huir', 'น', '◌ี', '', '', 'ห'),
+  syl('หรือ', 'rʉ̌ʉ', 'o (¿esto o lo otro?)', 'ร', '◌ือ', '', '', 'ห'),
+  // vocales compuestas
+  syl('ใจ', 'jai', 'corazón', 'จ', 'ใ◌'),
+  syl('ไป', 'pai', 'ir', 'ป', 'ไ◌'),
+  syl('ไฟ', 'fai', 'fuego, luz', 'ฟ', 'ไ◌'),
+  syl('ใน', 'nai', 'en, dentro', 'น', 'ใ◌'),
+  syl('ใบ', 'bai', 'hoja', 'บ', 'ใ◌'),
+  syl('ไว', 'wai', 'rápido', 'ว', 'ไ◌'),
+  syl('ใส', 'sǎi', 'transparente', 'ส', 'ใ◌'),
+  syl('ไหน', 'nǎi', '¿dónde?, ¿cuál?', 'น', 'ไ◌', '', '', 'ห'),
+  syl('ไกล', 'glai', 'lejos', 'กล', 'ไ◌'),
+  syl('ใคร', 'khrai', '¿quién?', 'คร', 'ใ◌'),
+  syl('ดำ', 'dam', 'negro', 'ด', '◌ำ'),
+  syl('ทำ', 'tham', 'hacer', 'ท', '◌ำ'),
+  syl('จำ', 'jam', 'recordar', 'จ', '◌ำ'),
+  syl('คำ', 'kham', 'palabra', 'ค', '◌ำ'),
+  syl('นำ', 'nam', 'guiar', 'น', '◌ำ'),
+  syl('ขำ', 'khǎm', 'gracioso', 'ข', '◌ำ'),
+  syl('เรา', 'rao', 'nosotros', 'ร', 'เ◌า'),
+  syl('เอา', 'ao', 'querer (tomar algo)', 'อ', 'เ◌า'),
+  syl('เบา', 'bao', 'ligero, suave', 'บ', 'เ◌า'),
+  syl('เมา', 'mao', 'borracho', 'ม', 'เ◌า'),
+  syl('เตา', 'tao', 'fogón', 'ต', 'เ◌า'),
+  syl('เงา', 'ngao', 'sombra', 'ง', 'เ◌า'),
+  syl('เสา', 'sǎo', 'poste', 'ส', 'เ◌า'),
+  syl('เมีย', 'mia', 'esposa (coloquial)', 'ม', 'เ◌ีย'),
+  syl('เลีย', 'lia', 'lamer', 'ล', 'เ◌ีย'),
+  syl('เสีย', 'sǐa', 'estropeado; perder', 'ส', 'เ◌ีย'),
+  syl('เรือ', 'rʉa', 'barca', 'ร', 'เ◌ือ'),
+  syl('เสือ', 'sʉ̌a', 'tigre', 'ส', 'เ◌ือ'),
+  syl('เกลือ', 'glʉa', 'sal', 'กล', 'เ◌ือ'),
+  syl('ตัว', 'tua', 'cuerpo', 'ต', '◌ัว'),
+  syl('วัว', 'wua', 'vaca', 'ว', '◌ัว'),
+  syl('บัว', 'bua', 'loto', 'บ', '◌ัว'),
+  syl('หัว', 'hǔa', 'cabeza', 'ห', '◌ัว'),
+  syl('กลัว', 'glua', 'tener miedo', 'กล', '◌ัว'),
+  syl('เจอ', 'jəə', 'encontrarse', 'จ', 'เ◌อ'),
+  syl('เธอ', 'thəə', 'tú; ella', 'ธ', 'เ◌อ'),
+  syl('เลย', 'ləəi', 'del todo; así que', 'ล', 'เ◌ย'),
+  syl('เคย', 'khəəi', 'haber… alguna vez', 'ค', 'เ◌ย'),
+  syl('เนย', 'nəəi', 'mantequilla', 'น', 'เ◌ย'),
+  // vocales cortas sin nada detrás: sílabas muertas
+  syl('จะ', 'jà', 'ir a… (futuro)', 'จ', '◌ะ'),
+  syl('นะ', 'ná', '¿vale? (partícula suave)', 'น', '◌ะ'),
+  syl('คะ', 'khá', 'partícula de pregunta (mujer)', 'ค', '◌ะ'),
+  syl('พระ', 'phrá', 'monje', 'พร', '◌ะ'),
+  syl('และ', 'lɛ́', 'y', 'ล', 'แ◌ะ'),
+  syl('แกะ', 'gɛ̀', 'oveja', 'ก', 'แ◌ะ'),
+  syl('แพะ', 'phɛ́', 'cabra', 'พ', 'แ◌ะ'),
+  syl('แตะ', 'tɛ̀', 'tocar', 'ต', 'แ◌ะ'),
+  syl('เตะ', 'tè', 'dar una patada', 'ต', 'เ◌ะ'),
+  syl('เกาะ', 'gɔ̀', 'isla', 'ก', 'เ◌าะ'),
+  syl('เงาะ', 'ngɔ́', 'rambután', 'ง', 'เ◌าะ'),
+  syl('เพราะ', 'phrɔ́', 'porque', 'พร', 'เ◌าะ'),
+  syl('เยอะ', 'yə́', 'mucho', 'ย', 'เ◌อะ'),
+  syl('เถอะ', 'thə̀', '¡venga!, anda', 'ถ', 'เ◌อะ'),
+  syl('ดุ', 'dù', 'fiero; regañar', 'ด', '◌ุ'),
+  syl('ติ', 'tì', 'criticar', 'ต', '◌ิ'),
+  syl('สิ', 'sì', '¡venga!, ¡…pues!', 'ส', '◌ิ'),
+  syl('ค่ะ', 'khâ', 'partícula amable (mujer)', 'ค', '◌ะ', '่'),
+  syl('ล่ะ', 'lâ', '¿y…? (partícula)', 'ล', '◌ะ', '่'),
+  syl('จ้ะ', 'jâ', 'partícula cariñosa', 'จ', '◌ะ', '้'),
+  syl('จ๊ะ', 'já', 'partícula cariñosa (pregunta)', 'จ', '◌ะ', '๊'),
+  syl('โต๊ะ', 'tó', 'mesa', 'ต', 'โ◌ะ', '๊'),
+  // ◌ั: la «a» corta con consonante detrás
+  syl('วัน', 'wan', 'día', 'ว', '◌ั', '', 'น'),
+  syl('กัน', 'gan', 'juntos', 'ก', '◌ั', '', 'น'),
+  syl('ฟัน', 'fan', 'diente', 'ฟ', '◌ั', '', 'น'),
+  syl('มัน', 'man', 'patata; eso', 'ม', '◌ั', '', 'น'),
+  syl('ฉัน', 'chǎn', 'yo (mujer)', 'ฉ', '◌ั', '', 'น'),
+  syl('ดัง', 'dang', 'fuerte, ruidoso', 'ด', '◌ั', '', 'ง'),
+  syl('ฟัง', 'fang', 'escuchar', 'ฟ', '◌ั', '', 'ง'),
+  syl('ยัง', 'yang', 'todavía', 'ย', '◌ั', '', 'ง'),
+  syl('รัก', 'rák', 'querer, amar', 'ร', '◌ั', '', 'ก'),
+  syl('ผัก', 'phàk', 'verdura', 'ผ', '◌ั', '', 'ก'),
+  syl('จับ', 'jàp', 'agarrar', 'จ', '◌ั', '', 'บ'),
+  syl('ขับ', 'khàp', 'conducir', 'ข', '◌ั', '', 'บ'),
+  syl('รับ', 'ráp', 'recibir', 'ร', '◌ั', '', 'บ'),
+  syl('กับ', 'gàp', 'con', 'ก', '◌ั', '', 'บ'),
+  syl('นับ', 'náp', 'contar', 'น', '◌ั', '', 'บ'),
+  syl('วัด', 'wát', 'templo', 'ว', '◌ั', '', 'ด'),
+  syl('ตัด', 'tàt', 'cortar', 'ต', '◌ั', '', 'ด'),
+  syl('ผัด', 'phàt', 'saltear', 'ผ', '◌ั', '', 'ด'),
+  syl('จัด', 'jàt', 'ordenar', 'จ', '◌ั', '', 'ด'),
+  syl('นั่ง', 'nâng', 'sentarse', 'น', '◌ั', '่', 'ง'),
+  syl('ตั้ง', 'tâng', 'poner, colocar', 'ต', '◌ั', '้', 'ง'),
+  syl('สั้น', 'sân', 'corto', 'ส', '◌ั', '้', 'น'),
+  syl('ชั้น', 'chán', 'piso, planta', 'ช', '◌ั', '้', 'น'),
+  syl('นั้น', 'nán', 'ese, aquel', 'น', '◌ั', '้', 'น'),
+  syl('ทั้ง', 'tháng', 'todo, entero', 'ท', '◌ั', '้', 'ง'),
+  syl('ครั้ง', 'khráng', 'vez', 'คร', '◌ั', '้', 'ง'),
+  syl('ครับ', 'khráp', 'partícula amable (hombre)', 'คร', '◌ั', '', 'บ'),
+  syl('กลับ', 'glàp', 'volver', 'กล', '◌ั', '', 'บ'),
+  syl('หนัก', 'nàk', 'pesado', 'น', '◌ั', '', 'ก', 'ห'),
+  syl('หลับ', 'làp', 'dormirse', 'ล', '◌ั', '', 'บ', 'ห'),
+  syl('หลัง', 'lǎng', 'detrás; espalda', 'ล', '◌ั', '', 'ง', 'ห'),
+  syl('หวัง', 'wǎng', 'esperar, desear', 'ว', '◌ั', '', 'ง', 'ห'),
+  // ◌ิ
+  syl('กิน', 'gin', 'comer', 'ก', '◌ิ', '', 'น'),
+  syl('บิน', 'bin', 'volar', 'บ', '◌ิ', '', 'น'),
+  syl('ดิน', 'din', 'tierra', 'ด', '◌ิ', '', 'น'),
+  syl('หิน', 'hǐn', 'piedra', 'ห', '◌ิ', '', 'น'),
+  syl('ลิง', 'ling', 'mono', 'ล', '◌ิ', '', 'ง'),
+  syl('ชิม', 'chim', 'probar (comida)', 'ช', '◌ิ', '', 'ม'),
+  syl('ริม', 'rim', 'orilla, borde', 'ร', '◌ิ', '', 'ม'),
+  syl('ปิด', 'pìt', 'cerrar', 'ป', '◌ิ', '', 'ด'),
+  syl('คิด', 'khít', 'pensar', 'ค', '◌ิ', '', 'ด'),
+  syl('นิด', 'nít', 'un poquito', 'น', '◌ิ', '', 'ด'),
+  syl('ติด', 'tìt', 'pegado; atascado', 'ต', '◌ิ', '', 'ด'),
+  syl('ผิด', 'phìt', 'equivocado', 'ผ', '◌ิ', '', 'ด'),
+  syl('สิบ', 'sìp', 'diez', 'ส', '◌ิ', '', 'บ'),
+  syl('หิว', 'hǐu', 'tener hambre', 'ห', '◌ิ', '', 'ว'),
+  syl('ยิ้ม', 'yím', 'sonreír', 'ย', '◌ิ', '้', 'ม'),
+  syl('สิ่ง', 'sìng', 'cosa', 'ส', '◌ิ', '่', 'ง'),
+  syl('นิ่ง', 'nîng', 'quieto', 'น', '◌ิ', '่', 'ง'),
+  syl('พริก', 'phrík', 'chile, guindilla', 'พร', '◌ิ', '', 'ก'),
+  syl('จิ๋ว', 'jǐu', 'diminuto', 'จ', '◌ิ', '๋', 'ว'),
+  // ◌ึ
+  syl('ถึง', 'thʉ̌ng', 'llegar', 'ถ', '◌ึ', '', 'ง'),
+  syl('ดึง', 'dʉng', 'tirar de', 'ด', '◌ึ', '', 'ง'),
+  syl('ลึก', 'lʉ́k', 'profundo', 'ล', '◌ึ', '', 'ก'),
+  syl('นึก', 'nʉ́k', 'acordarse, pensar', 'น', '◌ึ', '', 'ก'),
+  syl('ดึก', 'dʉ̀k', 'tarde (de noche)', 'ด', '◌ึ', '', 'ก'),
+  syl('ฝึก', 'fʉ̀k', 'practicar', 'ฝ', '◌ึ', '', 'ก'),
+  syl('ผึ้ง', 'phʉ̂ng', 'abeja', 'ผ', '◌ึ', '้', 'ง'),
+  syl('ขึ้น', 'khʉ̂n', 'subir', 'ข', '◌ึ', '้', 'น'),
+  syl('หนึ่ง', 'nʉ̀ng', 'uno', 'น', '◌ึ', '่', 'ง', 'ห'),
+  // ◌ุ
+  syl('ถุง', 'thǔng', 'bolsa', 'ถ', '◌ุ', '', 'ง'),
+  syl('ยุง', 'yung', 'mosquito', 'ย', '◌ุ', '', 'ง'),
+  syl('ลุง', 'lung', 'tío (mayor)', 'ล', '◌ุ', '', 'ง'),
+  syl('มุม', 'mum', 'esquina', 'ม', '◌ุ', '', 'ม'),
+  syl('คุย', 'khui', 'charlar', 'ค', '◌ุ', '', 'ย'),
+  syl('คุณ', 'khun', 'tú, usted', 'ค', '◌ุ', '', 'ณ'),
+  syl('สุก', 'sùk', 'maduro; cocido', 'ส', '◌ุ', '', 'ก'),
+  syl('สุข', 'sùk', 'feliz', 'ส', '◌ุ', '', 'ข'),
+  syl('ทุก', 'thúk', 'cada, todos', 'ท', '◌ุ', '', 'ก'),
+  syl('ขุด', 'khùt', 'cavar', 'ข', '◌ุ', '', 'ด'),
+  syl('จุด', 'jùt', 'punto', 'จ', '◌ุ', '', 'ด'),
+  syl('พุธ', 'phút', 'miércoles', 'พ', '◌ุ', '', 'ธ'),
+  syl('ทุ่ง', 'thûng', 'campo', 'ท', '◌ุ', '่', 'ง'),
+  syl('อุ่น', 'ùn', 'templado; calentar', 'อ', '◌ุ', '่', 'น'),
+  syl('หยุด', 'yùt', 'parar', 'ย', '◌ุ', '', 'ด', 'ห'),
+  syl('ตุ๊ก', 'túk', 'tuk (de tuk-tuk)', 'ต', '◌ุ', '๊', 'ก'),
+  syl('กุ๊ก', 'gúk', 'cocinero', 'ก', '◌ุ', '๊', 'ก'),
+  syl('ตุ๋น', 'tǔn', 'estofar', 'ต', '◌ุ', '๋', 'น'),
+  syl('ปุ๋ย', 'pǔi', 'abono', 'ป', '◌ุ', '๋', 'ย'),
+  // เ◌็ y แ◌็: la «e» corta con consonante detrás
+  syl('เป็น', 'pen', 'ser', 'ป', 'เ◌็', '', 'น'),
+  syl('เย็น', 'yen', 'fresco, frío', 'ย', 'เ◌็', '', 'น'),
+  syl('เห็น', 'hěn', 'ver', 'ห', 'เ◌็', '', 'น'),
+  syl('เต็ม', 'tem', 'lleno', 'ต', 'เ◌็', '', 'ม'),
+  syl('เค็ม', 'khem', 'salado', 'ค', 'เ◌็', '', 'ม'),
+  syl('เข็ม', 'khěm', 'aguja', 'ข', 'เ◌็', '', 'ม'),
+  syl('เร็ว', 'reo', 'rápido', 'ร', 'เ◌็', '', 'ว'),
+  syl('เล็ก', 'lék', 'pequeño', 'ล', 'เ◌็', '', 'ก'),
+  syl('เด็ก', 'dèk', 'niño', 'ด', 'เ◌็', '', 'ก'),
+  syl('เจ็ด', 'jèt', 'siete', 'จ', 'เ◌็', '', 'ด'),
+  syl('เผ็ด', 'phèt', 'picante', 'ผ', 'เ◌็', '', 'ด'),
+  syl('เป็ด', 'pèt', 'pato', 'ป', 'เ◌็', '', 'ด'),
+  syl('เก็บ', 'gèp', 'guardar, recoger', 'ก', 'เ◌็', '', 'บ'),
+  syl('แข็ง', 'khɛ̌ng', 'duro', 'ข', 'แ◌็', '', 'ง'),
+  syl('เก่ง', 'gèng', 'hábil', 'ก', 'เ◌~', '่', 'ง'),
+  syl('เล่น', 'lên', 'jugar', 'ล', 'เ◌~', '่', 'น'),
+  syl('เช่น', 'chên', 'por ejemplo', 'ช', 'เ◌~', '่', 'น'),
+  syl('เต้น', 'tên', 'bailar', 'ต', 'เ◌~', '้', 'น'),
+  syl('เส้น', 'sên', 'línea; fideo', 'ส', 'เ◌~', '้', 'น'),
+  // sin vocal escrita: «o» corta
+  syl('คน', 'khon', 'persona', 'ค', '◌', '', 'น'),
+  syl('บน', 'bon', 'sobre, encima', 'บ', '◌', '', 'น'),
+  syl('ฝน', 'fǒn', 'lluvia', 'ฝ', '◌', '', 'น'),
+  syl('ผล', 'phǒn', 'fruto; resultado', 'ผ', '◌', '', 'ล'),
+  syl('ลม', 'lom', 'viento', 'ล', '◌', '', 'ม'),
+  syl('นม', 'nom', 'leche', 'น', '◌', '', 'ม'),
+  syl('ผม', 'phǒm', 'yo (hombre); pelo', 'ผ', '◌', '', 'ม'),
+  syl('นก', 'nók', 'pájaro', 'น', '◌', '', 'ก'),
+  syl('หก', 'hòk', 'seis', 'ห', '◌', '', 'ก'),
+  syl('ตก', 'tòk', 'caer', 'ต', '◌', '', 'ก'),
+  syl('มด', 'mót', 'hormiga', 'ม', '◌', '', 'ด'),
+  syl('ลด', 'lót', 'rebajar', 'ล', '◌', '', 'ด'),
+  syl('สด', 'sòt', 'fresco', 'ส', '◌', '', 'ด'),
+  syl('รถ', 'rót', 'coche', 'ร', '◌', '', 'ถ'),
+  syl('รส', 'rót', 'sabor', 'ร', '◌', '', 'ส'),
+  syl('กบ', 'gòp', 'rana', 'ก', '◌', '', 'บ'),
+  syl('จบ', 'jòp', 'terminar', 'จ', '◌', '', 'บ'),
+  syl('ส้ม', 'sôm', 'naranja', 'ส', '◌', '้', 'ม'),
+  syl('ต้ม', 'tôm', 'hervir', 'ต', '◌', '้', 'ม'),
+  syl('ต้น', 'tôn', 'tronco; planta', 'ต', '◌', '้', 'น'),
+  syl('หมด', 'mòt', 'acabarse', 'ม', '◌', '', 'ด', 'ห'),
+  // con marca de tono
+  syl('ไม่', 'mâi', 'no', 'ม', 'ไ◌', '่'),
+  syl('แม่', 'mɛ̂ɛ', 'mamá', 'ม', 'แ◌', '่'),
+  syl('พ่อ', 'phɔ̂ɔ', 'papá', 'พ', '◌อ', '่'),
+  syl('ป้า', 'pâa', 'tía (mayor)', 'ป', '◌า', '้'),
+  syl('ไก่', 'gài', 'pollo', 'ก', 'ไ◌', '่'),
+  syl('ไข่', 'khài', 'huevo', 'ข', 'ไ◌', '่'),
+  syl('ม้า', 'máa', 'caballo', 'ม', '◌า', '้'),
+  syl('ห้า', 'hâa', 'cinco', 'ห', '◌า', '้'),
+  syl('ปู่', 'pùu', 'abuelo (paterno)', 'ป', '◌ู', '่'),
+  syl('ย่า', 'yâa', 'abuela (paterna)', 'ย', '◌า', '่'),
+  syl('ฟ้า', 'fáa', 'cielo', 'ฟ', '◌า', '้'),
+  syl('ป่า', 'pàa', 'bosque', 'ป', '◌า', '่'),
+  syl('ไม้', 'máai', 'madera', 'ม', 'ไ◌', '้'),
+  syl('ได้', 'dâi', 'poder', 'ด', 'ไ◌', '้'),
+  syl('รู้', 'rúu', 'saber', 'ร', '◌ู', '้'),
+  syl('น้ำ', 'náam', 'agua', 'น', '◌ำ', '้'),
+  syl('ให้', 'hâi', 'dar', 'ห', 'ใ◌', '้'),
+  syl('ใช่', 'châi', 'sí, correcto', 'ช', 'ใ◌', '่'),
+  syl('ใส่', 'sài', 'poner; llevar puesto', 'ส', 'ใ◌', '่'),
+  syl('ใต้', 'tâi', 'debajo de', 'ต', 'ใ◌', '้'),
+  syl('สี่', 'sìi', 'cuatro', 'ส', '◌ี', '่'),
+  syl('พี่', 'phîi', 'hermano mayor', 'พ', '◌ี', '่'),
+  syl('ที่', 'thîi', 'en; lugar', 'ท', '◌ี', '่'),
+  syl('นี่', 'nîi', 'esto', 'น', '◌ี', '่'),
+  syl('นี้', 'níi', 'este', 'น', '◌ี', '้'),
+  syl('ว่า', 'wâa', 'que (decir que)', 'ว', '◌า', '่'),
+  syl('ช้า', 'cháa', 'lento', 'ช', '◌า', '้'),
+  syl('คู่', 'khûu', 'pareja, par', 'ค', '◌ู', '่'),
+  syl('ผู้', 'phûu', 'persona (que…)', 'ผ', '◌ู', '้'),
+  syl('แก้', 'gɛ̂ɛ', 'arreglar', 'ก', 'แ◌', '้'),
+  syl('แต่', 'tɛ̀ɛ', 'pero', 'ต', 'แ◌', '่'),
+  syl('ชื่อ', 'chʉ̂ʉ', 'nombre', 'ช', '◌ือ', '่'),
+  syl('ซื้อ', 'sʉ́ʉ', 'comprar', 'ซ', '◌ือ', '้'),
+  syl('เข้า', 'khâo', 'entrar', 'ข', 'เ◌า', '้'),
+  syl('เก้า', 'gâo', 'nueve', 'ก', 'เ◌า', '้'),
+  syl('เช้า', 'cháao', 'mañana (temprano)', 'ช', 'เ◌า', '้'),
+  syl('เก่า', 'gào', 'viejo (cosas)', 'ก', 'เ◌า', '่'),
+  syl('เต่า', 'tào', 'tortuga', 'ต', 'เ◌า', '่'),
+  syl('เสื้อ', 'sʉ̂a', 'camisa', 'ส', 'เ◌ือ', '้'),
+  syl('เนื้อ', 'nʉ́a', 'carne', 'น', 'เ◌ือ', '้'),
+  syl('เมื่อ', 'mʉ̂a', 'cuando', 'ม', 'เ◌ือ', '่'),
+  syl('เบื่อ', 'bʉ̀a', 'aburrirse', 'บ', 'เ◌ือ', '่'),
+  syl('เชื่อ', 'chʉ̂a', 'creer', 'ช', 'เ◌ือ', '่'),
+  syl('ถั่ว', 'thùa', 'legumbre; cacahuete', 'ถ', '◌ัว', '่'),
+  syl('รั้ว', 'rúa', 'valla', 'ร', '◌ัว', '้'),
+  syl('เตี้ย', 'tîa', 'bajito', 'ต', 'เ◌ีย', '้'),
+  // ◌๊ y ◌๋: solo con consonantes de clase media
+  syl('ตั๋ว', 'tǔa', 'billete', 'ต', '◌ัว', '๋'),
+  syl('จ๋า', 'jǎa', '¿sí, cariño?', 'จ', '◌า', '๋'),
+  syl('อ๋อ', 'ɔ̌ɔ', '¡ah, ya!', 'อ', '◌อ', '๋'),
+  syl('เก๋', 'gěe', 'con estilo', 'ก', 'เ◌', '๋'),
+  syl('เก๊', 'gée', 'falso, de pega', 'ก', 'เ◌', '๊'),
+  // ห y อ mudas con marca
+  syl('ใหม่', 'mài', 'nuevo', 'ม', 'ใ◌', '่', '', 'ห'),
+  syl('ไหม้', 'mâi', 'quemarse', 'ม', 'ไ◌', '้', '', 'ห'),
+  syl('หน้า', 'nâa', 'cara; delante', 'น', '◌า', '้', '', 'ห'),
+  syl('หญ้า', 'yâa', 'hierba', 'ญ', '◌า', '้', '', 'ห'),
+  syl('ใหญ่', 'yài', 'grande', 'ญ', 'ใ◌', '่', '', 'ห'),
+  syl('อยู่', 'yùu', 'estar', 'ย', '◌ู', '่', '', 'อ'),
+  syl('อย่า', 'yàa', '¡no…! (prohibir)', 'ย', '◌า', '่', '', 'อ'),
+  // vocal larga + final que deja la sílaba viva (-n, -ng, -m, -i, -o)
+  syl('นอน', 'nɔɔn', 'dormir', 'น', '◌อ', '', 'น'),
+  syl('จาน', 'jaan', 'plato', 'จ', '◌า', '', 'น'),
+  syl('บ้าน', 'bâan', 'casa', 'บ', '◌า', '้', 'น'),
+  syl('ร้าน', 'ráan', 'tienda', 'ร', '◌า', '้', 'น'),
+  syl('ร้อน', 'rɔ́ɔn', 'calor', 'ร', '◌อ', '้', 'น'),
+  syl('อ่าน', 'àan', 'leer', 'อ', '◌า', '่', 'น'),
+  syl('คืน', 'khʉʉn', 'noche', 'ค', '◌ื', '', 'น'),
+  syl('ยืน', 'yʉʉn', 'estar de pie', 'ย', '◌ื', '', 'น'),
+  syl('ตื่น', 'tʉ̀ʉn', 'despertarse', 'ต', '◌ื', '่', 'น'),
+  syl('เดิน', 'dəən', 'caminar', 'ด', 'เ◌ิ', '', 'น'),
+  syl('เชิญ', 'chəən', '¡adelante!; invitar', 'ช', 'เ◌ิ', '', 'ญ'),
+  syl('เรียน', 'rian', 'estudiar', 'ร', 'เ◌ีย', '', 'น'),
+  syl('เขียน', 'khǐan', 'escribir', 'ข', 'เ◌ีย', '', 'น'),
+  syl('เดือน', 'dʉan', 'mes; luna', 'ด', 'เ◌ือ', '', 'น'),
+  syl('เพื่อน', 'phʉ̂an', 'amigo', 'พ', 'เ◌ือ', '่', 'น'),
+  syl('สวน', 'sǔan', 'jardín', 'ส', '◌ว', '', 'น'),
+  syl('ควร', 'khuan', 'deber, convenir', 'ค', '◌ว', '', 'ร'),
+  syl('ช้าง', 'cháang', 'elefante', 'ช', '◌า', '้', 'ง'),
+  syl('ทาง', 'thaang', 'camino', 'ท', '◌า', '', 'ง'),
+  syl('สอง', 'sɔ̌ɔng', 'dos', 'ส', '◌อ', '', 'ง'),
+  syl('มอง', 'mɔɔng', 'mirar', 'ม', '◌อ', '', 'ง'),
+  syl('ลอง', 'lɔɔng', 'probar', 'ล', '◌อ', '', 'ง'),
+  syl('น้อง', 'nɔ́ɔng', 'hermano pequeño', 'น', '◌อ', '้', 'ง'),
+  syl('ร้อง', 'rɔ́ɔng', 'cantar; gritar', 'ร', '◌อ', '้', 'ง'),
+  syl('โมง', 'moong', 'hora', 'ม', 'โ◌', '', 'ง'),
+  syl('แดง', 'dɛɛng', 'rojo', 'ด', 'แ◌', '', 'ง'),
+  syl('แพง', 'phɛɛng', 'caro', 'พ', 'แ◌', '', 'ง'),
+  syl('เมือง', 'mʉang', 'ciudad', 'ม', 'เ◌ือ', '', 'ง'),
+  syl('เรื่อง', 'rʉ̂ang', 'historia; asunto', 'ร', 'เ◌ือ', '่', 'ง'),
+  syl('เสียง', 'sǐang', 'sonido, voz', 'ส', 'เ◌ีย', '', 'ง'),
+  syl('เตียง', 'tiang', 'cama', 'ต', 'เ◌ีย', '', 'ง'),
+  syl('เที่ยง', 'thîang', 'mediodía', 'ท', 'เ◌ีย', '่', 'ง'),
+  syl('สาม', 'sǎam', 'tres', 'ส', '◌า', '', 'ม'),
+  syl('ถาม', 'thǎam', 'preguntar', 'ถ', '◌า', '', 'ม'),
+  syl('ชาม', 'chaam', 'cuenco', 'ช', '◌า', '', 'ม'),
+  syl('ตาม', 'taam', 'seguir', 'ต', '◌า', '', 'ม'),
+  syl('ห้าม', 'hâam', 'prohibir', 'ห', '◌า', '้', 'ม'),
+  syl('ลืม', 'lʉʉm', 'olvidar', 'ล', '◌ื', '', 'ม'),
+  syl('รวม', 'ruam', 'juntar', 'ร', '◌ว', '', 'ม'),
+  syl('เติม', 'təəm', 'rellenar', 'ต', 'เ◌ิ', '', 'ม'),
+  syl('เริ่ม', 'rə̂əm', 'empezar', 'ร', 'เ◌ิ', '่', 'ม'),
+  syl('ขาย', 'khǎai', 'vender', 'ข', '◌า', '', 'ย'),
+  syl('ยาย', 'yaai', 'abuela (materna)', 'ย', '◌า', '', 'ย'),
+  syl('หาย', 'hǎai', 'desaparecer; curarse', 'ห', '◌า', '', 'ย'),
+  syl('สาย', 'sǎai', 'tarde; línea', 'ส', '◌า', '', 'ย'),
+  syl('ตาย', 'taai', 'morir', 'ต', '◌า', '', 'ย'),
+  syl('บ่าย', 'bàai', 'tarde (después de comer)', 'บ', '◌า', '่', 'ย'),
+  syl('ง่าย', 'ngâai', 'fácil', 'ง', '◌า', '่', 'ย'),
+  syl('ย้าย', 'yáai', 'mudarse', 'ย', '◌า', '้', 'ย'),
+  syl('ซ้าย', 'sáai', 'izquierda', 'ซ', '◌า', '้', 'ย'),
+  syl('ร้อย', 'rɔ́ɔi', 'cien', 'ร', '◌อ', '้', 'ย'),
+  syl('น้อย', 'nɔ́ɔi', 'poco', 'น', '◌อ', '้', 'ย'),
+  syl('สวย', 'sǔay', 'bonito', 'ส', '◌ว', '', 'ย'),
+  syl('ด้วย', 'dûay', 'también; con', 'ด', '◌ว', '้', 'ย'),
+  syl('ช่วย', 'chûay', 'ayudar', 'ช', '◌ว', '่', 'ย'),
+  syl('ป่วย', 'pùay', 'estar enfermo', 'ป', '◌ว', '่', 'ย'),
+  syl('ควาย', 'khwaai', 'búfalo', 'คว', '◌า', '', 'ย'),
+  syl('กล้วย', 'glûay', 'plátano', 'กล', '◌ว', '้', 'ย'),
+  syl('เหนื่อย', 'nʉ̀ay', 'cansado', 'น', 'เ◌ือ', '่', 'ย', 'ห'),
+  syl('อย่าง', 'yàang', 'tipo, manera', 'ย', '◌า', '่', 'ง', 'อ'),
+  syl('ขาว', 'khǎao', 'blanco', 'ข', '◌า', '', 'ว'),
+  syl('ดาว', 'daao', 'estrella', 'ด', '◌า', '', 'ว'),
+  syl('ยาว', 'yaao', 'largo', 'ย', '◌า', '', 'ว'),
+  syl('สาว', 'sǎao', 'chica joven', 'ส', '◌า', '', 'ว'),
+  syl('ข้าว', 'khâao', 'arroz', 'ข', '◌า', '้', 'ว'),
+  syl('ก้าว', 'gâao', 'paso', 'ก', '◌า', '้', 'ว'),
+  syl('แมว', 'mɛɛo', 'gato', 'ม', 'แ◌', '', 'ว'),
+  syl('แก้ว', 'gɛ̂ɛo', 'vaso', 'ก', 'แ◌', '้', 'ว'),
+  syl('แล้ว', 'lɛ́ɛo', 'ya; y entonces', 'ล', 'แ◌', '้', 'ว'),
+  syl('เขียว', 'khǐao', 'verde', 'ข', 'เ◌ีย', '', 'ว'),
+  syl('เดี๋ยว', 'dǐao', 'un momento', 'ด', 'เ◌ีย', '๋', 'ว'),
+  syl('เกี๊ยว', 'gíao', 'wonton', 'ก', 'เ◌ีย', '๊', 'ว'),
+  syl('หนาว', 'nǎao', 'frío (tener frío)', 'น', '◌า', '', 'ว', 'ห'),
+  syl('เหนียว', 'nǐao', 'pegajoso', 'น', 'เ◌ีย', '', 'ว', 'ห'),
+  // vocal larga + final que corta la sílaba (-k, -t, -p): muerta y larga
+  syl('ปาก', 'pàak', 'boca', 'ป', '◌า', '', 'ก'),
+  syl('จาก', 'jàak', 'de, desde', 'จ', '◌า', '', 'ก'),
+  syl('มาก', 'mâak', 'mucho', 'ม', '◌า', '', 'ก'),
+  syl('ยาก', 'yâak', 'difícil', 'ย', '◌า', '', 'ก'),
+  syl('ราก', 'râak', 'raíz', 'ร', '◌า', '', 'ก'),
+  syl('อยาก', 'yàak', 'querer (hacer)', 'ย', '◌า', '', 'ก', 'อ'),
+  syl('ลูก', 'lûuk', 'hijo, hija', 'ล', '◌ู', '', 'ก'),
+  syl('ถูก', 'thùuk', 'barato; correcto', 'ถ', '◌ู', '', 'ก'),
+  syl('นอก', 'nɔ̂ɔk', 'fuera', 'น', '◌อ', '', 'ก'),
+  syl('ออก', 'ɔ̀ɔk', 'salir', 'อ', '◌อ', '', 'ก'),
+  syl('ดอก', 'dɔ̀ɔk', 'flor', 'ด', '◌อ', '', 'ก'),
+  syl('บอก', 'bɔ̀ɔk', 'decir', 'บ', '◌อ', '', 'ก'),
+  syl('หมอก', 'mɔ̀ɔk', 'niebla', 'ม', '◌อ', '', 'ก', 'ห'),
+  syl('แรก', 'rɛ̂ɛk', 'primero', 'ร', 'แ◌', '', 'ก'),
+  syl('แขก', 'khɛ̀ɛk', 'invitado', 'ข', 'แ◌', '', 'ก'),
+  syl('โลก', 'lôok', 'mundo', 'ล', 'โ◌', '', 'ก'),
+  syl('โชค', 'chôok', 'suerte', 'ช', 'โ◌', '', 'ค'),
+  syl('เลข', 'lêek', 'número', 'ล', 'เ◌', '', 'ข'),
+  syl('เลือก', 'lʉ̂ak', 'elegir', 'ล', 'เ◌ือ', '', 'ก'),
+  syl('เรียก', 'rîak', 'llamar', 'ร', 'เ◌ีย', '', 'ก'),
+  syl('เปียก', 'pìak', 'mojado', 'ป', 'เ◌ีย', '', 'ก'),
+  syl('หมวก', 'mùak', 'sombrero', 'ม', '◌ว', '', 'ก', 'ห'),
+  syl('พูด', 'phûut', 'hablar', 'พ', '◌ู', '', 'ด'),
+  syl('มีด', 'mîit', 'cuchillo', 'ม', '◌ี', '', 'ด'),
+  syl('มืด', 'mʉ̂ʉt', 'oscuro', 'ม', '◌ื', '', 'ด'),
+  syl('วาด', 'wâat', 'dibujar', 'ว', '◌า', '', 'ด'),
+  syl('ทอด', 'thɔ̂ɔt', 'freír', 'ท', '◌อ', '', 'ด'),
+  syl('นวด', 'nûat', 'masaje', 'น', '◌ว', '', 'ด'),
+  syl('ขวด', 'khùat', 'botella', 'ข', '◌ว', '', 'ด'),
+  syl('แปด', 'pɛ̀ɛt', 'ocho', 'ป', 'แ◌', '', 'ด'),
+  syl('บาท', 'bàat', 'baht', 'บ', '◌า', '', 'ท'),
+  syl('หาด', 'hàat', 'playa', 'ห', '◌า', '', 'ด'),
+  syl('จอด', 'jɔ̀ɔt', 'aparcar', 'จ', '◌อ', '', 'ด'),
+  syl('กอด', 'gɔ̀ɔt', 'abrazar', 'ก', '◌อ', '', 'ด'),
+  syl('เปิด', 'pə̀ət', 'abrir', 'ป', 'เ◌ิ', '', 'ด'),
+  syl('เกิด', 'gə̀ət', 'nacer', 'ก', 'เ◌ิ', '', 'ด'),
+  syl('ตรวจ', 'trùat', 'revisar', 'ตร', '◌ว', '', 'จ'),
+  syl('ชอบ', 'chɔ̂ɔp', 'gustar', 'ช', '◌อ', '', 'บ'),
+  syl('รีบ', 'rîip', 'darse prisa', 'ร', '◌ี', '', 'บ'),
+  syl('รูป', 'rûup', 'foto, imagen', 'ร', '◌ู', '', 'ป'),
+  syl('ตอบ', 'tɔ̀ɔp', 'responder', 'ต', '◌อ', '', 'บ'),
+  syl('อาบ', 'àap', 'bañarse', 'อ', '◌า', '', 'บ'),
+  syl('สอบ', 'sɔ̀ɔp', 'examinarse', 'ส', '◌อ', '', 'บ'),
+  syl('เกือบ', 'gʉ̀ap', 'casi', 'ก', 'เ◌ือ', '', 'บ'),
+];

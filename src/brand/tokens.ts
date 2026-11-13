@@ -58,10 +58,10 @@ export type ToneId = 'M' | 'L' | 'F' | 'H' | 'R';
 /** Los 5 tonos del thai: color de relleno (chips) y de texto (sobre blanco). */
 export const tones: Record<ToneId, { name: string; thai: string; fill: string; on: string; text: string; path: string }> = {
   M: { name: 'Medio', thai: 'สามัญ', fill: '#8E98B1', on: '#1D2347', text: '#5F6988', path: 'M2 7 H22' },
-  L: { name: 'Bajo', thai: 'เอก', fill: '#4555D6', on: '#FFFFFF', text: '#3F4FD0', path: 'M2 9 L22 12' },
-  F: { name: 'Descendente', thai: 'โท', fill: '#E2474C', on: '#FFFFFF', text: '#C9353B', path: 'M2 8 Q10 0 22 13' },
-  H: { name: 'Alto', thai: 'ตรี', fill: '#FFC23D', on: '#1D2347', text: '#9A6400', path: 'M2 9 Q15 9 22 2' },
-  R: { name: 'Ascendente', thai: 'จัตวา', fill: '#14A47C', on: '#1D2347', text: '#0B7A5C', path: 'M2 6 Q10 14 22 2' },
+  L: { name: 'Bajo', thai: 'เอก', fill: '#4555D6', on: '#FFFFFF', text: '#3F4FD0', path: 'M2 8.2 C8 8.6 12 11.6 22 12' },
+  F: { name: 'Descendente', thai: 'โท', fill: '#E2474C', on: '#FFFFFF', text: '#C9353B', path: 'M2 5 C6.5 1 10.5 1 13.5 5.2 C16 8.7 18.5 11.8 22 12.4' },
+  H: { name: 'Alto', thai: 'ตรี', fill: '#FFC23D', on: '#1D2347', text: '#9A6400', path: 'M2 5.2 C10 5.2 15.5 5 22 1.8' },
+  R: { name: 'Ascendente', thai: 'จัตวา', fill: '#14A47C', on: '#1D2347', text: '#0B7A5C', path: 'M2 8.4 C6 12.8 11.5 13.4 15 9.2 C17.5 6.2 19.5 3 22 1.8' },
 };
 
 export const radius = { s: 12, m: 16, l: 20, xl: 24, xxl: 32, pill: 999 } as const;

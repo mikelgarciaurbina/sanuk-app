@@ -9,7 +9,7 @@ import { color, shadow } from '@/brand/tokens';
 import { Art } from '@/components/icons';
 import { Noi } from '@/components/Noi';
 import { Btn, Hud, Txt } from '@/components/ui';
-import { currentLesson } from '@/content';
+import { canRead, currentLesson } from '@/content';
 import type { GameId } from '@/content/types';
 import { Backdrop } from '@/games/Backdrop';
 import { Floaty, GameFrame, Glow, useJuice } from '@/games/fx';
@@ -34,7 +34,7 @@ export default function Juego() {
   const [hudH, setHudH] = useState(0);
 
   // solo palabras con ficha, frases que se entienden y conversaciones ya vistas (src/lib/feria.ts)
-  const [setup] = useState(() => feriaSetup(id, p));
+  const [setup, setSetup] = useState(() => feriaSetup(id, p));
 
   const close = () => {
     stopSpeech();
@@ -54,10 +54,13 @@ export default function Juego() {
     return (
       <Results
         name={meta.name}
+        unit={id === 'cena' ? 'por ciento' : 'puntos'}
         result={result}
         prevBest={prevBest}
         daily={!!daily}
         onAgain={() => {
+          // otra partida: palabras barajadas de nuevo y, en la cena o los cuentos, otra conversación u otro cuento
+          setSetup(feriaSetup(id, p, 'extra' in setup ? setup.extra : undefined));
           setResult(null);
           setRun((r) => r + 1);
         }}
@@ -89,6 +92,7 @@ export default function Juego() {
           sentences={setup.sentences}
           extra={setup.extra}
           rounds={meta.rounds.feria}
+          reads={canRead(p)}
           gender={p.profile.gender}
           onAnswer={(ok, wordId) => {
             if (wordId) answer(wordId, ok);
@@ -121,7 +125,7 @@ function Locked({ name, unlock, text, onClose }: { name: string; unlock?: number
 }
 
 /** Fin de partida: marcador que sube, estrellas por precisión y, con récord, fanfarria y fuegos artificiales. */
-function Results({ name, result, prevBest, daily, onAgain, onClose }: { name: string; result: GameResult; prevBest: number; daily: boolean; onAgain: () => void; onClose: () => void }) {
+function Results({ name, unit, result, prevBest, daily, onAgain, onClose }: { name: string; unit: string; result: GameResult; prevBest: number; daily: boolean; onAgain: () => void; onClose: () => void }) {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const juice = useJuice();
@@ -130,7 +134,9 @@ function Results({ name, result, prevBest, daily, onAgain, onClose }: { name: st
   const record = score > prevBest && score > 0;
   const acc = result.total ? result.correct / result.total : 0;
   const stars = acc >= 0.9 ? 3 : acc >= 0.7 ? 2 : acc > 0 ? 1 : 0;
-  const title = record ? '¡Nuevo récord!' : stars === 3 ? '¡Partida perfecta!' : stars === 2 ? '¡Buena partida!' : '¡A por la siguiente!';
+  // una partida que no puntúa (Eco sin poder hablar, por ejemplo) no es un fracaso
+  const unscored = result.total === 0;
+  const title = record ? '¡Nuevo récord!' : unscored ? 'ไม่เป็นไร, otra vez será' : stars === 3 ? '¡Partida perfecta!' : stars === 2 ? '¡Buena partida!' : '¡A por la siguiente!';
 
   const celebrate = useEffectEvent(() => {
     const ts: ReturnType<typeof setTimeout>[] = [];
@@ -140,7 +146,7 @@ function Results({ name, result, prevBest, daily, onAgain, onClose }: { name: st
       ts.push(
         setTimeout(() => {
           fx.fanfare();
-          juice.banner('¡Nuevo récord!', `${score} puntos`, color.farol);
+          juice.banner('¡Nuevo récord!', `${score} ${unit}`, color.farol);
         }, after),
       );
       for (let k = 0; k < 8; k++)
@@ -176,7 +182,7 @@ function Results({ name, result, prevBest, daily, onAgain, onClose }: { name: st
         <View style={{ flexDirection: 'row', gap: 10 }}>
           <Animated.View entering={FadeInDown.delay(250).springify().damping(14)} style={styles.stat}>
             <CountUp to={score} color={record ? color.farol : color.tinta} />
-            <Txt v="small">puntos{prevBest ? ` · récord ${Math.max(prevBest, score)}` : ''}</Txt>
+            <Txt v="small">{unit}{prevBest ? ` · récord ${Math.max(prevBest, score)}` : ''}</Txt>
           </Animated.View>
           <Animated.View entering={FadeInDown.delay(380).springify().damping(14)} style={styles.stat}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -189,7 +195,7 @@ function Results({ name, result, prevBest, daily, onAgain, onClose }: { name: st
           </Animated.View>
         </View>
         <Txt v="small" style={[{ textAlign: 'center' }, record && { color: '#C9D0EE' }]}>
-          {result.correct} aciertos de {result.total}
+          {unscored ? 'Esta vez no ha contado: cuando puedas, vuelve a intentarlo.' : `${result.correct} aciertos de ${result.total}`}
         </Txt>
         <View style={{ flex: 1 }} />
         <Btn label="Otra partida" onPress={onAgain} />

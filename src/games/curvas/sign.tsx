@@ -1,12 +1,13 @@
-// Señal de curva de la carretera 1095: rombo amarillo con la flecha de la curva y un cartel con la palabra.
-// Llega desde el horizonte en perspectiva (escala y posición según su distancia) y se toca para elegir.
+// Señal de curva de la carretera 1095: rombo amarillo con la flecha de la curva y un cartel con la palabra (y su
+// transcripción debajo mientras aún no se lee thai). Llega desde el horizonte en perspectiva (escala y posición
+// según su distancia), se planta enseguida a una distancia a la que se lee bien y se toca para elegir.
 import { useEffect, useId } from 'react';
 import { Pressable, StyleSheet, Text, View, type GestureResponderEvent } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
 import Svg, { Defs, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
 
 import { color, font } from '@/brand/tokens';
-import { Th } from '@/components/ui';
+import { Rom, Th } from '@/components/ui';
 
 import { offOf, yOf, type Geo } from './road';
 
@@ -22,14 +23,16 @@ const TONE: Record<SignState, [string, string, string]> = {
   dim: ['#F4E9C2', '#D9C68A', '#6B6A60'],
 };
 
-function fit(text: string, latin: boolean) {
+function fit(text: string, latin: boolean, withRom: boolean) {
   const n = [...text].length;
   if (latin) return n <= 6 ? 30 : n <= 10 ? 25 : n <= 16 ? 20 : 16;
+  if (withRom) return n <= 3 ? 32 : n <= 6 ? 28 : n <= 10 ? 23 : 19;
   return n <= 3 ? 44 : n <= 6 ? 36 : n <= 10 ? 28 : 22;
 }
 
-/** `side` −1 izquierda · 1 derecha; `z` es la distancia compartida de las dos señales; `dir` el sentido de la curva. */
-export function RoadSign({ g, side, z, curve, dir, text, latin, state, onChoose, label }: { g: Geo; side: -1 | 1; z: SharedValue<number>; curve: SharedValue<number>; dir: -1 | 1; text: string; latin: boolean; state: SignState; onChoose: (side: 0 | 1, e: GestureResponderEvent) => void; label: string }) {
+/** `side` −1 izquierda · 1 derecha; `z` es la distancia compartida de las dos señales; `dir` el sentido de la curva;
+ *  `rom`: transcripción bajo la palabra thai (solo mientras no se sabe leer). */
+export function RoadSign({ g, side, z, curve, dir, text, rom, latin, state, onChoose, label }: { g: Geo; side: -1 | 1; z: SharedValue<number>; curve: SharedValue<number>; dir: -1 | 1; text: string; rom?: string; latin: boolean; state: SignState; onChoose: (side: 0 | 1, e: GestureResponderEvent) => void; label: string }) {
   const u = `g${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
   const pop = useSharedValue(1);
   const shake = useSharedValue(0);
@@ -40,7 +43,8 @@ export function RoadSign({ g, side, z, curve, dir, text, latin, state, onChoose,
   }, [state, pop, shake]);
   const st = useAnimatedStyle(() => {
     const zz = Math.max(0.95, z.value);
-    const s = Math.min(1.12, (2.6 / zz) * 0.85);
+    // nunca más ancha que media pantalla: las dos señales caben enteras, una a cada lado
+    const s = Math.min(1.12, (g.W / 2 - 6) / SW, (2.6 / zz) * 0.85);
     const half = (SW * s) / 2;
     const raw = g.W / 2 + offOf(g, curve.value, zz) + side * (g.road / zz + 14 / zz + half * 0.92);
     const x = Math.max(half + 2, Math.min(g.W - half - 2, raw));
@@ -51,7 +55,8 @@ export function RoadSign({ g, side, z, curve, dir, text, latin, state, onChoose,
     };
   });
   const [hi, mid, ink] = TONE[state];
-  const size = fit(text, latin);
+  const size = fit(text, latin, !!rom);
+  const romSize = rom && rom.length > 16 ? 12 : 15;
   const arrow = dir > 0 ? 'M81 52 V40 C81 32 87 28 97 28 M91 21 L98 28 L91 35' : 'M95 52 V40 C95 32 89 28 79 28 M85 21 L78 28 L85 35';
   return (
     <Animated.View style={[{ position: 'absolute', left: 0, top: 0, width: SW, height: SH, transformOrigin: `${SW / 2}px ${SH}px` }, st]}>
@@ -84,9 +89,12 @@ export function RoadSign({ g, side, z, curve, dir, text, latin, state, onChoose,
               {text}
             </Text>
           ) : (
-            <Th size={size} bold numberOfLines={1} style={{ color: ink, lineHeight: size * 1.5 }}>
-              {text}
-            </Th>
+            <>
+              <Th size={size} bold numberOfLines={1} style={{ color: ink, lineHeight: size * (rom ? 1.32 : 1.5) }}>
+                {text}
+              </Th>
+              {rom ? <Rom rom={rom} size={romSize} mono={ink} style={{ textAlign: 'center', opacity: 0.85 }} /> : null}
+            </>
           )}
         </View>
         {state === 'ok' || state === 'bad' || state === 'hint' ? (

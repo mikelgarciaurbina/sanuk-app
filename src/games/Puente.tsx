@@ -1,9 +1,12 @@
 // Juego 10 · Puente de bambú. Noi espera al otro lado del río y cada palabra de la frase es una tabla de bambú:
 // tócalas en orden y vuelan a su sitio con un «clac» (y una nota más aguda en cada acierto seguido). Con el
 // puente completo, Noi lo cruza a saltitos mientras suena la frase entera y se ilumina cada tabla que pisa.
-// Una tabla que no es de la frase cae al agua con salpicadura; una que va más adelante rebota y vuelve.
+// Una tabla que no es de la frase cae al agua con salpicadura; una que va más adelante rebota y vuelve (es un
+// juego de orden: un desliz de orden rompe la racha, pero no cuenta como palabra fallada en el repaso).
+// Si la frase admite otro orden (la palabra de tiempo al final, ครับ/ค่ะ cerrando la frase), también vale.
 // Feria: tres niveles (frases más largas y más tablas de sobra), rondas a ciegas (solo audio), bambú dorado
-// (puntos ×2), revancha con la frase que más costó, combos que multiplican y bonus por rapidez.
+// (puntos ×2), revancha con la frase que más costó, combos que multiplican y bonus por rapidez. Nunca sale
+// la misma frase dos veces seguidas. Mientras no se sabe leer, las tablas llevan su transcripción.
 import { useEffect, useId, useRef, useState } from 'react';
 import { StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import Animated, {
@@ -25,23 +28,25 @@ import { color, font } from '@/brand/tokens';
 import { Icon } from '@/components/icons';
 import { Noi } from '@/components/Noi';
 import { Btn, Rom, SpeakBtn, Th, Txt } from '@/components/ui';
-import type { Sentence, Word } from '@/content/types';
+import type { Category, Sentence, Word } from '@/content/types';
 import { fx, say } from '@/lib/audio';
 import { shuffle } from '@/lib/random';
 import { joinThai, personalize, personalizeRom, type Gender } from '@/lib/thai';
 
 import { Backdrop } from './Backdrop';
 import { Countdown, Floaty, Press3D, useJuice, type Point } from './fx';
-import { DrainBar, GameHud, WORD_BY_TH, clamp, measureBox, shortEs, thaiWidth, useLater, type Box, type ViewRef } from './frases/shared';
+import { DrainBar, GameHud, WORD_BY_TH, clamp, measureBox, shortEs, thaiWidth, useLater, wordIn, type Box, type ViewRef } from './frases/shared';
 import { useScore } from './kit';
 import type { GameProps } from './types';
 
 // ——— Rondas ———
 
-type Tok = { th: string; rom: string; es?: string; id?: string };
+type Tok = { th: string; rom: string; es?: string; id?: string; cat?: Category };
 type Plank = { id: string; th: string; rom: string; fake: boolean };
 type Kind = 'normal' | 'listen' | 'gold' | 'retry';
-type Src = { toks: Tok[]; rom: string; es: string; extras: string[] };
+/** Otro orden de las mismas tablas que también es thai correcto, y por qué. */
+type Alt = { toks: Tok[]; why: string };
+type Src = { toks: Tok[]; rom: string; es: string; extras: string[]; alts: Alt[] };
 type Round = { key: string; src: Src; phrase: string; planks: Plank[]; level: number; kind: Kind; fakes: number };
 
 /** Partículas y pronombres que cambian con quien habla: nunca como tabla de sobra (serían una trampa). */
@@ -52,9 +57,43 @@ function toksOf(s: Sentence, g: Gender): Tok[] {
   const aligned = roms.length === s.th.length;
   return s.th.map((raw, i) => {
     const th = personalize(raw, g);
-    const w = WORD_BY_TH.get(th);
-    return { th, rom: aligned ? personalizeRom(roms[i], g) : (w?.rom ?? ''), es: w ? shortEs(w.es) : undefined, id: w?.id };
+    const w = wordIn(th, s);
+    return { th, rom: aligned ? personalizeRom(roms[i], g) : (w?.rom ?? ''), es: w ? shortEs(w.es) : undefined, id: w?.id, cat: w?.cat };
   });
+}
+
+/** Palabras de tiempo que valen igual al principio que al final de una frase sencilla: พรุ่งนี้ไปปาย = ไปปายพรุ่งนี้. */
+const MOVABLE_TIME = new Set(['วันนี้', 'พรุ่งนี้', 'เมื่อวาน', 'เมื่อวานนี้', 'คืนนี้', 'ตอนนี้', 'เช้านี้', 'เย็นนี้', 'ตอนเช้า', 'ตอนเย็น', 'วันจันทร์', 'วันอังคาร', 'วันพุธ', 'วันพฤหัสบดี', 'วันศุกร์', 'วันเสาร์', 'วันอาทิตย์']);
+/** Finales tras los que no se cuelga una palabra de tiempo (partículas y coletillas). */
+const NO_TIME_AFTER = new Set(['ก็ได้', 'ได้', 'แล้ว', 'เลย', 'ด้วย', 'นะ', 'สิ', 'เถอะ', 'จัง', 'กัน', 'เหมือนกัน', 'อีก', 'ก่อน']);
+const POLITE = /^\{PQ?\}$/;
+
+/**
+ * Otros órdenes que también valen, solo cuando es seguro:
+ * · la palabra de tiempo del principio puede ir al final de una afirmación corta de una sola idea
+ *   (sin pregunta, sin conectores, sin partícula final), antes de ครับ/ค่ะ si lo hay;
+ * · un ครับ/ค่ะ de afirmación a mitad de frase («อิ่มแล้วครับ อร่อยมาก») puede cerrar la frase entera.
+ * {PQ} no se mueve: en boca de una mujer cambiaría de forma (คะ → ค่ะ).
+ */
+function altsOf(s: Sentence, toks: Tok[]): Alt[] {
+  const raw = s.th;
+  let end = raw.length;
+  while (end > 0 && POLITE.test(raw[end - 1])) end--;
+  const out: Alt[] = [];
+  const body = toks.slice(1, end);
+  const last = body[body.length - 1];
+  const simple =
+    body.length >= 2 &&
+    body.length <= 5 &&
+    !raw.includes('{PQ}') &&
+    !raw.slice(0, end).some((t) => POLITE.test(t)) &&
+    !body.some((t) => t.cat === 'pregunta' || t.cat === 'conector' || MOVABLE_TIME.has(t.th));
+  if (simple && MOVABLE_TIME.has(toks[0].th) && last.cat !== 'particula' && last.cat !== 'tiempo' && !NO_TIME_AFTER.has(last.th))
+    out.push({ toks: [...body, toks[0], ...toks.slice(end)], why: `${toks[0].th} puede ir al principio o al final.` });
+  const mid = raw.indexOf('{P}');
+  if (mid > 0 && mid < raw.length - 1 && end === raw.length && raw.filter((t) => POLITE.test(t)).length === 1 && !toks.slice(mid + 1).some((t) => t.cat === 'pregunta'))
+    out.push({ toks: [...toks.slice(0, mid), ...toks.slice(mid + 1), toks[mid]], why: `${toks[mid].th} también puede cerrar la frase entera.` });
+  return out;
 }
 
 /** Tablas de sobra: palabras de otras frases que no se parecen (ni en thai ni en traducción) a las de esta. */
@@ -83,7 +122,7 @@ function buildRound(src: Src, key: string, level: number, kind: Kind, fakes: num
 const oneOf = (xs: number[]) => (xs.length ? xs[Math.floor(Math.random() * xs.length)] : -1);
 
 function makeRounds(mode: GameProps['mode'], sentences: Sentence[], words: Word[], focus: Word[], g: Gender, n: number): Round[] {
-  const usable = sentences.filter((s) => s.th.length >= 2 && s.th.length <= 10);
+  const usable = sentences.filter((s, i, all) => s.th.length >= 2 && s.th.length <= 10 && all.findIndex((x) => x.id === s.id) === i);
   const wordTh = words.map((w) => w.th);
   let srcs: Src[];
   if (usable.length) {
@@ -93,20 +132,21 @@ function makeRounds(mode: GameProps['mode'], sentences: Sentence[], words: Word[
       rom: personalizeRom(s.rom, g),
       es: s.es,
       extras: [...toks.filter((_, j) => j !== i).flatMap((t) => t.map((x) => x.th)), ...wordTh],
+      alts: altsOf(s, toks[i]),
     }));
   } else {
     // sin frases: parejas y tríos de palabras de la lección
     const seen = new Set<string>();
     const pool: Word[] = [];
     for (const w of [...shuffle(focus), ...shuffle(words)]) {
-      if (seen.has(w.id)) continue;
+      if (seen.has(w.id) || GENDERED.has(w.th)) continue;
       seen.add(w.id);
       pool.push(w);
     }
     if (pool.length < 2) return [];
     srcs = Array.from({ length: Math.max(1, n) }, (_, i) => {
       const ws = shuffle(pool).slice(0, i % 2 ? 3 : 2);
-      return { toks: ws.map((w) => ({ th: w.th, rom: w.rom, es: shortEs(w.es), id: w.id })), rom: ws.map((w) => w.rom).join(' '), es: ws.map((w) => shortEs(w.es)).join(' · '), extras: wordTh };
+      return { toks: ws.map((w) => ({ th: w.th, rom: w.rom, es: shortEs(w.es), id: w.id })), rom: ws.map((w) => w.rom).join(' '), es: ws.map((w) => shortEs(w.es)).join(' · '), extras: wordTh, alts: [] };
     });
   }
 
@@ -115,8 +155,8 @@ function makeRounds(mode: GameProps['mode'], sentences: Sentence[], words: Word[
     const byLen = [...srcs].sort((a, b) => a.toks.length - b.toks.length);
     const withFocus = byLen.filter((s) => s.toks.some((t) => focusTh.has(t.th)));
     const base = (withFocus.length >= n ? withFocus : byLen).slice(0, Math.max(n + 1, 3));
+    // cada frase, una sola vez: si hay menos frases que rondas, la lección tiene menos puentes (lo fallado ya vuelve)
     const chosen = shuffle(base).slice(0, n);
-    for (let i = 0; chosen.length < n; i++) chosen.push(byLen[i % byLen.length]);
     return chosen.sort((a, b) => a.toks.length - b.toks.length).map((s, i) => buildRound(s, `r${i}`, 1, 'normal', 1));
   }
 
@@ -128,13 +168,20 @@ function makeRounds(mode: GameProps['mode'], sentences: Sentence[], words: Word[
   const buckets = [sorted.slice(0, c1), sorted.slice(c1, c2), sorted.slice(c2)];
   const uses = new Map<Src, number>();
   let prev: Src | null = null;
+  // Nunca la misma frase dos veces seguidas (ni «a ciegas» justo después de construirla): si el nivel solo tiene
+  // esa, vale la menos usada de toda la lista, mejor la de largo más parecido al del nivel.
   const take = (lv: number) => {
-    const b = buckets[lv - 1].length ? buckets[lv - 1] : buckets[1].length ? buckets[1] : sorted;
-    const best = [...b].sort((x, y) => (uses.get(x) ?? 0) - (uses.get(y) ?? 0) || Number(x === prev) - Number(y === prev))[0];
+    const fresh = (list: Src[]) => list.filter((s) => s !== prev);
+    const own = fresh(buckets[lv - 1]);
+    const b = own.length ? own : fresh(sorted).length ? fresh(sorted) : sorted;
+    const mid = ((lv - 0.5) / 3) * L - 0.5;
+    const best = [...b].sort((x, y) => (uses.get(x) ?? 0) - (uses.get(y) ?? 0) || Math.abs(sorted.indexOf(x) - mid) - Math.abs(sorted.indexOf(y) - mid))[0];
     uses.set(best, (uses.get(best) ?? 0) + 1);
     prev = best;
     return best;
   };
+  // con muy pocas frases la partida se acorta: cada una sale, como mucho, tres veces
+  n = Math.min(n, Math.max(3, L * 3));
   const levels = Array.from({ length: n }, (_, i) => (i < Math.round(n * 0.375) ? 1 : i < Math.round(n * 0.75) ? 2 : 3));
   const kinds: Kind[] = levels.map(() => 'normal');
   const at = (lv: number) => levels.flatMap((l, i) => (l === lv && i < n - 1 ? [i] : []));
@@ -215,7 +262,7 @@ type Phase = 'intro' | 'play' | 'cross' | 'done';
 type Flight = { key: string; plank: Plank; kind: 'ok' | 'later' | 'wrong'; from: Box; to: Box; fall: Point; size: PlankSize; gold: boolean };
 type Summary = { perfect: boolean; base: number; perf: number; speed: number };
 
-const EMPTY: Round = { key: 'vacio', src: { toks: [], rom: '', es: '', extras: [] }, phrase: '', planks: [], level: 1, kind: 'normal', fakes: 0 };
+const EMPTY: Round = { key: 'vacio', src: { toks: [], rom: '', es: '', extras: [], alts: [] }, phrase: '', planks: [], level: 1, kind: 'normal', fakes: 0 };
 const OK_MS = 380;
 const LATER_MS = 720;
 const WRONG_MS = 860;
@@ -227,7 +274,7 @@ const SPECIAL: Partial<Record<Kind, { t: string; sub: string; tint: string }>> =
   retry: { t: '¡Revancha!', sub: 'La frase que más se te resistió', tint: color.farol },
 };
 
-export default function Puente({ mode, words, focus, sentences, rounds: nRounds, gender, onAnswer, onDone }: GameProps) {
+export default function Puente({ mode, words, focus, sentences, rounds: nRounds, reads, gender, onAnswer, onDone }: GameProps) {
   const feria = mode === 'feria';
   const score = useScore(mode);
   const juice = useJuice();
@@ -246,6 +293,8 @@ export default function Puente({ mode, words, focus, sentences, rounds: nRounds,
   const [jump, setJump] = useState(0);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [retried, setRetried] = useState(false);
+  // el orden que se está construyendo, si no es el del temario (la palabra de tiempo al final…)
+  const [alt, setAlt] = useState<(Alt & { key: string }) | null>(null);
   const [layout, setLayout] = useState({ w: 0, h: 0, stageY: 0, stageH: 0 });
   const rootRef = useRef<ViewRef>(null);
   const stageRef = useRef<ViewRef>(null);
@@ -259,10 +308,13 @@ export default function Puente({ mode, words, focus, sentences, rounds: nRounds,
     base: 0,
     points: 0,
     seq: 0,
-    worst: null as null | { src: Src; mistakes: number },
+    /** órdenes que aún encajan con lo colocado (el primero es el que se pinta) */
+    cands: null as Tok[][] | null,
+    /** fallos de cada frase, para la revancha */
+    slips: new Map<Src, number>(),
     finished: false,
     clock: { start: 0, ms: 1 },
-    noiWin: { x: 0, y: 0 } as Point,
+    noiWin: undefined as Point | undefined,
   });
 
   const bonus = useSharedValue(1);
@@ -276,7 +328,11 @@ export default function Puente({ mode, words, focus, sentences, rounds: nRounds,
   const bottomH = layout.h ? Math.round(clamp(layout.h * 0.3, 184, 250)) : 210;
   const gold = r.kind === 'gold';
   const listen = r.kind === 'listen';
-  const size = poolSize(r.planks, layout.w || 375, bottomH, !feria);
+  const order = alt && alt.key === r.key ? alt.toks : r.src.toks;
+  // Transcripción en las tablas: siempre mientras no se sabe leer; después, solo en el primer nivel de la feria
+  // y en la primera pasada de la lección (la revancha ya se lee sin ayuda).
+  const withRom = !reads || (feria ? r.level === 1 : r.kind !== 'retry');
+  const size = poolSize(r.planks, layout.w || 375, bottomH, withRom);
   const noiSize = geo?.noi ?? 70;
 
   const noiStyle = useAnimatedStyle(() => ({
@@ -356,7 +412,11 @@ export default function Puente({ mode, words, focus, sentences, rounds: nRounds,
 
   const launch = (p: Plank, box: Box, k: number, kind: Flight['kind'], onLand: (at: Point) => void) => {
     Promise.all([measureBox(rootRef), measureBox(stageRef)]).then(([root, stage]) => {
-      if (!root || !stage || !geo) return;
+      if (!root || !stage || !geo) {
+        // sin medidas (la pantalla aún no se ha pintado) no hay vuelo, pero la tabla llega igual
+        later(() => onLand({ x: box.x + box.w / 2, y: box.y + box.h / 2 }), 80);
+        return;
+      }
       const s = geo.slots[k];
       const from = { x: box.x - root.x + box.w / 2, y: box.y - root.y + box.h / 2, w: box.w, h: box.h };
       const to = { x: stage.x - root.x + geo.cx, y: stage.y - root.y + (s.y0 + s.y1) / 2, w: s.hw0 + s.hw1, h: s.y1 - s.y0 };
@@ -383,13 +443,19 @@ export default function Puente({ mode, words, focus, sentences, rounds: nRounds,
     if (phase !== 'play' || g.out.has(p.id)) return;
     const k = g.next;
     if (k >= n) return;
-    const want = r.src.toks[k];
+    // a ciegas manda lo que se ha oído; si no, vale cualquier orden correcto que encaje con lo ya colocado
+    const cands = (g.cands ??= listen ? [r.src.toks] : [r.src.toks, ...r.src.alts.map((a) => a.toks)]);
+    const fits = cands.filter((o) => o[k].th === p.th);
+    const want = (fits[0] ?? cands[0])[k];
     const firstTry = !g.tried.has(k);
     g.tried.add(k);
     g.out.add(p.id);
     setOut((o) => ({ ...o, [p.id]: true }));
 
-    if (p.th === want.th) {
+    if (fits.length) {
+      g.cands = fits;
+      const other = r.src.alts.find((a) => a.toks === fits[0]);
+      if (other) setAlt((a) => (a && a.key === r.key && a.toks === other.toks ? a : { ...other, key: r.key }));
       g.next = k + 1;
       setFilled(k + 1);
       if (firstTry) onAnswer(true, want.id);
@@ -416,9 +482,10 @@ export default function Puente({ mode, words, focus, sentences, rounds: nRounds,
       return;
     }
 
-    // tabla equivocada
-    const isLater = r.src.toks.some((t, j) => j > k && t.th === p.th);
-    if (firstTry) onAnswer(false, want.id);
+    // tabla equivocada. Una que va más adelante es un desliz de orden: rompe la racha, pero no dice que no se
+    // sepa la palabra (el repaso no se entera); una que no es de la frase sí cuenta para la que tocaba.
+    const isLater = cands.some((o) => o.some((t, j) => j > k && t.th === p.th));
+    if (firstTry && !isLater) onAnswer(false, want.id);
     score.hit(false);
     g.mistakes += 1;
     if (g.missAt === k) g.missCount += 1;
@@ -454,33 +521,37 @@ export default function Puente({ mode, words, focus, sentences, rounds: nRounds,
   // ——— Noi cruza el puente ———
 
   const cross = () => {
-    if (!geo) return;
     const g = game.current;
     setPhase('cross');
     const { start, ms } = g.clock;
     const rem = feria ? clamp(1 - (Date.now() - start) / ms, 0, 1) : 0;
     bonus.set(rem);
-    say(r.phrase);
+    say(joinThai((g.cands?.[0] ?? r.src.toks).map((t) => t.th)));
     setPose('feliz');
     const STEP = 300;
-    const steps = geo.slots.map((s) => {
-      const y = s.y0 + (s.y1 - s.y0) * 0.72;
-      return { y, sc: Math.min(1.75, Math.pow(geo.hwAt(y) / geo.hwTop, 0.85)) };
-    });
-    const base = geo.top + 2;
-    const endY = geo.bottom + 2 - base;
-    const endSc = Math.min(1.75, Math.pow(geo.hwBot / geo.hwTop, 0.85));
-    ny.set(
-      withSequence(
-        ...steps.flatMap((st) => [
-          withTiming(st.y - base - 14 * st.sc, { duration: STEP * 0.45, easing: Easing.out(Easing.quad) }),
-          withTiming(st.y - base, { duration: STEP * 0.55, easing: Easing.in(Easing.quad) }),
-        ]),
-        withTiming(endY - 26, { duration: 160, easing: Easing.out(Easing.quad) }),
-        withTiming(endY, { duration: 220, easing: Easing.in(Easing.quad) }),
-      ),
-    );
-    nsc.set(withSequence(...steps.map((st) => withTiming(st.sc, { duration: STEP })), withTiming(endSc, { duration: 380 })));
+    // sin medidas del escenario no hay paseo, pero la ronda se cierra igual
+    const steps = geo
+      ? geo.slots.map((s) => {
+          const y = s.y0 + (s.y1 - s.y0) * 0.72;
+          return { y, sc: Math.min(1.75, Math.pow(geo.hwAt(y) / geo.hwTop, 0.85)) };
+        })
+      : [];
+    if (geo) {
+      const base = geo.top + 2;
+      const endY = geo.bottom + 2 - base;
+      const endSc = Math.min(1.75, Math.pow(geo.hwBot / geo.hwTop, 0.85));
+      ny.set(
+        withSequence(
+          ...steps.flatMap((st) => [
+            withTiming(st.y - base - 14 * st.sc, { duration: STEP * 0.45, easing: Easing.out(Easing.quad) }),
+            withTiming(st.y - base, { duration: STEP * 0.55, easing: Easing.in(Easing.quad) }),
+          ]),
+          withTiming(endY - 26, { duration: 160, easing: Easing.out(Easing.quad) }),
+          withTiming(endY, { duration: 220, easing: Easing.in(Easing.quad) }),
+        ),
+      );
+      nsc.set(withSequence(...steps.map((st) => withTiming(st.sc, { duration: STEP })), withTiming(endSc, { duration: 380 })));
+    }
     steps.forEach((_, i) => later(() => setLit(i), i * STEP + STEP * 0.5));
     later(() => {
       setLit(-1);
@@ -493,11 +564,11 @@ export default function Puente({ mode, words, focus, sentences, rounds: nRounds,
       const speed = feria ? Math.round(rem * 40) * mult : 0;
       g.points += perf + speed;
       setPoints(g.points);
-      if (!g.worst || g.mistakes > g.worst.mistakes) g.worst = { src: r.src, mistakes: g.mistakes };
+      g.slips.set(r.src, Math.max(g.slips.get(r.src) ?? 0, g.mistakes));
       const at = g.noiWin;
       juice.burst(at, 'confeti', 24, 150);
-      if (perfect) juice.float({ x: at.x, y: at.y - 40 }, feria ? `¡Perfecto! +${perf}` : '¡Perfecto!', color.arrozalHondo, 26);
-      if (speed > 0) later(() => juice.float({ x: at.x, y: at.y - 10 }, `Rapidez +${speed}`, color.azafranHondo, 22), 260);
+      if (perfect) juice.float(at && { x: at.x, y: at.y - 40 }, feria ? `¡Perfecto! +${perf}` : '¡Perfecto!', color.arrozalHondo, 26);
+      if (speed > 0) later(() => juice.float(at && { x: at.x, y: at.y - 10 }, `Rapidez +${speed}`, color.azafranHondo, 22), 260);
       setSummary({ perfect, base: g.base, perf, speed });
       later(() => setPhase('done'), 750);
     }, steps.length * STEP + 400);
@@ -532,10 +603,13 @@ export default function Puente({ mode, words, focus, sentences, rounds: nRounds,
       finish();
       return;
     }
-    // feria: la última ronda es la revancha de la frase que más costó
-    if (feria && ri + 1 === list.length - 1 && !again && g.worst && g.worst.mistakes >= 2) {
-      again = true;
-      list = [...list.slice(0, -1), buildRound(g.worst.src, 'rv', 3, 'retry', list[list.length - 1].fakes)];
+    // feria: la última ronda es la revancha de la frase que más costó (nunca la que se acaba de cruzar)
+    if (feria && ri + 1 === list.length - 1 && !again) {
+      const worst = [...g.slips].filter(([src, m]) => src !== r.src && m >= 2).sort((a, b) => b[1] - a[1])[0];
+      if (worst) {
+        again = true;
+        list = [...list.slice(0, -1), buildRound(worst[0], 'rv', 3, 'retry', list[list.length - 1].fakes)];
+      }
     }
     if (list !== rounds) setRounds(list);
     if (again !== retried) setRetried(again);
@@ -547,6 +621,8 @@ export default function Puente({ mode, words, focus, sentences, rounds: nRounds,
     g.tried = new Set();
     g.out = new Set();
     g.base = 0;
+    g.cands = null;
+    setAlt(null);
     setRi(ri + 1);
     setFilled(0);
     setLanded(0);
@@ -622,7 +698,7 @@ export default function Puente({ mode, words, focus, sentences, rounds: nRounds,
         <View ref={stageRef} collapsable={false} style={{ flex: 1 }} onLayout={onStage}>
           {geo ? (
             <>
-              {r.src.toks.slice(0, landed).map((t, k) => (
+              {order.slice(0, landed).map((t, k) => (
                 <BridgePlank key={`${r.key}-${k}`} slot={geo.slots[k]} cx={geo.cx} th={t.th} gold={gold} lit={lit === k} />
               ))}
               {phase === 'play' && filled < n ? <NextSlot key={`${r.key}-n${filled}`} slot={geo.slots[filled]} cx={geo.cx} /> : null}
@@ -633,12 +709,29 @@ export default function Puente({ mode, words, focus, sentences, rounds: nRounds,
                 <Noi pose={pose} size={noiSize} jump={jump} />
               </Animated.View>
             </>
-          ) : null}
+          ) : (
+            // sin medidas del escenario: las tablas colocadas, en fila, para que la ronda se pueda acabar
+            <View style={styles.flat}>
+              {order.slice(0, landed).map((t, k) => (
+                <Board key={`${r.key}-${k}`} th={t.th} size={size} gold={gold} />
+              ))}
+            </View>
+          )}
         </View>
 
         <View style={{ height: bottomH }}>
           {phase === 'done' && summary ? (
-            <ResultCard round={r} summary={summary} feria={feria} last={last} minH={bottomH - 12} onNext={next} />
+            <ResultCard
+              phrase={joinThai(order.map((t) => t.th))}
+              rom={order === r.src.toks ? r.src.rom : order.map((t) => t.rom).join(' ')}
+              es={r.src.es}
+              also={alt && alt.key === r.key ? { phrase: r.phrase, why: alt.why } : undefined}
+              summary={summary}
+              feria={feria}
+              last={last}
+              minH={bottomH - 12}
+              onNext={next}
+            />
           ) : (
             <View style={styles.pool}>
               {r.planks.map((p, i) => (
@@ -1138,9 +1231,9 @@ function Ripple({ W, y, w, ms, delay }: { W: number; y: number; w: number; ms: n
   return <Animated.View style={[{ position: 'absolute', left: 0, top: y, width: w, height: 3, borderRadius: 2, backgroundColor: '#FFFFFF' }, st]} />;
 }
 
-function ResultCard({ round, summary, feria, last, minH, onNext }: { round: Round; summary: Summary; feria: boolean; last: boolean; minH: number; onNext: () => void }) {
+function ResultCard({ phrase, rom, es, also, summary, feria, last, minH, onNext }: { phrase: string; rom: string; es: string; also?: { phrase: string; why: string }; summary: Summary; feria: boolean; last: boolean; minH: number; onNext: () => void }) {
   const total = summary.base + summary.perf + summary.speed;
-  const fs = round.phrase.length > 26 ? 19 : 23;
+  const fs = phrase.length > 26 ? 19 : 23;
   return (
     <Animated.View entering={FadeInDown.springify().damping(15)} style={[styles.card, { minHeight: minH }]}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -1156,15 +1249,20 @@ function ResultCard({ round, summary, feria, last, minH, onNext }: { round: Roun
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
         <View style={{ flex: 1 }}>
           <Th size={fs} bold>
-            {round.phrase}
+            {phrase}
           </Th>
-          <Rom rom={round.src.rom} />
+          <Rom rom={rom} />
         </View>
-        <SpeakBtn size={40} onPress={() => say(round.phrase)} />
+        <SpeakBtn size={40} onPress={() => say(phrase)} />
       </View>
       <Txt v="bodyStrong" style={{ color: color.tinta2 }}>
-        {round.src.es}
+        {es}
       </Txt>
+      {also ? (
+        <Text style={styles.also} numberOfLines={2}>
+          También vale <Text style={styles.alsoTh}>{also.phrase}</Text>: {also.why}
+        </Text>
+      ) : null}
       <Btn label={last ? 'Terminar' : 'Siguiente'} height={46} onPress={onNext} />
     </Animated.View>
   );
@@ -1186,6 +1284,9 @@ const styles = StyleSheet.create({
   },
   promptLabel: { fontFamily: font.uiHeavy, fontSize: 11, letterSpacing: 1.1, color: color.arrozal },
   pool: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', alignContent: 'center', justifyContent: 'center', gap: 10, paddingHorizontal: 14, paddingBottom: 8 },
+  flat: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', alignContent: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 14 },
+  also: { fontFamily: font.uiBold, fontSize: 13, lineHeight: 18, color: color.arrozalHondo },
+  alsoTh: { fontFamily: font.thaiBold, fontSize: 15 },
   slab: {
     borderRadius: 13,
     paddingBottom: 4,

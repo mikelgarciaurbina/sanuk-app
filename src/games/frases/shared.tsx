@@ -7,8 +7,8 @@ import Animated, { interpolateColor, useAnimatedStyle, type SharedValue } from '
 import Svg, { Path } from 'react-native-svg';
 
 import { color, font } from '@/brand/tokens';
-import { WORDS } from '@/content';
-import type { Word } from '@/content/types';
+import { LESSONS, WORDS } from '@/content';
+import type { Sentence, Word } from '@/content/types';
 
 import { Pop } from '../fx';
 import { ComboBadge } from '../kit';
@@ -22,6 +22,40 @@ export const WORD_BY_TH: ReadonlyMap<string, Word> = (() => {
   for (const w of Object.values(WORDS)) if (!m.has(w.th)) m.set(w.th, w);
   return m;
 })();
+
+/** Formas thai que son más de una palabra del palabrario: ไหม (pregunta, seda), เลย («de verdad», «así que»), ถูก, ตา. */
+const HOMOGRAPHS: ReadonlyMap<string, Word[]> = (() => {
+  const m = new Map<string, Word[]>();
+  for (const w of Object.values(WORDS)) m.set(w.th, [...(m.get(w.th) ?? []), w]);
+  for (const [th, list] of m) if (list.length < 2) m.delete(th);
+  return m;
+})();
+
+/** Palabras que enseña la lección de cada frase (se calcula la primera vez que hace falta). */
+let taughtWith: Map<string, Set<string>> | undefined;
+const lessonWordsOf = (sentenceId: string) => {
+  if (!taughtWith) {
+    taughtWith = new Map();
+    for (const l of LESSONS) for (const id of l.sentences ?? []) if (!taughtWith.has(id)) taughtWith.set(id, new Set(l.words));
+  }
+  return taughtWith.get(sentenceId);
+};
+
+/**
+ * La palabra del palabrario que es una ficha dentro de su frase. Casi siempre solo hay una con esa escritura; si hay
+ * dos, vale la que indica la frase (`Sentence.w`) o la que enseña su lección (en «ฝนตกเลยไม่ได้ไป», เลย es «así que»
+ * y no «¡de verdad!»); si no, la primera. Así la pista, la traducción y el repaso van con el significado que toca.
+ */
+export function wordIn(th: string, s?: Pick<Sentence, 'id' | 'w'>): Word | undefined {
+  const first = WORD_BY_TH.get(th);
+  const all = HOMOGRAPHS.get(th);
+  if (!first || !all || !s) return first;
+  const told = s.w?.[th];
+  if (told && WORDS[told]?.th === th) return WORDS[told];
+  const own = lessonWordsOf(s.id);
+  const taught = own ? all.filter((w) => own.has(w.id)) : [];
+  return taught.length === 1 ? taught[0] : first;
+}
 
 /** Traducción corta: «partícula amable (habla un hombre)» → «partícula amable»; «ya; y luego» → «ya». */
 export function shortEs(es: string): string {

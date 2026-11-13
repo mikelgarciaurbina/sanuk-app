@@ -1,4 +1,4 @@
-import type { Dialogue, Sentence, Stop, Story, StoryToken, Word } from '../types';
+import type { Dialogue, Pattern, Sentence, Stop, Story, StoryToken, Word } from '../types';
 
 /**
  * Temporada 2 · bloque C: octubre (p22), noviembre (p23) y diciembre (p24).
@@ -47,7 +47,7 @@ export const WORDS_S2C: Word[] = [
   { id: 'm7_pramaan', th: 'ประมาณ', rom: 'prà-maan', es: 'más o menos, unos', emoji: '🧮', cat: 'numero', note: 'Delante de la cifra: ประมาณหกชั่วโมง = unas seis horas.' },
   { id: 'm7_nueangjaak', th: 'เนื่องจาก', rom: 'nʉ̂ang-jàak', es: 'debido a (formal)', emoji: '📢', cat: 'conector', note: 'La oirás en los avisos: เนื่องจากฝนตก… = debido a la lluvia… Hablando se dice เพราะ.' },
   { id: 'm7_chapho', th: 'เฉพาะ', rom: 'chà-phɔ́', es: 'exclusivamente; específico', emoji: '1️⃣', cat: 'conector', note: 'มีเฉพาะวันเสาร์ = solo los sábados. Se escribe เ…าะ, pero suena «chà-phɔ́».' },
-  // l4 · En el alojamiento
+  // l4 · En casa del amigo de Lung
   { id: 'm7_thiiphak', th: 'ที่พัก', rom: 'thîi-phák', es: 'alojamiento', emoji: '🏨', cat: 'lugar', note: 'Cualquier sitio donde dormir de viaje: hostal, pensión u hotel. พัก = alojarse, descansar.' },
   { id: 'm7_borikaan', th: 'บริการ', rom: 'bɔɔ-rí-gaan', es: 'servicio', emoji: '🛎️', cat: 'cultura', note: 'บริการดี = buen servicio. มีบริการรถรับส่ง = hay servicio de recogida.' },
   { id: 'm7_ruam', th: 'รวม', rom: 'ruam', es: 'incluir; en total', emoji: '➕', cat: 'verbo', note: 'รวมอาหารเช้า = desayuno incluido. รวมแล้ว = en total.' },
@@ -57,9 +57,9 @@ export const WORDS_S2C: Word[] = [
   { id: 'm7_jatgaan', th: 'จัดการ', rom: 'jàt-gaan', es: 'encargarse de, gestionar', emoji: '🛠️', cat: 'verbo', note: 'Cuando algo falla: เดี๋ยวจัดการให้ = ahora mismo me encargo.' },
   { id: 'm7_mosom', th: 'เหมาะสม', rom: 'mɔ̀-sǒm', es: 'adecuado, razonable', emoji: '👌', cat: 'adjetivo', note: 'ราคาเหมาะสม = precio razonable. Hablando, a menudo basta con เหมาะ.' },
   { id: 'm7_yiipun', th: 'ญี่ปุ่น', rom: 'yîi-pùn', es: 'Japón; japonés', emoji: '🇯🇵', cat: 'lugar', note: 'คนญี่ปุ่น = japonés; อาหารญี่ปุ่น = comida japonesa. Igual que con ไทย o จีน.' },
-  { id: 'm7_khanathii', th: 'ขณะที่', rom: 'khà-nà-thîi', es: 'mientras (registro formal)', emoji: '⏳', cat: 'conector', note: 'ขณะที่รอ… = mientras espero… Suena más formal que ตอนที่.' },
+  { id: 'm7_khanathii', th: 'ขณะที่', rom: 'khà-nà-thîi', es: 'mientras (registro formal)', emoji: '⏳', cat: 'conector', note: 'ขณะที่รอ… = mientras espero… Es de carteles y avisos; hablando se dice ตอนที่.' },
   { id: 'm7_angkrit', th: 'อังกฤษ', rom: 'ang-grìt', es: 'inglés; Inglaterra', emoji: '🇬🇧', cat: 'lugar', note: 'ภาษาอังกฤษ = el inglés. La ฤ suena «ri»: «ang-grìt».' },
-  // l5 · Orientarse en la ciudad
+  // l5 · El recado de Yai
   { id: 'm7_phaenthii', th: 'แผนที่', rom: 'phɛ̌ɛn-thîi', es: 'mapa', emoji: '🗺️', cat: 'lugar', note: 'แผน = plan + ที่ = sitio. เปิดแผนที่ในมือถือ = abrir el mapa en el móvil.' },
   { id: 'm7_mueang', th: 'เมือง', rom: 'mʉang', es: 'ciudad; el centro', emoji: '🌆', cat: 'lugar', note: 'ในเมือง = en el centro. Ya la viste en คำเมือง, el thai del norte: «la lengua de la ciudad».' },
   { id: 'm7_yaek', th: 'แยก', rom: 'yɛ̂ɛk', es: 'cruce; separar', emoji: '🚦', cat: 'lugar', note: 'สี่แยก = cruce de cuatro calles; สามแยก = de tres. แยกกัน = separarse.' },
@@ -70,7 +70,7 @@ export const WORDS_S2C: Word[] = [
   { id: 'm7_mum', th: 'มุม', rom: 'mum', es: 'esquina; rincón', emoji: '📐', cat: 'lugar', note: 'ที่มุมถนน = en la esquina. มุมสวย = un rincón bonito (para hacer fotos).' },
   { id: 'm7_naaja', th: 'น่าจะ', rom: 'nâa-jà', es: 'seguramente, debería de', emoji: '🤔', cat: 'particula', note: 'Para suponer: น่าจะอยู่ใกล้ = debe de estar cerca. Más seguro que อาจจะ (quizá), menos que คง.' },
   { id: 'm7_khet', th: 'เขต', rom: 'khèet', es: 'zona, distrito', emoji: '🧭', cat: 'lugar', note: 'ในเขตเมือง = dentro de la ciudad. En Bangkok, los distritos se llaman เขต.' },
-  // l6 · Describir lugares
+  // l6 · Donde os conocisteis
   { id: 'm7_sathaanthii', th: 'สถานที่', rom: 'sà-thǎan-thîi', es: 'lugar, sitio (formal)', emoji: '📍', cat: 'lugar', note: 'Más formal que ที่: สถานที่ท่องเที่ยว = lugar turístico.' },
   { id: 'm7_thanglae', th: 'ทั้ง…และ…', rom: 'tháng … lɛ́', es: 'tanto… como…', emoji: '⚖️', cat: 'conector', note: 'ทั้งสวยและเงียบ = bonito y tranquilo a la vez. Hablando también: ทั้ง…ทั้ง…' },
   { id: 'm7_khuekkhak', th: 'คึกคัก', rom: 'khʉ́k-khák', es: 'animado, con mucho ambiente', emoji: '🥁', cat: 'adjetivo', note: 'Para calles, mercados o fiestas con gente y bullicio alegre. Lo contrario: เงียบ.' },
@@ -93,7 +93,6 @@ export const WORDS_S2C: Word[] = [
   { id: 'm7_go', th: 'เกาะ', rom: 'gɔ̀', es: 'agarrarse; isla', emoji: '🏝️', cat: 'verbo', note: 'En la รถแดง: เกาะดีๆ นะ = ¡agárrate bien! Y también «isla»: เกาะสมุย.' },
   { id: 'm7_doem', th: 'เดิม', rom: 'dəəm', es: 'de antes, el mismo', emoji: '♻️', cat: 'adjetivo', note: 'ที่เดิม = el mismo sitio; เหมือนเดิม = como siempre, lo de siempre.' },
   { id: 'm7_prajam', th: 'ประจำ', rom: 'prà-jam', es: 'habitual, fijo', emoji: '🗓️', cat: 'adjetivo', note: 'ร้านประจำ = tu bar de siempre. รถประจำทาง = autobús de línea.' },
-  { id: 'm7_joe', th: 'เจอ', rom: 'jəə', es: 'encontrar; ver (a alguien)', emoji: '🔎', cat: 'verbo', note: 'หาเจอแล้ว = ¡ya lo he encontrado! Ya la conoces de แล้วเจอกัน.' },
   // ——— 8 · Noviembre · Loy Krathong y los girasoles ———
   // l1 · Hacer un krathong
   { id: 'm8_krathong', th: 'กระทง', rom: 'grà-thong', es: 'krathong (cestita flotante)', emoji: '🪷', cat: 'cultura', clf: 'ใบ', note: 'Se hace con tronco de platanero, hojas y flores, y se suelta en el río la noche de luna llena de noviembre.' },
@@ -119,7 +118,7 @@ export const WORDS_S2C: Word[] = [
   { id: 'm8_wanphen', th: 'วันเพ็ญ', rom: 'wan-phen', es: 'día de luna llena', emoji: '🌝', cat: 'tiempo', note: 'Loy Krathong cae en la วันเพ็ญ del duodécimo mes lunar (เดือนสิบสอง).' },
   // l3 · Planes de futuro
   { id: 'm8_anaakhot', th: 'อนาคต', rom: 'à-naa-khót', es: 'futuro', emoji: '🔮', cat: 'tiempo', note: 'ในอนาคต = en el futuro. Lo contrario: อดีต, el pasado.' },
-  { id: 'm8_ookaat', th: 'โอกาส', rom: 'oo-gàat', es: 'oportunidad, ocasión', emoji: '🍀', cat: 'cultura', note: 'ถ้ามีโอกาส = si tengo ocasión (y también un «ya veremos» educado). ได้ไป = pude ir.' },
+  { id: 'm8_ookaat', th: 'โอกาส', rom: 'oo-gàat', es: 'oportunidad, ocasión', emoji: '🍀', cat: 'cultura', note: 'ถ้ามีโอกาส = si tengo ocasión (y también un «ya veremos» educado).' },
   { id: 'm8_khwaamfan', th: 'ความฝัน', rom: 'khwaam-fǎn', es: 'sueño (ilusión, meta)', emoji: '🌠', cat: 'sentimiento', note: 'ฝัน = soñar; ความฝัน = el sueño que quieres cumplir. ฝันดี = ¡que sueñes bonito!' },
   { id: 'm8_paomaai', th: 'เป้าหมาย', rom: 'pâo-mǎai', es: 'meta, objetivo', emoji: '🏁', cat: 'cultura', note: 'เป้า = diana. เป้าหมายปีนี้ = el objetivo de este año.' },
   { id: 'm8_khroongkaan', th: 'โครงการ', rom: 'khroong-gaan', es: 'proyecto', emoji: '📋', cat: 'cultura', note: 'Un proyecto de verdad, o en broma para tus planes: มีโครงการจะ… = tengo en mente…' },
@@ -131,7 +130,7 @@ export const WORDS_S2C: Word[] = [
   { id: 'm8_samret', th: 'สำเร็จ', rom: 'sǎm-rèt', es: 'lograr, conseguir', emoji: '🥇', cat: 'verbo', note: 'ทำสำเร็จ = conseguirlo. Ojo: se lee «sǎm-rèt», con tono bajo, aunque la grafía no lo indique.' },
   // l4 · Si…, entonces…
   { id: 'm8_mae', th: 'แม้', rom: 'mɛ́ɛ', es: 'aunque; incluso', emoji: '🌧️', cat: 'conector', note: 'แม้ฝนตก ก็จะไป = aunque llueva, iré. Hablando también: ถึง…ก็…' },
-  { id: 'm8_ruemai', th: 'หรือไม่', rom: 'rʉ̌ʉ-mâi', es: 'o no; si… o no', emoji: '❓', cat: 'conector', note: 'ไม่รู้ว่าจะไปหรือไม่ = no sé si iré o no. Hablando se dice más หรือเปล่า.' },
+  { id: 'm8_ruemai', th: 'หรือไม่', rom: 'rʉ̌ʉ-mâi', es: 'o no; si… o no', emoji: '❓', cat: 'conector', note: 'Es la forma escrita, de cartas, formularios y avisos: จะมาหรือไม่ = ¿vendrá o no? Hablando, en familia, se dice หรือเปล่า.' },
   { id: 'm8_jonkwaa', th: 'จนกว่า', rom: 'jon-gwàa', es: 'hasta que', emoji: '⌛', cat: 'conector', note: 'Ya conoces จน: หนาวจนสั่น = tanto frío que tiemblo. รอจนกว่า… = espera hasta que…' },
   { id: 'm8_phuea_porsi', th: 'เผื่อ', rom: 'phʉ̀a', es: 'por si acaso', emoji: '☂️', cat: 'conector', note: 'เอาร่มไปเผื่อ = llévate el paraguas por si acaso. ¡Ojo! เพื่อ (para) va con tono descendente.' },
   { id: 'm8_ngan', th: 'งั้น', rom: 'ngán', es: 'entonces, pues (coloquial)', emoji: '👉', cat: 'conector', note: 'Forma corta de ถ้าอย่างนั้น. งั้นไปกันเถอะ = pues vámonos.' },
@@ -175,9 +174,9 @@ export const WORDS_S2C: Word[] = [
   { id: 'm9_ruang', th: 'รวง', rom: 'ruang', es: 'espiga (de arroz)', emoji: '🌿', cat: 'naturaleza', note: 'รวงข้าว = espiga de arroz. Cuando se dobla por el peso del grano, está lista.' },
   { id: 'm9_suk', th: 'สุก', rom: 'sùk', es: 'maduro; hecho (cocinado)', emoji: '🟡', cat: 'adjetivo', note: 'มะม่วงสุก = mango maduro; ไข่สุก = huevo hecho. Lo contrario: ดิบ, crudo o verde.' },
   { id: 'm9_ngop', th: 'งอบ', rom: 'ngɔ̂ɔp', es: 'sombrero de campesino', emoji: '👒', cat: 'casa', clf: 'ใบ', note: 'El sombrero ancho de bambú y hojas que se lleva en el campo para el sol.' },
-  { id: 'm9_faang', th: 'ฟาง', rom: 'faang', es: 'paja (del arroz)', emoji: '🪹', cat: 'naturaleza', note: 'ฟางข้าว = paja del arroz: se da a los búfalos o se usa para cubrir la tierra.' },
+  { id: 'm9_faang', th: 'ฟาง', rom: 'faang', es: 'paja (del arroz)', emoji: '🪹', cat: 'naturaleza', note: 'ฟางข้าว = paja del arroz: se da al ganado o se usa para cubrir la tierra.' },
   { id: 'm9_tongkaan', th: 'ต้องการ', rom: 'tɔ̂ng-gaan', es: 'necesitar, requerir', emoji: '🙋', cat: 'verbo', note: 'ข้าวต้องการแดด = el arroz necesita sol. Dicho a una persona suena formal: ต้องการอะไรคะ.' },
-  { id: 'm9_kiaokhong', th: 'เกี่ยวข้อง', rom: 'gìao-khɔ̂ng', es: 'tener que ver, estar relacionado', emoji: '🔗', cat: 'verbo', note: 'Misma raíz que เกี่ยวข้าว: เกี่ยว es «enganchar». ไม่เกี่ยว = no tiene nada que ver.' },
+  { id: 'm9_kiaokhong', th: 'เกี่ยวข้อง', rom: 'gìao-khɔ̂ng', es: 'tener que ver, estar relacionado', emoji: '🔗', cat: 'verbo', note: 'Misma raíz que เกี่ยวข้าว: เกี่ยว es «enganchar». Suena a noticia o a discurso; hablando basta con เกี่ยว: ไม่เกี่ยว = no tiene nada que ver.' },
   { id: 'm9_patjuban', th: 'ปัจจุบัน', rom: 'pàt-jù-ban', es: 'hoy en día, actualmente', emoji: '📅', cat: 'tiempo', note: 'Más formal que เดี๋ยวนี้. ในปัจจุบัน = en la actualidad.' },
   { id: 'm9_nguea', th: 'เหงื่อ', rom: 'ngʉ̀a', es: 'sudor', emoji: '💦', cat: 'cuerpo', note: 'เหงื่อเต็มตัว = empapado en sudor. เหงื่อออก = sudar.' },
   // l2 · Trillar y guardar
@@ -240,117 +239,119 @@ export const WORDS_S2C: Word[] = [
   { id: 'm9_pinto', th: 'ปิ่นโต', rom: 'pìn-too', es: 'fiambrera de pisos', emoji: '🍱', cat: 'cocina', note: 'La fiambrera metálica de varios pisos: arroz abajo, curry y verduras arriba. Ideal para el campo.' },
   { id: 'm9_mue', th: 'มื้อ', rom: 'mʉ́ʉ', es: 'comida (cada una del día)', emoji: '🍛', cat: 'comida', note: 'มื้อเช้า = desayuno; มื้อเย็น = cena. มื้อนี้ = esta comida.' },
   { id: 'm9_implae', th: 'อิ่มแปล้', rom: 'ìm-plɛ̂ɛ', es: 'lleno a reventar (de comer)', emoji: '🫃', cat: 'adjetivo', note: 'Más que อิ่ม: has comido tanto que no te cabe nada más.' },
+  { id: 'm9_chonkaeo', th: 'ชนแก้ว', rom: 'chon-gɛ̂ɛo', es: 'brindar (chocar los vasos)', emoji: '🥂', cat: 'verbo', note: 'ชน (chocar) + แก้ว (vaso). ชนแก้วกัน = ¡a brindar! Se chocan los vasos y se grita ไชโย. Con agua o refresco también vale.' },
+  { id: 'm9_namplaao', th: 'น้ำเปล่า', rom: 'náam-plàao', es: 'agua sola (sin nada más)', emoji: '🚰', cat: 'bebida', note: '«Agua vacía»: ni té, ni refresco, ni alcohol. ไม่ดื่ม ขอน้ำเปล่าก็พอ = no bebo, con agua me basta: así se rechaza una copa sin ofender.' },
 ];
 
 export const SENTENCES_S2C: Sentence[] = [
   // ——— 7 · Octubre ———
   // l1
   { id: 'm7s1', th: ['พ่อ', 'กับ', 'ลุง', 'สร้าง', 'จองพารา', 'แล้ว', 'ประดับ', 'ไฟ', 'หน้าบ้าน'], rom: 'phɔ̂ɔ gàp lung sâang jɔɔng-phaa-raa lɛ́ɛo prà-dàp fai nâa-bâan', es: 'Papá y el tío Lung montan un castillo de luz y ponen luces delante de casa' },
-  { id: 'm7s2', th: ['วัน', 'ออกพรรษา', 'คน', 'ไทใหญ่', 'สร้าง', 'จองพารา', 'เพื่อ', 'ต้อนรับ', 'พระ'], rom: 'wan ɔ̀ɔk-phan-sǎa khon thai-yài sâang jɔɔng-phaa-raa phʉ̂a tɔ̂ɔn-ráp phrá', es: 'En Ok Phansa, los shan montan castillos de luz para recibir a Buda' },
+  { id: 'm7s2', th: ['วัน', 'ออกพรรษา', 'คน', 'ไทใหญ่', 'สร้าง', 'จองพารา', 'เพื่อ', 'ต้อนรับ', 'พระ'], rom: 'wan ɔ̀ɔk-phan-sǎa khon thai-yài sâang jɔɔng-phaa-raa phʉ̂a tɔ̂ɔn-ráp phrá', es: 'En Ok Phansa, los shan montan castillos de luz para recibir al Buda (aquí พระ es el Buda, que vuelve del cielo)' },
   { id: 'm7s3', th: ['ตอน', 'ค่ำ', 'แสง', 'ไฟ', 'จาก', 'จองพารา', 'สวย', 'มาก'], rom: 'tɔɔn khâm sɛ̌ɛng fai jàak jɔɔng-phaa-raa sǔay mâak', es: 'Al anochecer, la luz de los castillos es preciosa' },
-  { id: 'm7s4', th: ['คน', 'ไทใหญ่', 'อาศัย', 'อยู่', 'ที่', 'แม่ฮ่องสอน', 'และ', 'รัฐฉาน'], rom: 'khon thai-yài aa-sǎi yùu thîi mɛ̂ɛ-hɔ̂ng-sɔ̌ɔn lɛ́ rát-chǎan', es: 'Los shan viven en Mae Hong Son y en el Estado Shan' },
-  { id: 'm7s5', th: ['ปอยเหลินสิบเอ็ด', 'คือ', 'ออกพรรษา', 'ใน', 'วัฒนธรรม', 'ไทใหญ่'], rom: 'pɔɔi-lə̌ən-sìp-èt khʉʉ ɔ̀ɔk-phan-sǎa nai wát-thá-ná-tham thai-yài', es: 'El Poi Lern Sip Et es el Ok Phansa de la cultura shan' },
+  { id: 'm7s4', th: ['คน', 'ไทใหญ่', 'อาศัย', 'อยู่', 'ที่', 'แม่ฮ่องสอน', 'และ', 'รัฐฉาน'], rom: 'khon thai-yài aa-sǎi yùu thîi mɛ̂ɛ-hɔ̂ng-sɔ̌ɔn lɛ́ rát-chǎan', es: 'En el cartel de la fiesta: «Los shan residen en Mae Hong Son y en el Estado Shan»' },
+  { id: 'm7s5', th: ['ปอยเหลินสิบเอ็ด', 'เป็น', 'ประเพณี', 'ออกพรรษา', 'ใน', 'วัฒนธรรม', 'ไทใหญ่'], rom: 'pɔɔi-lə̌ən-sìp-èt pen prà-phee-nii ɔ̀ɔk-phan-sǎa nai wát-thá-ná-tham thai-yài', es: 'El Poi Lern Sip Et es la tradición de Ok Phansa en la cultura shan' },
   // l2
   { id: 'm7s6', th: ['เรา', 'วางแผน', 'ไป', 'เที่ยว', 'เชียงใหม่', 'สาม', 'วัน'], rom: 'rao waang-phɛ̌ɛn pai thîao chiang-mài sǎam wan', es: 'Estamos planeando ir tres días a Chiang Mai' },
-  { id: 'm7s7', th: ['พร้อม', 'หรือยัง', 'ลูก', 'รถ', 'จะ', 'มา', 'แล้ว'], rom: 'phrɔ́ɔm rʉ̌ʉ-yang lûuk rót jà maa lɛ́ɛo', es: '¿Ya estás, cariño? Que ya viene el coche' },
-  { id: 'm7s8', th: ['เตรียม', 'ของ', 'ไป', 'ด้วย', 'เช่น', 'ร่ม', 'ยา', 'และ', 'เสื้อ'], rom: 'triam khɔ̌ɔng pai dûay chên rôm yaa lɛ́ sʉ̂a', es: 'Prepara cosas para llevar, como el paraguas, medicinas y una camisa' },
-  { id: 'm7s9', th: ['การ', 'เดินทาง', 'ไกล', 'ทำให้', 'เหนื่อย', 'มาก'], rom: 'gaan dəən-thaang glai tham-hâi nʉ̀ay mâak', es: 'Los viajes largos cansan mucho' },
+  { id: 'm7s7', th: ['เตรียม', 'ตัว', 'พร้อม', 'หรือยัง', 'ลูก', 'รถ', 'จะ', 'มา', 'แล้ว'], rom: 'triam tua phrɔ́ɔm rʉ̌ʉ-yang lûuk rót jà maa lɛ́ɛo', es: '¿Ya lo tienes todo preparado, cariño? Que ya viene el coche' },
+  { id: 'm7s8', th: ['ยาย', 'ฝาก', 'ซื้อ', 'หลาย', 'อย่าง', 'เช่น', 'ผ้า', 'ยา', 'และ', 'ขนม'], rom: 'yaai fàak sʉ́ʉ lǎai yàang chên phâa yaa lɛ́ khà-nǒm', es: 'La abuela ha encargado varias cosas, como tela, medicinas y dulces' },
+  { id: 'm7s9', th: ['การ', 'เดินทาง', 'ไกล', 'เหนื่อย', 'นะ', 'ลูก', 'จอง', 'รถ', 'ล่วงหน้า', 'หรือยัง'], rom: 'gaan dəən-thaang glai nʉ̀ay ná lûuk jɔɔng rót lûang-nâa rʉ̌ʉ-yang', es: 'Los viajes largos cansan, cariño: ¿habéis reservado ya la furgoneta con antelación?' },
   { id: 'm7s10', th: ['{I}', 'ตั้งใจ', 'จะ', 'ไป', 'กิน', 'ข้าวซอย', 'ที่', 'เชียงใหม่'], rom: '{I} tâng-jai jà pai gin khâao-sɔɔi thîi chiang-mài', es: 'Tengo pensado ir a comer khao soi a Chiang Mai' },
   // l3
-  { id: 'm7s11', th: ['รถตู้', 'เที่ยว', 'ต่อไป', 'มี', 'ที่นั่ง', 'ว่าง', 'ไหม', '{PQ}'], rom: 'rót-tûu thîao tɔ̀ɔ-pai mii thîi-nâng wâang mǎi {PQ}', es: '¿Quedan asientos libres en la próxima furgoneta?' },
-  { id: 'm7s12', th: ['รอบ', 'บ่าย', 'มี', 'เฉพาะ', 'วันเสาร์', 'กับ', 'วันอาทิตย์'], rom: 'rɔ̂ɔp bàai mii chà-phɔ́ wan-sǎo gàp wan-aa-thít', es: 'La salida de la tarde solo la hay los sábados y los domingos' },
-  { id: 'm7s13', th: ['จาก', 'สถานีขนส่ง', 'ถึง', 'เชียงใหม่', 'ประมาณ', 'หก', 'ชั่วโมง'], rom: 'jàak sà-thǎa-nii-khǒn-sòng thʉ̌ng chiang-mài prà-maan hòk chûa-moong', es: 'De la estación a Chiang Mai hay unas seis horas' },
-  { id: 'm7s14', th: ['เจ้าหน้าที่', 'บอก', 'ว่า', 'เนื่องจาก', 'ฝน', 'ตก', 'รถ', 'อาจจะ', 'ช้า'], rom: 'jâo-nâa-thîi bɔ̀ɔk wâa nʉ̂ang-jàak fǒn tòk rót àat-jà cháa', es: 'El empleado dice que, por la lluvia, la furgoneta puede retrasarse' },
-  { id: 'm7s15', th: ['ทาง', 'โค้ง', 'เยอะ', 'ระวัง', 'เมารถ', 'นะ'], rom: 'thaang khóong yə́ rá-wang mao-rót ná', es: 'La carretera tiene muchas curvas: ¡cuidado, no te marees!' },
+  { id: 'm7s11', th: ['รถตู้', 'เที่ยว', 'ต่อไป', 'มี', 'ที่นั่ง', 'ว่าง', 'สาม', 'ที่', 'ไหม', '{PQ}'], rom: 'rót-tûu thîao tɔ̀ɔ-pai mii thîi-nâng wâang sǎam thîi mǎi {PQ}', es: '¿Quedan tres asientos libres en la próxima furgoneta?' },
+  { id: 'm7s12', th: ['น้อง', 'บอก', 'ว่า', 'รอบ', 'บ่าย', 'มี', 'เฉพาะ', 'วันเสาร์', 'กับ', 'วันอาทิตย์'], rom: 'nɔ́ɔng bɔ̀ɔk wâa rɔ̂ɔp bàai mii chà-phɔ́ wan-sǎo gàp wan-aa-thít', es: 'Nong dice que la salida de la tarde solo la hay los sábados y los domingos' },
+  { id: 'm7s13', th: ['จาก', 'สถานีขนส่ง', 'ถึง', 'เชียงใหม่', 'ใช้', 'เวลา', 'ประมาณ', 'หก', 'ชั่วโมง'], rom: 'jàak sà-thǎa-nii-khǒn-sòng thʉ̌ng chiang-mài chái wee-laa prà-maan hòk chûa-moong', es: 'De la estación a Chiang Mai se tardan unas seis horas' },
+  { id: 'm7s14', th: ['เจ้าหน้าที่', 'บอก', 'ว่า', 'เนื่องจาก', 'ดินถล่ม', 'รถ', 'อาจจะ', 'ช้า'], rom: 'jâo-nâa-thîi bɔ̀ɔk wâa nʉ̂ang-jàak din-thà-lòm rót àat-jà cháa', es: 'Aviso del personal de la estación: «Debido a un desprendimiento, la furgoneta puede retrasarse»' },
+  { id: 'm7s15', th: ['น้อง', 'เมารถ', 'ง่าย', 'แม่', 'เลย', 'ให้', 'นั่ง', 'ข้างหน้า'], rom: 'nɔ́ɔng mao-rót ngâai mɛ̂ɛ ləəi hâi nâng khâang-nâa', es: 'Nong se marea con facilidad, así que mamá le ha dicho que se siente delante', w: { 'เลย': 'loei_so' } },
   // l4
-  { id: 'm7s16', th: ['{I}', 'จอง', 'ห้อง', 'ไว้', 'ล่วงหน้า', 'สอง', 'คืน', '{P}'], rom: '{I} jɔɔng hɔ̂ng wái lûang-nâa sɔ̌ɔng khʉʉn {P}', es: 'Tengo una habitación reservada de antemano para dos noches' },
-  { id: 'm7s17', th: ['ราคา', 'รวม', 'อาหารเช้า', 'ไหม', '{PQ}'], rom: 'raa-khaa ruam aa-hǎan-cháao mǎi {PQ}', es: '¿El precio incluye el desayuno?' },
-  { id: 'm7s18', th: ['ที่พัก', 'นี้', 'ราคา', 'เหมาะสม', 'และ', 'บริการ', 'ดี', 'มาก'], rom: 'thîi-phák níi raa-khaa mɔ̀-sǒm lɛ́ bɔɔ-rí-gaan dii mâak', es: 'Este alojamiento tiene un precio razonable y un servicio muy bueno' },
-  { id: 'm7s19', th: ['ขณะที่', 'รอ', 'ห้อง', 'เรา', 'คุย', 'ภาษา', 'อังกฤษ', 'กับ', 'คน', 'ญี่ปุ่น'], rom: 'khà-nà-thîi rɔɔ hɔ̂ng rao khui phaa-sǎa ang-grìt gàp khon yîi-pùn', es: 'Mientras esperamos la habitación, charlamos en inglés con unos japoneses' },
-  { id: 'm7s20', th: ['ลืม', 'กุญแจ', 'ไว้', 'ใน', 'ห้อง', 'ช่วย', 'จัดการ', 'ให้', 'หน่อย', '{P}'], rom: 'lʉʉm gun-jɛɛ wái nai hɔ̂ng chûay jàt-gaan hâi nɔ̀i {P}', es: 'Me he dejado la llave dentro de la habitación: ¿me lo solucionas, por favor?' },
+  { id: 'm7s16', th: ['ลุง', 'จอง', 'ที่พัก', 'ไว้', 'ให้', 'ที่อยู่', 'นี้', 'ใช่', 'ไหม', '{PQ}'], rom: 'lung jɔɔng thîi-phák wái hâi thîi-yùu níi châi mǎi {PQ}', es: 'El tío Lung nos reservó el alojamiento. Es esta dirección, ¿verdad?' },
+  { id: 'm7s17', th: ['ห้อง', 'ประเภท', 'นี้', 'ราคา', 'เหมาะสม', 'รวม', 'อาหารเช้า', 'ด้วย', 'ไหม', '{PQ}'], rom: 'hɔ̂ng prà-phêet níi raa-khaa mɔ̀-sǒm ruam aa-hǎan-cháao dûay mǎi {PQ}', es: 'Este tipo de habitación tiene un precio razonable. ¿Incluye también el desayuno?' },
+  { id: 'm7s18', th: ['เพื่อน', 'ลุง', 'บริการ', 'ดี', 'พูด', 'ภาษา', 'อังกฤษ', 'กับ', 'ญี่ปุ่น', 'ได้'], rom: 'phʉ̂an lung bɔɔ-rí-gaan dii phûut phaa-sǎa ang-grìt gàp yîi-pùn dâi', es: 'El amigo de Lung atiende muy bien y habla inglés y japonés' },
+  { id: 'm7s19', th: ['กรุณา', 'ฝาก', 'กุญแจ', 'ไว้', 'กับ', 'เจ้าของ', 'ขณะที่', 'ไม่', 'อยู่'], rom: 'gà-rú-naa fàak gun-jɛɛ wái gàp jâo-khɔ̌ɔng khà-nà-thîi mâi yùu', es: 'Cartel de la entrada: «Por favor, deje la llave al dueño mientras esté fuera»' },
+  { id: 'm7s20', th: ['ลืม', 'กุญแจ', 'ไว้', 'ใน', 'ห้อง', 'เหรอ', 'เดี๋ยว', 'จัดการ', 'ให้', 'เอง'], rom: 'lʉʉm gun-jɛɛ wái nai hɔ̂ng rə̌ə dǐao jàt-gaan hâi eeng', es: '«¿Te has dejado la llave dentro de la habitación? Ahora mismo lo arreglo yo», dice el amigo de Lung' },
   // l5
-  { id: 'm7s21', th: ['ถึง', 'สี่แยก', 'แล้ว', 'เลี้ยว', 'ขวา'], rom: 'thʉ̌ng sìi-yɛ̂ɛk lɛ́ɛo líao khwǎa', es: 'Al llegar al cruce, gira a la derecha' },
-  { id: 'm7s22', th: ['ร้าน', 'กาแฟ', 'อยู่', 'ฝั่ง', 'ตรงข้าม', 'วัด'], rom: 'ráan gaa-fɛɛ yùu fàng trong-khâam wát', es: 'La cafetería está en la acera de enfrente del templo' },
-  { id: 'm7s23', th: ['ที่พัก', 'ของ', 'เรา', 'อยู่', 'ริม', 'แม่น้ำ', 'ปิง'], rom: 'thîi-phák khɔ̌ɔng rao yùu rim mɛ̂ɛ-náam ping', es: 'Nuestro alojamiento está a la orilla del río Ping' },
-  { id: 'm7s24', th: ['ถนน', 'หลัก', 'อยู่', 'ทาง', 'ไหน', '{PQ}'], rom: 'thà-nǒn làk yùu thaang nǎi {PQ}', es: '¿Por dónde queda la carretera principal?' },
-  { id: 'm7s25', th: ['ตาม', 'แผนที่', 'วัด', 'น่าจะ', 'อยู่', 'ที่', 'มุม', 'นี้'], rom: 'taam phɛ̌ɛn-thîi wát nâa-jà yùu thîi mum níi', es: 'Según el mapa, el templo debería de estar en esta esquina' },
+  { id: 'm7s21', th: ['ถึง', 'สี่แยก', 'แล้ว', 'เลี้ยว', 'ขวา', 'เข้า', 'ถนน', 'หลัก'], rom: 'thʉ̌ng sìi-yɛ̂ɛk lɛ́ɛo líao khwǎa khâo thà-nǒn làk', es: 'Al llegar al cruce, gira a la derecha y entra en la calle principal' },
+  { id: 'm7s22', th: ['ร้าน', 'ผ้า', 'ที่', 'ยาย', 'บอก', 'อยู่', 'ฝั่ง', 'ตรงข้าม', 'วัด'], rom: 'ráan phâa thîi yaai bɔ̀ɔk yùu fàng trong-khâam wát', es: 'La tienda de telas que dijo la abuela está en la acera de enfrente del templo' },
+  { id: 'm7s23', th: ['ที่พัก', 'ของ', 'เรา', 'อยู่', 'ริม', 'แม่น้ำ', 'ปิง', 'ใกล้', 'ตลาด'], rom: 'thîi-phák khɔ̌ɔng rao yùu rim mɛ̂ɛ-náam ping glâi tà-làat', es: 'Nuestro alojamiento está a la orilla del río Ping, cerca del mercado' },
+  { id: 'm7s24', th: ['ร้าน', 'ผ้า', 'อยู่', 'ใน', 'เขต', 'เมือง', 'เก่า', 'ใช่', 'ไหม', '{PQ}'], rom: 'ráan phâa yùu nai khèet mʉang gào châi mǎi {PQ}', es: 'La tienda de telas está dentro de la ciudad vieja, ¿verdad?' },
+  { id: 'm7s25', th: ['ตาม', 'แผนที่', 'ร้าน', 'น่าจะ', 'อยู่', 'ที่', 'มุม', 'นี้'], rom: 'taam phɛ̌ɛn-thîi ráan nâa-jà yùu thîi mum níi', es: 'Según el mapa, la tienda debería de estar en esta esquina' },
   // l6
-  { id: 'm7s26', th: ['เชียงใหม่', 'ทั้ง', 'สนุก', 'และ', 'อร่อย', 'โดยเฉพาะ', 'ข้าวซอย'], rom: 'chiang-mài tháng sà-nùk lɛ́ à-rɔ̀i dooi-chà-phɔ́ khâao-sɔɔi', es: 'Chiang Mai es divertida y se come de maravilla, sobre todo el khao soi' },
-  { id: 'm7s27', th: ['ถนน', 'ใน', 'เขต', 'เมือง', 'คึกคัก', 'แต่', 'วุ่นวาย', 'มาก'], rom: 'thà-nǒn nai khèet mʉang khʉ́k-khák tɛ̀ɛ wûn-waai mâak', es: 'Las calles de la ciudad tienen mucho ambiente, pero son muy caóticas' },
-  { id: 'm7s28', th: ['คน', 'ถิ่น', 'นี้', 'บอก', 'ว่า', 'ภาค', 'เหนือ', 'เย็น', 'กว่า', 'กรุงเทพ'], rom: 'khon thìn níi bɔ̀ɔk wâa phâak nʉ̌a yen gwàa grung-thêep', es: 'La gente de aquí dice que en el Norte hace más fresco que en Bangkok' },
-  { id: 'm7s29', th: ['สถานที่', 'นี้', 'กว้าง', 'และ', 'คน', 'นิยม', 'มา', 'ถ่ายรูป'], rom: 'sà-thǎan-thîi níi gwâang lɛ́ khon ní-yom maa thàai-rûup', es: 'Este sitio es amplio y a la gente le encanta venir a hacer fotos' },
-  { id: 'm7s30', th: ['ร้าน', 'แนว', 'นี้', 'หา', 'ได้', 'ทั่วไป'], rom: 'ráan nɛɛo níi hǎa dâi thûa-pai', es: 'Tiendas de este estilo las hay en todas partes' },
+  { id: 'm7s26', th: ['เชียงใหม่', 'ทั้ง', 'สนุก', 'และ', 'ของกิน', 'อร่อย', 'โดยเฉพาะ', 'ข้าวซอย'], rom: 'chiang-mài tháng sà-nùk lɛ́ khɔ̌ɔng-gin à-rɔ̀i dooi-chà-phɔ́ khâao-sɔɔi', es: 'Chiang Mai es divertida y además se come de maravilla, sobre todo el khao soi' },
+  { id: 'm7s27', th: ['ถนน', 'นี้', 'กว้าง', 'ขึ้น', 'คึกคัก', 'ขึ้น', 'แต่', 'วุ่นวาย', 'ขึ้น', 'ด้วย'], rom: 'thà-nǒn níi gwâang khʉ̂n khʉ́k-khák khʉ̂n tɛ̀ɛ wûn-waai khʉ̂n dûay', es: 'Esta calle es ahora más ancha y tiene más ambiente, pero también es más caótica' },
+  { id: 'm7s28', th: ['คน', 'ถิ่น', 'นี้', 'อย่าง', 'แฟน', 'ชอบ', 'ภาค', 'เหนือ', 'มาก', 'กว่า', 'กรุงเทพ'], rom: 'khon thìn níi yàang fɛɛn chɔ̂ɔp phâak nʉ̌a mâak gwàa grung-thêep', es: 'La gente de esta tierra, como mi pareja, prefiere el Norte a Bangkok' },
+  { id: 'm7s29', th: ['แผนที่', 'เขียน', 'ว่า', 'เป็น', 'สถานที่', 'ที่', 'คน', 'นิยม', 'มา', 'ถ่ายรูป'], rom: 'phɛ̌ɛn-thîi khǐan wâa pen sà-thǎan-thîi thîi khon ní-yom maa thàai-rûup', es: 'El plano dice que es «un lugar al que la gente suele venir a hacerse fotos»' },
+  { id: 'm7s30', th: ['ร้าน', 'แนว', 'นี้', 'หา', 'ได้', 'ทั่วไป', 'แต่', 'นี่', 'ร้าน', 'เรา'], rom: 'ráan nɛɛo níi hǎa dâi thûa-pai tɛ̀ɛ nîi ráan rao', es: 'Cafés de este estilo los hay por todas partes, pero este es el nuestro' },
   // l7
   { id: 'm7s31', th: ['เรา', 'น่าจะ', 'หลงทาง', 'แล้ว', '{P}'], rom: 'rao nâa-jà lǒng-thaang lɛ́ɛo {P}', es: 'Me parece que nos hemos perdido' },
-  { id: 'm7s32', th: ['ส่ง', 'ตำแหน่ง', 'มา', 'ใน', 'ไลน์', 'หน่อย', '{P}'], rom: 'sòng tam-nɛ̀ng maa nai lai nɔ̀i {P}', es: 'Mándame la ubicación por LINE, porfa' },
-  { id: 'm7s33', th: ['ขึ้น', 'รถแดง', 'ที่', 'ป้าย', 'แล้ว', 'เกาะ', 'ดีๆ', 'นะ'], rom: 'khʉ̂n rót-dɛɛng thîi pâai lɛ́ɛo gɔ̀ dii-dii ná', es: 'Sube a la songthaew roja en la parada y agárrate bien' },
-  { id: 'm7s34', th: ['หา', 'ที่พัก', 'ตาม', 'ที่อยู่', 'เจอ', 'แล้ว'], rom: 'hǎa thîi-phák taam thîi-yùu jəə lɛ́ɛo', es: '¡Hemos encontrado el alojamiento siguiendo la dirección!' },
-  { id: 'm7s35', th: ['พรุ่งนี้', 'เรา', 'จะ', 'กลับบ้าน', 'แล้ว', 'คิดถึง', 'ยาย'], rom: 'phrûng-níi rao jà glàp-bâan lɛ́ɛo khít-thʉ̌ng yaai', es: 'Mañana ya volvemos a casa: echo de menos a la abuela' },
+  { id: 'm7s32', th: ['ส่ง', 'ตำแหน่ง', 'มา', 'ทาง', 'ไลน์', 'ลุง', 'จะ', 'นำ', 'ทาง', 'ให้'], rom: 'sòng tam-nɛ̀ng maa thaang lai lung jà nam thaang hâi', es: 'Lung, por teléfono: «Mandadme la ubicación por LINE, que os guío yo»' },
+  { id: 'm7s33', th: ['ถ้า', 'เหนื่อย', 'ก็', 'ขึ้น', 'รถแดง', 'แล้ว', 'เกาะ', 'ดีๆ', 'นะ'], rom: 'thâa nʉ̀ay gɔ̂ɔ khʉ̂n rót-dɛɛng lɛ́ɛo gɔ̀ dii-dii ná', es: 'Si os cansáis, subid a una songthaew roja… y agarraos bien' },
+  { id: 'm7s34', th: ['หา', 'ที่พัก', 'เจอ', 'แล้ว', 'ป้าย', 'อยู่', 'ที่', 'เดิม', 'นี่เอง'], rom: 'hǎa thîi-phák jəə lɛ́ɛo pâai yùu thîi dəəm nîi-eeng', es: '¡Hemos encontrado el alojamiento! El letrero estaba donde siempre' },
+  { id: 'm7s35', th: ['ก่อน', 'กลับบ้าน', 'เรา', 'ไป', 'กิน', 'ข้าวซอย', 'ร้าน', 'ประจำ', 'ของ', 'ลุง'], rom: 'gɔ̀ɔn glàp-bâan rao pai gin khâao-sɔɔi ráan prà-jam khɔ̌ɔng lung', es: 'Antes de volver a casa, vamos a comer khao soi al sitio de siempre del tío Lung' },
   // ——— 8 · Noviembre ———
   // l1
   { id: 'm8s1', th: ['ยาย', 'จะ', 'บอก', 'วิธี', 'ทำ', 'กระทง', 'ให้', 'หลาน'], rom: 'yaai jà bɔ̀ɔk wí-thii tham grà-thong hâi lǎan', es: 'La abuela te va a explicar cómo se hace un krathong' },
   { id: 'm8s2', th: ['ตัด', 'หยวกกล้วย', 'ก่อน', 'แล้ว', 'พับ', 'ใบตอง'], rom: 'tàt yùak-glûay gɔ̀ɔn lɛ́ɛo pháp bai-tɔɔng', es: 'Primero se corta el tronco de platanero y luego se dobla la hoja' },
   { id: 'm8s3', th: ['พับ', 'ใบตอง', 'แล้ว', 'กลัด', 'ด้วย', 'เข็ม'], rom: 'pháp bai-tɔɔng lɛ́ɛo glàt dûay khěm', es: 'Se dobla la hoja de plátano y se sujeta con un alfiler' },
   { id: 'm8s4', th: ['ขั้นตอน', 'นี้', 'ต้อง', 'ทำ', 'ช้าๆ', 'นะ', 'หลาน'], rom: 'khân-tɔɔn níi tɔ̂ng tham cháa-cháa ná lǎan', es: 'Este paso hay que hacerlo despacito, cariño' },
-  { id: 'm8s5', th: ['ปีนี้', '{I}', 'อยาก', 'ลอง', 'ทำ', 'กระทง', 'ดู'], rom: 'pii-níi {I} yàak lɔɔng tham grà-thong duu', es: 'Este año quiero probar a hacer un krathong' },
+  { id: 'm8s5', th: ['{I}', 'อยาก', 'ลอง', 'ทำ', 'กระทง', 'เอง', 'ไป', 'ลอย', 'กับ', 'ยาย'], rom: '{I} yàak lɔɔng tham grà-thong eeng pai lɔɔi gàp yaai', es: 'Quiero probar a hacer yo el krathong para ir a soltarlo con la abuela' },
   // l2
   { id: 'm8s6', th: ['ยี่เป็ง', 'หมายถึง', 'อะไร', '{PQ}'], rom: 'yîi-peng mǎai-thʉ̌ng à-rai {PQ}', es: '¿Qué significa «Yi Peng»?' },
-  { id: 'm8s7', th: ['ตอน', 'กลางคืน', 'มี', 'โคม', 'ลอย', 'บน', 'ฟ้า', 'เยอะ', 'มาก'], rom: 'tɔɔn glaang-khʉʉn mii khoom lɔɔi bon fáa yə́ mâak', es: 'Por la noche hay muchísimos faroles flotando en el cielo' },
-  { id: 'm8s8', th: ['คืน', 'วันเพ็ญ', 'เรา', 'ลอย', 'กระทง', 'เพื่อ', 'ขอขมา', 'แม่น้ำ'], rom: 'khʉʉn wan-phen rao lɔɔi grà-thong phʉ̂a khɔ̌ɔ-khà-mǎa mɛ̂ɛ-náam', es: 'La noche de luna llena soltamos el krathong para pedirle perdón al río' },
+  { id: 'm8s7', th: ['หวัง', 'ว่า', 'กลางคืน', 'จะ', 'มี', 'โคม', 'ลอย', 'เต็ม', 'ฟ้า'], rom: 'wǎng wâa glaang-khʉʉn jà mii khoom lɔɔi tem fáa', es: 'Ojalá por la noche el cielo se llene de faroles' },
+  { id: 'm8s8', th: ['คืน', 'วันเพ็ญ', 'พระจันทร์', 'สว่าง', 'เรา', 'ลอย', 'กระทง', 'เพื่อ', 'ขอขมา', 'แม่น้ำ'], rom: 'khʉʉn wan-phen phrá-jan sà-wàang rao lɔɔi grà-thong phʉ̂a khɔ̌ɔ-khà-mǎa mɛ̂ɛ-náam', es: 'La noche de luna llena, con la luna bien clara, soltamos el krathong para pedirle perdón al río' },
   { id: 'm8s9', th: ['ก่อน', 'ลอย', 'กระทง', 'อย่า', 'ลืม', 'อธิษฐาน', 'นะ'], rom: 'gɔ̀ɔn lɔɔi grà-thong yàa lʉʉm à-thít-thǎan ná', es: 'Antes de soltar el krathong, no te olvides de pedir un deseo' },
   { id: 'm8s10', th: ['{I}', 'อยากให้', 'ทุก', 'คน', 'มี', 'ชีวิต', 'ที่', 'มี', 'ความสุข'], rom: '{I} yàak-hâi thúk khon mii chii-wít thîi mii khwaam-sùk', es: 'Quiero que todo el mundo tenga una vida feliz' },
   // l3
-  { id: 'm8s11', th: ['ใน', 'อนาคต', '{I}', 'หวัง', 'ว่า', 'จะ', 'ได้', 'มา', 'อยู่', 'ที่นี่'], rom: 'nai à-naa-khót {I} wǎng wâa jà dâi maa yùu thîi-nîi', es: 'En el futuro espero poder venir a vivir aquí' },
-  { id: 'm8s12', th: ['ถ้า', 'มี', 'โอกาส', '{I}', 'จะ', 'มา', 'หา', 'ยาย', 'อีก'], rom: 'thâa mii oo-gàat {I} jà maa hǎa yaai ìik', es: 'Si tengo ocasión, volveré a ver a la abuela' },
-  { id: 'm8s13', th: ['ความฝัน', 'ของ', 'น้อง', 'คือ', 'สักวัน', 'จะ', 'เปิด', 'ร้าน', 'กาแฟ'], rom: 'khwaam-fǎn khɔ̌ɔng nɔ́ɔng khʉʉ sàk-wan jà pə̀ət ráan gaa-fɛɛ', es: 'El sueño de Nong es abrir algún día una cafetería' },
-  { id: 'm8s14', th: ['เป้าหมาย', 'ปีหน้า', 'คือ', 'เรียน', 'ภาษา', 'ไทย', 'ระดับ', 'สูง', 'ให้', 'สำเร็จ'], rom: 'pâo-mǎai pii-nâa khʉʉ rian phaa-sǎa thai rá-dàp sǔung hâi sǎm-rèt', es: 'Mi objetivo para el año que viene es sacarme el nivel avanzado de thai' },
-  { id: 'm8s15', th: ['{I}', 'ยัง', 'ไม่', 'มั่นใจ', 'ว่า', 'พูด', 'ภาษา', 'ทางการ', 'ได้'], rom: '{I} yang mâi mân-jai wâa phûut phaa-sǎa thaang-gaan dâi', es: 'Todavía no me veo capaz de hablar en lenguaje formal' },
+  { id: 'm8s11', th: ['ใน', 'อนาคต', 'เรา', 'หวัง', 'ว่า', 'จะ', 'กลับ', 'มา', 'อยู่', 'ที่นี่'], rom: 'nai à-naa-khót rao wǎng wâa jà glàp maa yùu thîi-nîi', es: 'En el futuro esperamos volver a vivir aquí' },
+  { id: 'm8s12', th: ['ถ้า', 'มี', 'โอกาส', '{I}', 'อยาก', 'พา', 'ยาย', 'ไป', 'เที่ยว', 'เชียงใหม่'], rom: 'thâa mii oo-gàat {I} yàak phaa yaai pai thîao chiang-mài', es: 'Si hay ocasión, quiero llevar a la abuela de viaje a Chiang Mai' },
+  { id: 'm8s13', th: ['ความฝัน', 'ของ', 'น้อง', 'คือ', 'สักวัน', 'จะ', 'เปิด', 'ร้าน', 'กาแฟ', 'ที่', 'หมู่บ้าน'], rom: 'khwaam-fǎn khɔ̌ɔng nɔ́ɔng khʉʉ sàk-wan jà pə̀ət ráan gaa-fɛɛ thîi mùu-bâan', es: 'El sueño de Nong es abrir algún día una cafetería en el pueblo' },
+  { id: 'm8s14', th: ['เป้าหมาย', 'ปีหน้า', 'คือ', 'เรียน', 'ภาษา', 'ทางการ', 'ระดับ', 'สูง', 'ให้', 'สำเร็จ'], rom: 'pâo-mǎai pii-nâa khʉʉ rian phaa-sǎa thaang-gaan rá-dàp sǔung hâi sǎm-rèt', es: 'Mi objetivo para el año que viene es sacarme el nivel avanzado de thai formal' },
+  { id: 'm8s15', th: ['โครงการ', 'ร้าน', 'กาแฟ', 'ใหญ่', 'มาก', 'แต่', 'น้อง', 'มั่นใจ', 'ว่า', 'เป็นไปได้'], rom: 'khroong-gaan ráan gaa-fɛɛ yài mâak tɛ̀ɛ nɔ́ɔng mân-jai wâa pen-pai-dâi', es: 'El proyecto del café es muy grande, pero Nong está segura de que es posible' },
   // l4
   { id: 'm8s16', th: ['ถ้าเกิด', 'ฝน', 'ตก', 'เรา', 'ก็', 'เลื่อน', 'ไป', 'พรุ่งนี้'], rom: 'thâa-gə̀ət fǒn tòk rao gɔ̂ɔ lʉ̂an pai phrûng-níi', es: 'Si por casualidad llueve, lo dejamos para mañana' },
-  { id: 'm8s17', th: ['แม้', 'ฝน', 'ตก', 'ยาย', 'ก็', 'จะ', 'ไป', 'ลอย', 'กระทง'], rom: 'mɛ́ɛ fǒn tòk yaai gɔ̂ɔ jà pai lɔɔi grà-thong', es: 'Aunque llueva, la abuela irá a soltar el krathong' },
-  { id: 'm8s18', th: ['รอ', 'จนกว่า', 'พระจันทร์', 'จะ', 'ขึ้น', 'นะ'], rom: 'rɔɔ jon-gwàa phrá-jan jà khʉ̂n ná', es: 'Espera hasta que salga la luna, ¿vale?' },
-  { id: 'm8s19', th: ['พรุ่งนี้', 'ฝน', 'อาจจะ', 'ตก', 'เอา', 'ร่ม', 'ไป', 'เผื่อ', 'นะ'], rom: 'phrûng-níi fǒn àat-jà tòk ao rôm pai phʉ̀a ná', es: 'Mañana puede que llueva: llévate el paraguas por si acaso' },
-  { id: 'm8s20', th: ['ไม่', 'รู้', 'ว่า', 'แม่', 'จะ', 'ไป', 'ด้วย', 'หรือไม่'], rom: 'mâi rúu wâa mɛ̂ɛ jà pai dûay rʉ̌ʉ-mâi', es: 'No sé si mamá vendrá o no' },
+  { id: 'm8s17', th: ['แม้', 'อากาศ', 'จะ', 'หนาว', 'ยาย', 'ก็', 'จะ', 'ไป', 'ลอย', 'กระทง'], rom: 'mɛ́ɛ aa-gàat jà nǎao yaai gɔ̂ɔ jà pai lɔɔi grà-thong', es: 'Aunque haga frío, la abuela irá a soltar el krathong' },
+  { id: 'm8s18', th: ['งั้น', 'รอ', 'จนกว่า', 'ลม', 'จะ', 'หยุด', 'ไม่งั้น', 'โคม', 'จะ', 'ไหม้'], rom: 'ngán rɔɔ jon-gwàa lom jà yùt mâi-ngán khoom jà mâi', es: 'Pues espera hasta que pare el viento, que si no el farol se quema' },
+  { id: 'm8s19', th: ['คืนนี้', 'หมอก', 'อาจจะ', 'ลง', 'เอา', 'ไฟฉาย', 'ไป', 'เผื่อ', 'นะ'], rom: 'khʉʉn-níi mɔ̀ɔk àat-jà long ao fai-chǎai pai phʉ̀a ná', es: 'Esta noche puede que baje la niebla: llévate la linterna por si acaso' },
+  { id: 'm8s20', th: ['ข้อความ', 'ถาม', 'ว่า', 'มา', 'หรือไม่', 'แม่', 'ไป', 'หรือ', 'เปล่า', '{PQ}'], rom: 'khɔ̂ɔ-khwaam thǎam wâa maa rʉ̌ʉ-mâi mɛ̂ɛ pai rʉ̌ʉ plàao {PQ}', es: 'El mensaje pregunta «¿vendrá o no?» (หรือไม่, por escrito). Mamá, ¿tú vas o no? (หรือเปล่า, hablando)' },
   // l5
   { id: 'm8s21', th: ['ปลาย', 'เดือน', 'นี้', 'บัวตอง', 'น่าจะ', 'บาน', 'เต็ม', 'ดอย'], rom: 'plaai dʉan níi bua-tɔɔng nâa-jà baan tem dɔɔi', es: 'A finales de este mes los girasoles deberían de cubrir la montaña' },
   { id: 'm8s22', th: ['ตอน', 'รุ่งเช้า', 'ทุ่ง', 'บัวตอง', 'มี', 'หมอก', 'สวย', 'มาก'], rom: 'tɔɔn rûng-cháao thûng bua-tɔɔng mii mɔ̀ɔk sǔay mâak', es: 'Al amanecer hay una niebla preciosa en el campo de girasoles' },
-  { id: 'm8s23', th: ['ที่', 'ดอยแม่อูคอ', 'มี', 'นักท่องเที่ยว', 'เยอะ', 'มาก'], rom: 'thîi dɔɔi-mɛ̂ɛ-uu-khɔɔ mii nák-thɔ̂ng-thîao yə́ mâak', es: 'En Doi Mae U Kho hay muchísimos turistas' },
+  { id: 'm8s23', th: ['วันเสาร์', 'ที่', 'ดอยแม่อูคอ', 'นักท่องเที่ยว', 'เยอะ', 'พ่อ', 'เลย', 'พา', 'ไป', 'วันพุธ'], rom: 'wan-sǎo thîi dɔɔi-mɛ̂ɛ-uu-khɔɔ nák-thɔ̂ng-thîao yə́ phɔ̂ɔ ləəi phaa pai wan-phút', es: 'Los sábados Doi Mae U Kho se llena de turistas, así que papá nos lleva un miércoles', w: { 'เลย': 'loei_so' } },
   { id: 'm8s24', th: ['ฤดูหนาว', 'เป็น', 'ฤดู', 'ที่', 'สวย', 'ที่สุด'], rom: 'rʉ́-duu-nǎao pen rʉ́-duu thîi sǔay thîi-sùt', es: 'El invierno es la estación más bonita' },
   { id: 'm8s25', th: ['บน', 'ดอย', 'วิว', 'สวย', 'ทั้ง', 'เช้า', 'และ', 'เย็น'], rom: 'bon dɔɔi wiu sǔay tháng cháao lɛ́ yen', es: 'En la montaña las vistas son preciosas tanto por la mañana como por la tarde' },
   // l6
-  { id: 'm8s26', th: ['อัด', 'รูป', 'นี้', 'ใส่', 'กรอบ', 'ดี', 'ไหม'], rom: 'àt rûup níi sài grɔ̀ɔp dii mǎi', es: '¿Imprimimos esta foto y la ponemos en un marco?' },
+  { id: 'm8s26', th: ['อัด', 'รูป', 'วัน', 'สงกรานต์', 'ใส่', 'กรอบ', 'ดี', 'ไหม'], rom: 'àt rûup wan sǒng-graan sài grɔ̀ɔp dii mǎi', es: '¿Imprimimos la foto de Songkran y la ponemos en un marco?' },
   { id: 'm8s27', th: ['ขยาย', 'รูป', 'ให้', 'ใหญ่', 'หน่อย', 'ได้', 'ไหม', '{PQ}'], rom: 'khà-yǎai rûup hâi yài nɔ̀i dâi mǎi {PQ}', es: '¿Puedes ampliar un poco la foto?' },
   { id: 'm8s28', th: ['ยาย', 'แขวน', 'รูป', 'ครอบครัว', 'ไว้', 'ใน', 'ห้อง'], rom: 'yaai khwɛ̌ɛn rûup khrɔ̂ɔp-khrua wái nai hɔ̂ng', es: 'La abuela tiene fotos de la familia colgadas en su cuarto' },
   { id: 'm8s29', th: ['ทุก', 'รูป', 'ใน', 'อัลบั้ม', 'มี', 'เรื่องราว', 'และ', 'ความทรงจำ'], rom: 'thúk rûup nai an-bâm mii rʉ̂ang-raao lɛ́ khwaam-song-jam', es: 'Cada foto del álbum guarda una historia y un recuerdo' },
   { id: 'm8s30', th: ['{I}', 'เขียน', 'บันทึก', 'ทุก', 'วัน', 'จะ', 'ได้', 'ไม่', 'ลืม'], rom: '{I} khǐan ban-thʉ́k thúk wan jà dâi mâi lʉʉm', es: 'Escribo un diario cada día para no olvidarme de nada' },
   // l7
   { id: 'm8s31', th: ['คู่รัก', 'ชอบ', 'ลอย', 'กระทง', 'ด้วยกัน'], rom: 'khûu-rák chɔ̂ɔp lɔɔi grà-thong dûay-gan', es: 'A las parejas les gusta soltar el krathong juntas' },
-  { id: 'm8s32', th: ['ที่', 'วัด', 'มี', 'ประกวด', 'กระทง', 'และ', 'การ', 'แสดง'], rom: 'thîi wát mii prà-gùat grà-thong lɛ́ gaan sà-dɛɛng', es: 'En el templo hay concurso de krathongs y espectáculos' },
-  { id: 'm8s33', th: ['กระทง', 'ของ', '{I}', 'จม', 'แล้ว'], rom: 'grà-thong khɔ̌ɔng {I} jom lɛ́ɛo', es: '¡Mi krathong se ha hundido!' },
-  { id: 'm8s34', th: ['ริม', 'แม่น้ำ', 'คน', 'แน่น', 'มาก'], rom: 'rim mɛ̂ɛ-náam khon nɛ̂n mâak', es: 'En la orilla del río no cabe ni un alfiler' },
-  { id: 'm8s35', th: ['ระวัง', 'นะ', 'มี', 'เรือ', 'แล่น', 'มา'], rom: 'rá-wang ná mii rʉa lɛ̂n maa', es: '¡Cuidado, que viene una barca!' },
+  { id: 'm8s32', th: ['คืนนี้', 'ที่', 'วัด', 'มี', 'ประกวด', 'กระทง', 'การ', 'แสดง', 'และ', 'พลุ'], rom: 'khʉʉn-níi thîi wát mii prà-gùat grà-thong gaan sà-dɛɛng lɛ́ phlú', es: 'Esta noche en el templo hay concurso de krathongs, espectáculos y fuegos artificiales' },
+  { id: 'm8s33', th: ['ระวัง', 'นะ', 'มี', 'เรือ', 'แล่น', 'มา', 'เดี๋ยว', 'กระทง', 'จะ', 'จม'], rom: 'rá-wang ná mii rʉa lɛ̂n maa dǐao grà-thong jà jom', es: '¡Cuidado, que viene una barca y se te va a hundir el krathong!' },
+  { id: 'm8s34', th: ['ริม', 'แม่น้ำ', 'คน', 'แน่น', 'มาก', 'นัด', 'เจอ', 'กัน', 'ที่', 'สะพาน'], rom: 'rim mɛ̂ɛ-náam khon nɛ̂n mâak nát jəə gan thîi sà-phaan', es: 'En la orilla no cabe ni un alfiler: quedamos en el puente' },
+  { id: 'm8s35', th: ['มนุษย์', 'เรา', 'ใช้', 'น้ำ', 'ทุก', 'วัน', 'เลย', 'ต้อง', 'ขอขมา', 'แม่น้ำ'], rom: 'má-nút rao chái náam thúk wan ləəi tɔ̂ng khɔ̌ɔ-khà-mǎa mɛ̂ɛ-náam', es: 'Los seres humanos usamos el agua todos los días; por eso hay que pedirle perdón al río', w: { 'เลย': 'loei_so' } },
   // ——— 9 · Diciembre ———
   // l1
   { id: 'm9s1', th: ['รวง', 'ข้าว', 'สุก', 'แล้ว', 'พรุ่งนี้', 'ไป', 'เกี่ยว', 'ข้าว', 'กัน'], rom: 'ruang khâao sùk lɛ́ɛo phrûng-níi pai gìao khâao gan', es: 'Las espigas ya están maduras: mañana vamos a segar' },
   { id: 'm9s2', th: ['ใส่', 'งอบ', 'ด้วย', 'นะ', 'แดด', 'ร้อน', 'จน', 'เหงื่อ', 'เต็ม', 'ตัว'], rom: 'sài ngɔ̂ɔp dûay ná dɛ̀ɛt rɔ́ɔn jon ngʉ̀a tem tua', es: 'Ponte el sombrero: el sol pega tanto que se suda a mares' },
-  { id: 'm9s3', th: ['เกี่ยว', 'ด้วย', 'เคียว', 'แล้ว', 'มัด', 'ไว้'], rom: 'gìao dûay khiao lɛ́ɛo mát wái', es: 'Se siega con la hoz y luego se ata en gavillas' },
-  { id: 'm9s4', th: ['ปัจจุบัน', 'มี', 'รถเกี่ยวข้าว', 'แต่', 'พ่อ', 'ชอบ', 'เกี่ยว', 'ด้วย', 'มือ'], rom: 'pàt-jù-ban mii rót-gìao-khâao tɛ̀ɛ phɔ̂ɔ chɔ̂ɔp gìao dûay mʉʉ', es: 'Hoy en día hay cosechadoras, pero a papá le gusta segar a mano' },
+  { id: 'm9s3', th: ['เกี่ยว', 'ด้วย', 'เคียว', 'แล้ว', 'มัด', 'ไว้', 'ฟาง', 'เก็บ', 'ให้', 'วัว'], rom: 'gìao dûay khiao lɛ́ɛo mát wái faang gèp hâi wua', es: 'Se siega con la hoz y se ata en gavillas; la paja se guarda para las vacas' },
+  { id: 'm9s4', th: ['ปัจจุบัน', 'การ', 'เกี่ยว', 'ข้าว', 'เกี่ยวข้อง', 'กับ', 'รถเกี่ยวข้าว', 'มาก', 'กว่า', 'เคียว'], rom: 'pàt-jù-ban gaan gìao khâao gìao-khɔ̂ng gàp rót-gìao-khâao mâak gwàa khiao', es: 'Dice el periódico: «Hoy en día, segar tiene más que ver con la cosechadora que con la hoz»' },
   { id: 'm9s5', th: ['ตอนนี้', 'ชาวนา', 'ต้องการ', 'แดด', 'ไม่ใช่', 'ฝน'], rom: 'tɔɔn-níi chaao-naa tɔ̂ng-gaan dɛ̀ɛt mâi-châi fǒn', es: 'Ahora los campesinos necesitan sol, no lluvia' },
   // l2
   { id: 'm9s6', th: ['เกี่ยว', 'ข้าว', 'แล้ว', 'ต้อง', 'ตาก', 'แดด', 'สอง', 'สาม', 'วัน'], rom: 'gìao khâao lɛ́ɛo tɔ̂ng tàak dɛ̀ɛt sɔ̌ɔng sǎam wan', es: 'Después de segar hay que secar el arroz al sol dos o tres días' },
-  { id: 'm9s7', th: ['ลุง', 'ฟาด', 'ข้าว', 'แรง', 'มาก', 'แต่', 'ไม่', 'เหนื่อย', 'เลย'], rom: 'lung fâat khâao rɛɛng mâak tɛ̀ɛ mâi nʉ̀ay ləəi', es: 'El tío Lung golpea el arroz con muchísima fuerza y ni se cansa' },
+  { id: 'm9s7', th: ['ลุง', 'ฟาด', 'ข้าว', 'แรง', 'มาก', 'ยาย', 'ใช้', 'กระด้ง', 'แยก', 'ฟาง'], rom: 'lung fâat khâao rɛɛng mâak yaai chái grà-dông yɛ̂ɛk faang', es: 'El tío Lung golpea el arroz con muchísima fuerza y la abuela separa la paja con la bandeja' },
   { id: 'm9s8', th: ['ใส่', 'ข้าวเปลือก', 'ใน', 'กระสอบ', 'แล้ว', 'เอา', 'ไป', 'ไว้', 'ใน', 'ยุ้ง'], rom: 'sài khâao-plʉ̀ak nai grà-sɔ̀ɔp lɛ́ɛo ao pai wái nai yúng', es: 'Mete el arroz con cáscara en sacos y llévalo al granero' },
-  { id: 'm9s9', th: ['นวด', 'ข้าว', 'ที่', 'ลาน', 'หน้าบ้าน', 'แล้ว', 'เอา', 'ฟาง', 'ให้', 'ควาย'], rom: 'nûat khâao thîi laan nâa-bâan lɛ́ɛo ao faang hâi khwaai', es: 'Trillamos en la era delante de casa y la paja se la damos a los búfalos' },
+  { id: 'm9s9', th: ['นวด', 'ข้าว', 'ที่', 'ลาน', 'หน้าบ้าน', 'แล้ว', 'เอา', 'ฟาง', 'ให้', 'วัว'], rom: 'nûat khâao thîi laan nâa-bâan lɛ́ɛo ao faang hâi wua', es: 'Trillamos en la era delante de casa y la paja se la damos a las vacas' },
   { id: 'm9s10', th: ['ยาย', 'ยัง', 'จำ', 'วิธีการ', 'นวด', 'ข้าว', 'ด้วย', 'ควาย', 'ได้'], rom: 'yaai yang jam wí-thii-gaan nûat khâao dûay khwaai dâi', es: 'La abuela todavía se acuerda de cómo se trillaba el arroz con búfalos' },
   // l3
   { id: 'm9s11', th: ['สังเกต', 'ไหม', 'ระยะ', 'นี้', 'ตอนเช้า', 'หนาว', 'มาก'], rom: 'sǎng-gèet mǎi rá-yá níi tɔɔn-cháao nǎao mâak', es: '¿Te has fijado? Estos días, por las mañanas hace muchísimo frío' },
   { id: 'm9s12', th: ['เช้า', 'นี้', 'หมอก', 'หนา', 'จน', 'มอง', 'ไม่', 'เห็น', 'ทาง'], rom: 'cháao níi mɔ̀ɔk nǎa jon mɔɔng mâi hěn thaang', es: 'Esta mañana hay tanta niebla que no se ve el camino' },
-  { id: 'm9s13', th: ['คืนนี้', 'คง', 'หนาว', 'มาก', 'ใส่', 'เสื้อกันหนาว', 'ไม่งั้น', 'จะ', 'ไม่สบาย'], rom: 'khʉʉn-níi khong nǎao mâak sài sʉ̂a-gan-nǎao mâi-ngán jà mâi-sà-baai', es: 'Esta noche seguro que hace mucho frío: ponte el abrigo, que si no te pondrás malo' },
-  { id: 'm9s14', th: ['{I}', 'ยัง', 'ปรับตัว', 'กับ', 'อากาศ', 'หนาว', 'ไม่', 'ได้'], rom: '{I} yang pràp-tua gàp aa-gàat nǎao mâi dâi', es: 'Todavía no me he acostumbrado al frío' },
-  { id: 'm9s15', th: ['หนาว', 'จน', 'ตัว', 'สั่น', 'มา', 'ผิงไฟ', 'ให้', 'อุ่น', 'กัน'], rom: 'nǎao jon tua sàn maa phǐng-fai hâi ùn gan', es: 'Hace tanto frío que tirito: vamos a calentarnos junto al fuego' },
+  { id: 'm9s13', th: ['คืนนี้', 'คง', 'หนาว', 'มาก', 'ใส่', 'เสื้อกันหนาว', 'ไม่งั้น', 'จะ', 'ไม่สบาย'], rom: 'khʉʉn-níi khong nǎao mâak sài sʉ̂a-gan-nǎao mâi-ngán jà mâi-sà-baai', es: 'Esta noche seguro que hace mucho frío: ponte el abrigo, que si no vas a enfermar' },
+  { id: 'm9s14', th: ['ยัง', 'ปรับตัว', 'ไม่', 'ได้', 'แม่', 'เลย', 'เอา', 'ผ้าห่ม', 'มา', 'ให้'], rom: 'yang pràp-tua mâi dâi mɛ̂ɛ ləəi ao phâa-hòm maa hâi', es: 'Todavía no me he adaptado, así que mamá me trae una manta', w: { 'เลย': 'loei_so' } },
+  { id: 'm9s15', th: ['หนาว', 'จน', 'ตัว', 'สั่น', 'มา', 'ใส่', 'ฟืน', 'ผิงไฟ', 'ให้', 'อุ่น'], rom: 'nǎao jon tua sàn maa sài fʉʉn phǐng-fai hâi ùn', es: 'Hace tanto frío que tirito: ven, echamos leña y nos calentamos junto al fuego' },
   // l4
   { id: 'm9s16', th: ['วันพ่อ', 'เป็น', 'วัน', 'สำคัญ', 'เย็น', 'นี้', 'เรา', 'จะ', 'ฉลอง', 'กัน'], rom: 'wan-phɔ̂ɔ pen wan sǎm-khan yen níi rao jà chà-lɔ̌ɔng gan', es: 'El Día del Padre es un día importante: esta tarde lo celebramos' },
-  { id: 'm9s17', th: ['พ่อ', 'มี', 'ความรู้', 'เรื่อง', 'ข้าว', 'เยอะ', 'มาก'], rom: 'phɔ̂ɔ mii khwaam-rúu rʉ̂ang khâao yə́ mâak', es: 'Papá sabe muchísimo de arroz' },
+  { id: 'm9s17', th: ['พ่อ', 'มี', 'ความรู้', 'เรื่อง', 'ข้าว', 'มากมาย'], rom: 'phɔ̂ɔ mii khwaam-rúu rʉ̂ang khâao mâak-maai', es: 'Papá sabe muchísimo de arroz' },
   { id: 'm9s18', th: ['พ่อ', 'ทำงาน', 'หนัก', 'และ', 'เสียสละ', 'เพื่อ', 'ครอบครัว'], rom: 'phɔ̂ɔ tham-ngaan nàk lɛ́ sǐa-sà-là phʉ̂a khrɔ̂ɔp-khrua', es: 'Papá trabaja duro y se sacrifica por la familia' },
   { id: 'm9s19', th: ['พ่อ', 'ทำให้', '{I}', 'รู้', 'คุณค่า', 'ของ', 'ข้าว', 'ทุก', 'เม็ด'], rom: 'phɔ̂ɔ tham-hâi {I} rúu khun-khâa khɔ̌ɔng khâao thúk mét', es: 'Papá me ha enseñado a valorar cada grano de arroz' },
   { id: 'm9s20', th: ['พ่อ', 'ขรึม', 'แต่', 'ซื่อสัตย์', 'เป็น', 'แบบอย่าง', 'ที่', 'ดี'], rom: 'phɔ̂ɔ khrʉ̌m tɛ̀ɛ sʉ̂ʉ-sàt pen bɛ̀ɛp-yàang thîi dii', es: 'Papá es serio pero honrado: un buen ejemplo a seguir' },
@@ -359,26 +360,27 @@ export const SENTENCES_S2C: Sentence[] = [
   { id: 'm9s22', th: ['ปีนี้', 'ได้', 'ข้าว', 'มาก', 'กว่า', 'ปีที่แล้ว', 'สอง', 'เท่า'], rom: 'pii-níi dâi khâao mâak gwàa pii-thîi-lɛ́ɛo sɔ̌ɔng thâo', es: 'Este año hemos sacado el doble de arroz que el año pasado' },
   { id: 'm9s23', th: ['ปีที่แล้ว', 'ฝน', 'น้อย', 'ได้', 'ข้าว', 'เพียง', 'หนึ่ง', 'ตัน'], rom: 'pii-thîi-lɛ́ɛo fǒn nɔ́ɔi dâi khâao phiang nʉ̀ng tan', es: 'El año pasado llovió poco y solo sacamos una tonelada' },
   { id: 'm9s24', th: ['ข้าวสาร', 'นี้', 'มา', 'จาก', 'โรงสี', 'ประจำ', 'ของ', 'พ่อ'], rom: 'khâao-sǎan níi maa jàak roong-sǐi prà-jam khɔ̌ɔng phɔ̂ɔ', es: 'Este arroz blanco viene del molino de siempre de papá' },
-  { id: 'm9s25', th: ['สิ้นปี', 'ราคา', 'ข้าว', 'ต่ำ', 'เลย', 'ได้', 'กำไร', 'ไม่ค่อย', 'เยอะ'], rom: 'sîn-pii raa-khaa khâao tàm ləəi dâi gam-rai mâi-khɔ̂i yə́', es: 'A fin de año el arroz se paga poco, así que no se gana mucho' },
+  { id: 'm9s25', th: ['สิ้นปี', 'ราคา', 'ข้าว', 'ต่ำ', 'เลย', 'ได้', 'กำไร', 'ไม่ค่อย', 'เยอะ'], rom: 'sîn-pii raa-khaa khâao tàm ləəi dâi gam-rai mâi-khɔ̂i yə́', es: 'A fin de año el arroz se paga poco, así que no se gana mucho', w: { 'เลย': 'loei_so' } },
   // l6
   { id: 'm9s26', th: ['พรุ่งนี้', 'เพื่อนบ้าน', 'จะ', 'มา', 'ลงแขก', 'ที่', 'นา', 'ของ', 'เรา'], rom: 'phrûng-níi phʉ̂an-bâan jà maa long-khɛ̀ɛk thîi naa khɔ̌ɔng rao', es: 'Mañana los vecinos vienen a segar nuestro campo con nosotros' },
   { id: 'm9s27', th: ['ลงแขก', 'ไม่', 'ต้อง', 'จ้าง', 'คน', 'เพราะ', 'เรา', 'ผลัดกัน', 'ช่วย'], rom: 'long-khɛ̀ɛk mâi tɔ̂ng jâang khon phrɔ́ rao phlàt-gan chûay', es: 'Con el ลงแขก no hace falta contratar a nadie: nos turnamos para ayudar' },
   { id: 'm9s28', th: ['ญาติ', 'ฝ่าย', 'แม่', 'ก็', 'มา', 'ช่วย', 'ด้วย'], rom: 'yâat fàai mɛ̂ɛ gɔ̂ɔ maa chûay dûay', es: 'Los parientes por parte de madre también vienen a ayudar' },
-  { id: 'm9s29', th: ['สมาชิก', 'ใน', 'กลุ่ม', 'ทำงาน', 'สามัคคี', 'กัน', 'มาก'], rom: 'sà-maa-chík nai glùm tham-ngaan sǎa-mák-khii gan mâak', es: 'Los miembros del grupo trabajan muy unidos' },
-  { id: 'm9s30', th: ['เจ้าภาพ', 'ทำ', 'อาหาร', 'ให้', 'ทุก', 'คน', 'กิน'], rom: 'jâo-phâap tham aa-hǎan hâi thúk khon gin', es: 'Los anfitriones preparan comida para todos' },
+  { id: 'm9s29', th: ['ขอบคุณ', 'สมาชิก', 'ทุก', 'คน', 'ใน', 'กลุ่ม', 'ที่', 'สามัคคี', 'กัน'], rom: 'khɔ̀ɔp-khun sà-maa-chík thúk khon nai glùm thîi sǎa-mák-khii gan', es: 'El jefe del pueblo, en su discurso: «Gracias a todos los miembros del grupo por su unión»' },
+  { id: 'm9s30', th: ['ไม่', 'ต้อง', 'จ่าย', 'เงิน', 'แต่', 'เจ้าภาพ', 'เลี้ยง', 'ข้าว', 'ทุก', 'คน'], rom: 'mâi tɔ̂ng jàai ngən tɛ̀ɛ jâo-phâap líang khâao thúk khon', es: 'No hay que pagar a nadie, pero la familia anfitriona da de comer a todos' },
   // l7
-  { id: 'm9s31', th: ['ข้าวใหม่', 'หอม', 'มาก', 'ยาย', 'หุง', 'เก่ง', 'ที่สุด'], rom: 'khâao-mài hɔ̌ɔm mâak yaai hǔng gèng thîi-sùt', es: 'El arroz nuevo huele de maravilla, y nadie lo cuece como la abuela' },
-  { id: 'm9s32', th: ['เติม', 'ข้าว', 'อีก', 'ไหม', 'ลูก'], rom: 'təəm khâao ìik mǎi lûuk', es: '¿Te pongo más arroz, cariño?' },
-  { id: 'm9s33', th: ['มื้อ', 'นี้', 'อร่อย', 'มาก', 'เพราะ', 'รสมือ', 'ยาย'], rom: 'mʉ́ʉ níi à-rɔ̀i mâak phrɔ́ rót-mʉʉ yaai', es: 'Esta comida está buenísima: es la mano de la abuela' },
-  { id: 'm9s34', th: ['อิ่มแปล้', 'แล้ว', 'ขอ', 'พัก', 'ก่อน', '{P}'], rom: 'ìm-plɛ̂ɛ lɛ́ɛo khɔ̌ɔ phák gɔ̀ɔn {P}', es: 'Estoy a reventar: déjame descansar un poco' },
-  { id: 'm9s35', th: ['พรุ่งนี้', 'ใส่', 'ข้าว', 'ใน', 'ปิ่นโต', 'ไป', 'กิน', 'ที่', 'นา'], rom: 'phrûng-níi sài khâao nai pìn-too pai gin thîi naa', es: 'Mañana llevaremos la comida en la fiambrera para comer en el campo' },
+  { id: 'm9s31', th: ['ข้าวใหม่', 'หอม', 'มาก', 'แม่', 'ใส่', 'ปิ่นโต', 'ไป', 'ถวาย', 'พระ', 'ก่อน'], rom: 'khâao-mài hɔ̌ɔm mâak mɛ̂ɛ sài pìn-too pai thà-wǎai phrá gɔ̀ɔn', es: 'El arroz nuevo huele de maravilla: mamá lleva primero una fiambrera al templo, para los monjes' },
+  { id: 'm9s32', th: ['ไม่', 'เติม', 'แล้ว', '{P}', '{I}', 'อิ่มแปล้', 'แล้ว'], rom: 'mâi təəm lɛ́ɛo {P} {I} ìm-plɛ̂ɛ lɛ́ɛo', es: 'No me pongas más, de verdad: estoy a reventar' },
+  { id: 'm9s33', th: ['มื้อ', 'นี้', 'ยาย', 'หุง', 'ข้าว', 'เอง', 'อร่อย', 'เพราะ', 'รสมือ', 'ยาย'], rom: 'mʉ́ʉ níi yaai hǔng khâao eeng à-rɔ̀i phrɔ́ rót-mʉʉ yaai', es: 'En esta comida el arroz lo ha cocido la abuela: está rico porque es su mano' },
+  { id: 'm9s34', th: ['พ่อ', 'ยก', 'แก้ว', 'ทุก', 'คน', 'ชนแก้ว', 'กัน', 'แล้ว', 'ร้อง', 'ไชโย'], rom: 'phɔ̂ɔ yók gɛ̂ɛo thúk khon chon-gɛ̂ɛo gan lɛ́ɛo rɔ́ɔng chai-yoo', es: 'Papá levanta el vaso, todos brindan y gritan «¡hurra!»' },
+  { id: 'm9s35', th: ['ไม่เป็นไร', '{P}', '{I}', 'ไม่', 'ดื่ม', 'ขอ', 'น้ำเปล่า', 'ก็', 'พอ'], rom: 'mâi-pen-rai {P} {I} mâi dʉ̀ʉm khɔ̌ɔ náam-plàao gɔ̂ɔ phɔɔ', es: 'No, gracias: yo no bebo. Con agua me basta' },
 ];
 
 export const DIALOGUES_S2C: Dialogue[] = [
   {
     id: 'dm7',
     title: 'Perdidos en Chiang Mai',
-    scene: 'Es de noche en la ciudad vieja de Chiang Mai. Nong y tú volvéis al alojamiento, pero todas las callejuelas se parecen…',
+    scene: 'Es de noche en Chiang Mai. Nong os lleva a tu pareja y a ti por un atajo que «conoce de sobra», por un barrio nuevo donde no había estado nunca. Todas las callejuelas se parecen…',
+    place: 'calle',
     lines: [
       {
         who: 'Nong',
@@ -409,7 +411,7 @@ export const DIALOGUES_S2C: Dialogue[] = [
         es: 'Seguro que os habéis vuelto a perder… ¿Dónde estáis ahora?',
         options: [
           { th: 'อยู่ใกล้วัดใหญ่{P} ตรงข้ามร้านกาแฟ', rom: 'yùu glâi wát yài {P}, trong-khâam ráan gaa-fɛɛ', es: 'Cerca de un templo grande, enfrente de una cafetería', ok: true, reply: { th: 'วัดไหนล่ะ ที่เชียงใหม่มีวัดเยอะมากนะ', rom: 'wát nǎi lâ, thîi chiang-mài mii wát yə́ mâak ná', es: '¿Qué templo? ¡En Chiang Mai hay muchísimos!' } },
-          { th: 'อยู่ที่มุมถนน{P} ใกล้ป้ายรถแดง', rom: 'yùu thîi mum thà-nǒn {P}, glâi pâai rót-dɛɛng', es: 'En una esquina, cerca de una parada de songthaew roja', ok: true, reply: { th: 'อ๋อ ลุงเห็นตำแหน่งแล้ว ไม่ไกลหรอก', rom: 'ɔ̌ɔ, lung hěn tam-nɛ̀ng lɛ́ɛo, mâi glai rɔ̀ɔk', es: '¡Ah, ya veo la ubicación! No estáis lejos.' } },
+          { th: 'อยู่ที่มุมถนน{P} ใกล้ป้ายร้านข้าวซอย', rom: 'yùu thîi mum thà-nǒn {P}, glâi pâai ráan khâao-sɔɔi', es: 'En una esquina, junto al letrero de un sitio de khao soi', ok: true, reply: { th: 'อ๋อ ร้านประจำของลุงเอง ไม่ไกลหรอก', rom: 'ɔ̌ɔ, ráan prà-jam khɔ̌ɔng lung eeng, mâi glai rɔ̀ɔk', es: '¡Ah, mi sitio de siempre! No estáis lejos.' } },
           { th: 'ขอตั๋วรถตู้สองที่{P}', rom: 'khɔ̌ɔ tǔa rót-tûu sɔ̌ɔng thîi {P}', es: 'Dos billetes de furgoneta, por favor', ok: false },
         ],
       },
@@ -435,7 +437,8 @@ export const DIALOGUES_S2C: Dialogue[] = [
   {
     id: 'dm8',
     title: 'Junto al río',
-    scene: 'Noche de luna llena junto al río. Yai, Nong, Noi y tú bajáis con vuestros krathongs entre música, faroles y petardos.',
+    scene: 'Noche de luna llena junto al río. Yai, Nong, tu pareja, Noi y tú bajáis con vuestros krathongs entre música, faroles y fuegos artificiales.',
+    place: 'campo',
     lines: [
       {
         who: 'Yai',
@@ -474,7 +477,7 @@ export const DIALOGUES_S2C: Dialogue[] = [
         who: 'Nong',
         th: 'ระวังค่ะพี่ มีเรือแล่นมา แล้วก็มีพลุด้วย',
         rom: 'rá-wang khâ phîi, mii rʉa lɛ̂n maa, lɛ́ɛo gɔ̂ɔ mii phlú dûay',
-        es: '¡Cuidado! Viene una barca… y hay petardos también.',
+        es: '¡Cuidado! Viene una barca… y hay fuegos artificiales también.',
       },
       {
         who: 'Yai',
@@ -493,6 +496,7 @@ export const DIALOGUES_S2C: Dialogue[] = [
     id: 'dm9',
     title: 'La comida de la cosecha',
     scene: 'Se acabó la siega. Bajo la casa de teca, vecinos y familia comparten arroz nuevo y curry. Pho, que habla poco, se levanta con el vaso en la mano.',
+    place: 'mesa',
     lines: [
       {
         who: 'Mae',
@@ -524,18 +528,29 @@ export const DIALOGUES_S2C: Dialogue[] = [
         options: [
           { th: 'อร่อยมาก{P} รสมือยายดีที่สุด', rom: 'à-rɔ̀i mâak {P}, rót-mʉʉ yaai dii thîi-sùt', es: '¡Riquísima! Nadie cocina como tú', ok: true, reply: { th: 'ปากหวานจริงนะหลาน เติมอีกไหมจ๊ะ', rom: 'pàak wǎan jing ná lǎan, təəm ìik mǎi já', es: '¡Qué pico de oro! ¿Te pongo más?' } },
           { th: 'อร่อย{P} ขอเติมอีกได้ไหม{PQ}', rom: 'à-rɔ̀i {P}, khɔ̌ɔ təəm ìik dâi mǎi {PQ}', es: '¡Rica! ¿Me pones un poco más?', ok: true, reply: { th: 'ได้เลยจ้ะ เยอะๆ นะ', rom: 'dâi ləəi jâ, yə́-yə́ ná', es: '¡Claro que sí! Bien lleno.' } },
-          { th: 'ส่งตำแหน่งมาในไลน์หน่อย{P}', rom: 'sòng tam-nɛ̀ng maa nai lai nɔ̀i {P}', es: 'Mándame la ubicación por LINE', ok: false },
+          { th: 'ส่งตำแหน่งมาทางไลน์หน่อย{P}', rom: 'sòng tam-nɛ̀ng maa thaang lai nɔ̀i {P}', es: 'Mándame la ubicación por LINE', ok: false },
         ],
       },
       {
         who: 'Pho',
-        th: 'ขอบใจทุกคนที่มาช่วยนะ ไชโย',
-        rom: 'khɔ̀ɔp-jai thúk khon thîi maa chûay ná, chai-yoo',
+        th: 'ขอบคุณทุกคนที่มาช่วยนะครับ ไชโย',
+        rom: 'khɔ̀ɔp-khun thúk khon thîi maa chûay ná khráp, chai-yoo',
         es: 'Gracias a todos por venir a ayudar. ¡Hurra!',
         options: [
           { th: 'ไชโย ไชโย ไชโย', rom: 'chai-yoo, chai-yoo, chai-yoo', es: '¡Hurra, hurra, hurra!', ok: true, reply: { th: 'ปีหน้ามาลงแขกด้วยกันอีกนะลูก', rom: 'pii-nâa maa long-khɛ̀ɛk dûay-gan ìik ná lûuk', es: 'El año que viene vuelve a segar con nosotros.' } },
           { th: 'ขอบคุณพ่อ{P} ข้าวใหม่หอมมาก', rom: 'khɔ̀ɔp-khun phɔ̂ɔ {P}, khâao-mài hɔ̌ɔm mâak', es: 'Gracias a ti, papá. ¡El arroz nuevo huele de maravilla!', ok: true, reply: { th: 'ขอบใจลูก กินให้อิ่มแปล้เลยนะ', rom: 'khɔ̀ɔp-jai lûuk, gin hâi ìm-plɛ̂ɛ ləəi ná', es: 'Gracias. Y come hasta reventar, ¿eh?' } },
           { th: 'กระทงของ{I}จมแล้ว', rom: 'grà-thong khɔ̌ɔng {I} jom lɛ́ɛo', es: '¡Mi krathong se ha hundido!', ok: false },
+        ],
+      },
+      {
+        who: 'Lung',
+        th: 'ออกพรรษาแล้ว ลุงดื่มได้แล้วนะ มาชนแก้วกันหน่อย',
+        rom: 'ɔ̀ɔk-phan-sǎa lɛ́ɛo, lung dʉ̀ʉm dâi lɛ́ɛo ná, maa chon-gɛ̂ɛo gan nɔ̀i',
+        es: 'Ya pasó la cuaresma y el tío ya puede beber. ¡Venga, a brindar!',
+        options: [
+          { th: 'ไม่เป็นไร{P} {I}ไม่ดื่ม ขอน้ำเปล่าก็พอ', rom: 'mâi-pen-rai {P}, {I} mâi dʉ̀ʉm, khɔ̌ɔ náam-plàao gɔ̂ɔ phɔɔ', es: 'No, gracias: yo no bebo. Con agua me basta', ok: true, reply: { th: 'ได้เลย น้ำเปล่าก็ชนแก้วได้ ไชโย', rom: 'dâi ləəi, náam-plàao gɔ̂ɔ chon-gɛ̂ɛo dâi, chai-yoo', es: '¡Claro! Con agua también se brinda. ¡Hurra!' } },
+          { th: 'ได้{P} แต่ขอแก้วเดียวพอ', rom: 'dâi {P}, tɛ̀ɛ khɔ̌ɔ gɛ̂ɛo diao phɔɔ', es: 'Vale, pero con un vaso me basta', ok: true, reply: { th: 'แก้วเดียวเหมือนลุงเลย ยายนับอยู่นะ ฮ่าๆ', rom: 'gɛ̂ɛo diao mʉ̌an lung ləəi, yaai náp yùu ná, hâa-hâa', es: 'Uno solo, como yo: que la abuela los cuenta, ja, ja.' } },
+          { th: 'รถตู้เที่ยวต่อไปกี่โมง{PQ}', rom: 'rót-tûu thîao tɔ̀ɔ-pai gìi moong {PQ}', es: '¿A qué hora sale la próxima furgoneta?', ok: false },
         ],
       },
       {
@@ -586,17 +601,23 @@ export const STORIES_S2C: Story[] = [
       {
         lines: [
           [t('แม่', 'mɛ̂ɛ', 'su madre', 'mae'), t('บอก', 'bɔ̀ɔk', 'le dijo', 'bok'), t('ว่า', 'wâa', 'que', 'waa'), t('กระทง', 'grà-thong', 'el krathong', 'm8_krathong'), t('อยาก', 'yàak', 'quiere', 'yaak'), t('อยู่', 'yùu', 'quedarse', 'yuu'), t('กับ', 'gàp', 'con', 'kap'), t('หนู', 'nǔu', 'contigo (a una niña)')],
-          [t('ปีนี้', 'pii-níi', 'este año'), t('ยาย', 'yaai', 'la abuela', 'yaai'), t('อยากให้', 'yàak-hâi', 'quiere que', 'm8_yaakhai'), t('หลาน', 'lǎan', 'su nieto', 'laan'), t('ลอย', 'lɔɔi', 'suelte', 'm8_loi'), t('กระทง', 'grà-thong', 'el krathong', 'm8_krathong'), t('ด้วยกัน', 'dûay-gan', 'con ella')],
+          [t('ปีนี้', 'pii-níi', 'este año'), t('ยาย', 'yaai', 'la abuela', 'yaai'), t('อยากให้', 'yàak-hâi', 'quiere que', 'm8_yaakhai'), t('หลาน', 'lǎan', 'tú, su nieto o nieta', 'laan'), t('ลอย', 'lɔɔi', 'suelte', 'm8_loi'), t('กระทง', 'grà-thong', 'el krathong', 'm8_krathong'), t('ด้วยกัน', 'dûay-gan', 'con ella')],
         ],
-        es: 'Su madre le dijo: «El krathong quiere quedarse contigo». Este año, la abuela quiere soltar el krathong con su nieto.',
+        es: 'Su madre le dijo: «El krathong quiere quedarse contigo». Este año, la abuela quiere soltar el krathong contigo.',
       },
     ],
     questions: [
       { q: '¿Con quién hacía Yai el krathong de pequeña?', options: ['Con su abuela', 'Con su madre', 'Con Nong'], answer: 1 },
       { q: '¿Qué pasó cuando soltó el krathong?', options: ['Se hundió', 'Se lo llevó un pez', 'El viento lo devolvió a la orilla'], answer: 2 },
-      { q: '¿Qué quiere Yai este año?', options: ['Soltar el krathong con su nieto', 'Ir a Chiang Mai', 'Hacer fotos de los girasoles'], answer: 0 },
+      { q: '¿Qué quiere Yai este año?', options: ['Soltar el krathong contigo', 'Ir a Chiang Mai', 'Hacer fotos de los girasoles'], answer: 0 },
     ],
   },
+];
+
+/** Gramática en un minuto de estos meses. Cada patrón se enlaza desde su lección con `patterns`. */
+export const PATTERNS_S2C: Pattern[] = [
+  { id: 's2_querer_que', title: 'Querer que otro…: อยากให้', formula: 'อยากให้ + alguien + verbo', rule: 'อยาก es «quiero» hacer algo yo. Con ให้ detrás, lo que quiero es que lo haga otro o que algo pase: es la forma de los deseos.', examples: ['m8s10'], mark: ['อยากให้'] },
+  { id: 's2_condiciones', title: 'Si…, aunque…, por si acaso', formula: 'ถ้า + A + ก็ + B', rule: 'Con ถ้า (si) y แม้ (aunque) la segunda parte lleva ก็ delante del verbo. จนกว่า es «hasta que» y เผื่อ, al final de la frase, «por si acaso».', examples: ['m8s16', 'm8s17', 'm8s19'], mark: ['ถ้าเกิด', 'แม้', 'ก็', 'เผื่อ'] },
 ];
 
 export const STOPS_S2C: Stop[] = [
@@ -612,15 +633,15 @@ export const STOPS_S2C: Stop[] = [
     level: 'A2–B1',
     stamp: 'JONG PARA',
     message: { from: 'Nong', th: 'เที่ยวเชียงใหม่สนุกมากเลยค่ะ ปีหน้าไปด้วยกันอีกนะคะ', rom: 'thîao chiang-mài sà-nùk mâak ləəi khâ, pii-nâa pai dûay-gan ìik ná khá', es: '¡El viaje a Chiang Mai ha sido divertidísimo! El año que viene volvemos juntos, ¿vale?' },
-    mission: { es: 'Planea con tu pareja una escapada: adónde ir, cómo llegar y qué llevar.', th: 'เราจะไปเที่ยวที่ไหนดี', rom: 'rao jà pai thîao thîi-nǎi dii', tip: 'Repartid las tareas: quién reserva (จอง) y quién prepara (เตรียม) las cosas.' },
+    mission: { es: 'Planea con tu pareja una escapada: adónde ir, cómo llegar y qué llevar.', th: 'เราจะไปเที่ยวที่ไหนดี', rom: 'rao jà pai thîao thîi-nǎi dii', tip: 'Repartid las tareas: quién reserva (จอง) y quién prepara (เตรียม) las cosas.', replies: [{ th: 'ไปเชียงใหม่ดีไหม', rom: 'pai chiang-mài dii mǎi', es: '¿Y si vamos a Chiang Mai?' }, { th: 'ไปที่ไหนก็ได้ ขอให้ไปด้วยกัน', rom: 'pai thîi-nǎi gɔ̂ɔ dâi, khɔ̌ɔ-hâi pai dûay gan', es: 'Adonde sea, con tal de ir juntos.' }] },
     lessons: [
-      { id: 'p22l1', title: 'Castillos de luz', goal: 'Ok Phansa al estilo shan: จองพารา, luces y fiesta.', words: ['m7_okphansa', 'm7_jongphaaraa', 'm7_poilern', 'm7_saeng', 'm7_saang', 'm7_pradap', 'm7_kham', 'm7_aasai', 'm7_rat', 'm7_tonrap', 'm7_phuea', 'm7_watthanatham'], sentences: ['m7s1', 'm7s2', 'm7s3', 'm7s4', 'm7s5'] },
-      { id: 'p22l2', title: 'Preparar el viaje', goal: 'Planes e intenciones: เที่ยว, เตรียม, ตั้งใจจะ.', words: ['m7_thiao', 'm7_doenthaang', 'm7_gaan', 'm7_waangphaen', 'm7_triam', 'm7_phrom', 'm7_chen', 'm7_tangjai', 'm7_jong', 'm7_luangnaa'], sentences: ['m7s6', 'm7s7', 'm7s8', 'm7s9', 'm7s10'] },
-      { id: 'p22l3', title: 'En la estación', goal: 'Horarios, asientos y avisos: รอบ, ที่นั่ง, เนื่องจาก.', words: ['m7_sathaanii', 'm7_rottuu', 'm7_maorot', 'm7_rop', 'm7_thiinang', 'm7_topai', 'm7_jaonaathii', 'm7_pramaan', 'm7_nueangjaak', 'm7_chapho'], sentences: ['m7s11', 'm7s12', 'm7s13', 'm7s14', 'm7s15'] },
-      { id: 'p22l4', title: 'En el alojamiento', goal: 'Reservar, preguntar qué incluye y charlar: ที่พัก, รวม, บริการ.', words: ['m7_thiiphak', 'm7_borikaan', 'm7_ruam', 'm7_praphet', 'm7_thiiyuu', 'm7_kunjae', 'm7_jatgaan', 'm7_mosom', 'm7_yiipun', 'm7_khanathii', 'm7_angkrit'], sentences: ['m7s16', 'm7s17', 'm7s18', 'm7s19', 'm7s20'] },
-      { id: 'p22l5', title: 'Orientarse en la ciudad', goal: 'Cruces, orillas y esquinas: แยก, ฝั่ง, ริม, น่าจะ.', words: ['m7_phaenthii', 'm7_mueang', 'm7_yaek', 'm7_fang', 'm7_trongkhaam', 'm7_rim', 'm7_lak', 'm7_mum', 'm7_naaja', 'm7_khet'], sentences: ['m7s21', 'm7s22', 'm7s23', 'm7s24', 'm7s25'] },
-      { id: 'p22l6', title: 'Describir lugares', goal: 'Ambiente y estilo: คึกคัก, วุ่นวาย, ทั้ง…และ…', words: ['m7_sathaanthii', 'm7_thanglae', 'm7_khuekkhak', 'm7_wunwaai', 'm7_kwaang', 'm7_niyom', 'm7_naeo', 'm7_thuapai', 'm7_phaak', 'm7_krung', 'm7_thin', 'm7_doichapho'], sentences: ['m7s26', 'm7s27', 'm7s28', 'm7s29', 'm7s30'] },
-      { id: 'p22l7', title: 'Perdidos en Chiang Mai', goal: 'Perderse, pedir ayuda por teléfono y volver.', words: ['m7_long', 'm7_tamnaeng', 'm7_nam', 'm7_paai', 'm7_rotdaeng', 'm7_glapbaan', 'm7_go', 'm7_doem', 'm7_prajam', 'm7_joe'], sentences: ['m7s31', 'm7s32', 'm7s33', 'm7s34', 'm7s35'], extra: { kind: 'dialogo', id: 'dm7' } },
+      { id: 'p22l1', title: 'Castillos de luz', goal: 'Ok Phansa al estilo shan: จองพารา, luces y fiesta.', words: ['m7_okphansa', 'm7_jongphaaraa', 'm7_poilern', 'm7_saeng', 'm7_saang', 'm7_pradap', 'm7_kham', 'm7_aasai', 'm7_rat', 'm7_tonrap', 'm7_phuea', 'm7_watthanatham'], sentences: ['m7s1', 'm7s2', 'm7s3', 'm7s4', 'm7s5'], beat: 'Octubre. Acaba la cuaresma y los vecinos shan montan castillos de luz delante de las casas. Pho y Lung levantan el vuestro. Lung brinda con agua: ha cumplido sus tres meses sin beber y hoy presume de ello.', after: 'Yai le sirve a Lung la primera cerveza desde julio. Solo una.' },
+      { id: 'p22l2', title: 'Preparar el viaje', goal: 'Planes e intenciones: เที่ยว, เตรียม, ตั้งใจจะ.', words: ['m7_thiao', 'm7_doenthaang', 'm7_gaan', 'm7_waangphaen', 'm7_triam', 'm7_phrom', 'm7_chen', 'm7_tangjai', 'm7_jong', 'm7_luangnaa'], sentences: ['m7s6', 'm7s7', 'm7s8', 'm7s9', 'm7s10'], beat: 'Nong vuelve a la universidad y propone un plan: tres días en Chiang Mai con tu pareja y contigo, para enseñaros su facultad y comer khao soi del bueno. Hay que preparar el viaje.' },
+      { id: 'p22l3', title: 'En la estación', goal: 'Los tres a Chiang Mai: horarios, asientos y avisos (รอบ, ที่นั่ง, เนื่องจาก).', words: ['m7_sathaanii', 'm7_rottuu', 'm7_maorot', 'm7_rop', 'm7_thiinang', 'm7_topai', 'm7_jaonaathii', 'm7_pramaan', 'm7_nueangjaak', 'm7_chapho'], sentences: ['m7s11', 'm7s12', 'm7s13', 'm7s14', 'm7s15'], beat: 'Estación de Mae Hong Son. Seis horas de curvas hasta Chiang Mai: las mismas 1.864, pero al revés. Hay que preguntar horarios y asientos, y sobre todo no marearse.' },
+      { id: 'p22l4', title: 'En casa del amigo de Lung', goal: 'La casa de huéspedes: confirmar la reserva, qué incluye y la llave (ที่พัก, รวม, กุญแจ).', words: ['m7_thiiphak', 'm7_borikaan', 'm7_ruam', 'm7_praphet', 'm7_thiiyuu', 'm7_kunjae', 'm7_jatgaan', 'm7_mosom', 'm7_yiipun', 'm7_khanathii', 'm7_angkrit'], sentences: ['m7s16', 'm7s17', 'm7s18', 'm7s19', 'm7s20'], beat: 'Os alojáis en la casa de huéspedes de un viejo amigo de Lung, de cuando trabajaba en Chiang Mai. Hay que confirmar la reserva, preguntar qué incluye… y resolver que te has dejado la llave dentro.' },
+      { id: 'p22l5', title: 'El recado de Yai', goal: 'Encontrar la tienda de telas: cruces, orillas y esquinas (แยก, ฝั่ง, ริม, น่าจะ).', words: ['m7_phaenthii', 'm7_mueang', 'm7_yaek', 'm7_fang', 'm7_trongkhaam', 'm7_rim', 'm7_lak', 'm7_mum', 'm7_naaja', 'm7_khet'], sentences: ['m7s21', 'm7s22', 'm7s23', 'm7s24', 'm7s25'], beat: 'Nong tiene clase y os deja solos por la ciudad vieja con un mapa y un recado de Yai: una tela de la tienda que hace esquina con el templo. Cruces, orillas, aceras de enfrente: a orientarse.' },
+      { id: 'p22l6', title: 'Donde os conocisteis', goal: 'Contar cómo ha cambiado la ciudad: คึกคัก, วุ่นวาย, ทั้ง…และ…', words: ['m7_sathaanthii', 'm7_thanglae', 'm7_khuekkhak', 'm7_wunwaai', 'm7_kwaang', 'm7_niyom', 'm7_naeo', 'm7_thuapai', 'm7_phaak', 'm7_krung', 'm7_thin', 'm7_doichapho'], sentences: ['m7s26', 'm7s27', 'm7s28', 'm7s29', 'm7s30'], beat: 'Tu pareja te enseña el Chiang Mai donde os conocisteis: la cafetería, la calle con más ambiente, el rincón de las fotos. Todo ha cambiado un poco, y hay que saber describirlo para contárselo luego a Mae.' },
+      { id: 'p22l7', title: 'Perdidos en Chiang Mai', goal: 'Perderse, pedir ayuda por teléfono y volver.', words: ['m7_long', 'm7_tamnaeng', 'm7_nam', 'm7_paai', 'm7_rotdaeng', 'm7_glapbaan', 'm7_go', 'm7_doem', 'm7_prajam', 'joe'], sentences: ['m7s31', 'm7s32', 'm7s33', 'm7s34', 'm7s35'], extra: { kind: 'dialogo', id: 'dm7' }, beat: 'Es de noche en la ciudad vieja. Volvéis al alojamiento y todas las callejuelas te parecen iguales. Nong jura que es por aquí; el mapa dice otra cosa. Lung, que se sabe Chiang Mai de memoria, os guía por teléfono.' },
     ],
   },
   {
@@ -635,15 +656,15 @@ export const STOPS_S2C: Stop[] = [
     level: 'A2–B1',
     stamp: 'LOY KRATHONG',
     message: { from: 'Yai', th: 'ปีนี้ยายดีใจมากที่ได้ลอยกระทงกับหลาน ขอให้หลานโชคดีนะจ๊ะ', rom: 'pii-níi yaai dii-jai mâak thîi dâi lɔɔi grà-thong gàp lǎan, khɔ̌ɔ-hâi lǎan chôok-dii ná já', es: 'Este año la abuela ha disfrutado mucho soltando el krathong contigo. ¡Que tengas mucha suerte, cariño!' },
-    mission: { es: 'Pregunta a tu pareja o a tu familia cuál es su sueño para el futuro, y cuéntales el tuyo.', th: 'ความฝันของคุณคืออะไร', rom: 'khwaam-fǎn khɔ̌ɔng khun khʉʉ à-rai', tip: 'Para contestar te servirán ตั้งใจจะ…, อยากให้… y สักวัน…' },
+    mission: { es: 'Pregunta a alguien de tu familia cuál es su sueño para el futuro, y cuéntale el tuyo.', th: 'ความฝันของแม่คืออะไร{PQ}', rom: 'khwaam-fǎn khɔ̌ɔng mɛ̂ɛ khʉʉ à-rai {PQ}', tip: 'Cambia แม่ por quien sea: พ่อ, ยาย o el nombre de tu pareja. Para contestar te servirán ตั้งใจจะ…, อยากให้… y สักวัน…', replies: [{ th: 'อยากให้ลูกๆ มีความสุข', rom: 'yàak hâi lûuk-lûuk mii khwaam-sùk', es: 'Quiero que mis hijos sean felices.' }, { th: 'สักวันอยากไปเที่ยวสเปน', rom: 'sàk wan yàak pai thîao sà-peen', es: 'Algún día me gustaría ir a España.' }] },
     lessons: [
-      { id: 'p23l1', title: 'Hacer un krathong', goal: 'Tronco de platanero, hojas y alfileres: วิธีทำกระทง.', words: ['m8_krathong', 'm8_loi', 'm8_yuakkluay', 'm8_baitong', 'm8_phap', 'm8_klat', 'm8_khem', 'm8_withii', 'm8_khantoon', 'm8_loong'], sentences: ['m8s1', 'm8s2', 'm8s3', 'm8s4', 'm8s5'] },
-      { id: 'p23l2', title: 'Pedir un deseo', goal: 'Yi Peng, faroles y deseos: อธิษฐาน, อยากให้.', words: ['m8_yiipeng', 'm8_khoom', 'm8_athitthaan', 'm8_wang', 'm8_yaakhai', 'm8_maaithueng', 'm8_klaangkhuen', 'm8_chiiwit', 'm8_phrajan', 'm8_wanphen'], sentences: ['m8s6', 'm8s7', 'm8s8', 'm8s9', 'm8s10'] },
-      { id: 'p23l3', title: 'Planes de futuro', goal: 'Sueños y objetivos: อนาคต, โอกาส, เป้าหมาย.', words: ['m8_anaakhot', 'm8_ookaat', 'm8_khwaamfan', 'm8_paomaai', 'm8_khroongkaan', 'm8_radap', 'm8_sakwan', 'm8_manjai', 'm8_penpaidai', 'm8_thaangkaan', 'm8_samret'], sentences: ['m8s11', 'm8s12', 'm8s13', 'm8s14', 'm8s15'] },
-      { id: 'p23l4', title: 'Si…, entonces…', goal: 'Condiciones y plan B: ถ้า…ก็…, แม้, จนกว่า, เผื่อ.', words: ['m8_mae', 'm8_ruemai', 'm8_jonkwaa', 'm8_phuea_porsi', 'm8_ngan', 'm8_maingan', 'm8_luean', 'm8_thaakoet'], sentences: ['m8s16', 'm8s17', 'm8s18', 'm8s19', 'm8s20'] },
-      { id: 'p23l5', title: 'Los campos de บัวตอง', goal: 'Flores amarillas en las montañas: บาน, ดอย, ฤดู.', words: ['m8_buatong', 'm8_thung', 'm8_baan', 'm8_dooi', 'm8_plaai', 'm8_rung', 'm8_nakthongthiao', 'm8_ruedu', 'm8_wiu'], sentences: ['m8s21', 'm8s22', 'm8s23', 'm8s24', 'm8s25'] },
-      { id: 'p23l6', title: 'Fotos y recuerdos', goal: 'Imprimir, enmarcar y contar: รูป, อัลบั้ม, เรื่องราว.', words: ['m8_ruup', 'm8_khwaamsongjam', 'm8_bantheuk', 'm8_khayaai', 'm8_rueangraao', 'm8_at', 'm8_krop', 'm8_khwaen', 'm8_album'], sentences: ['m8s26', 'm8s27', 'm8s28', 'm8s29', 'm8s30'], extra: { kind: 'cuento', id: 'stm8' } },
-      { id: 'p23l7', title: 'Junto al río', goal: 'La noche del krathong: barcas, petardos y promesas.', words: ['m8_khuu', 'm8_jom', 'm8_laen', 'm8_phlu', 'm8_manut', 'm8_nat', 'm8_naen', 'm8_prakuat', 'm8_sadaeng'], sentences: ['m8s31', 'm8s32', 'm8s33', 'm8s34', 'm8s35'], extra: { kind: 'dialogo', id: 'dm8' } },
+      { id: 'p23l1', title: 'Hacer un krathong', goal: 'Tronco de platanero, hojas y alfileres: วิธีทำกระทง.', words: ['m8_krathong', 'm8_loi', 'm8_yuakkluay', 'm8_baitong', 'm8_phap', 'm8_klat', 'm8_khem', 'm8_withii', 'm8_khantoon', 'm8_loong'], sentences: ['m8s1', 'm8s2', 'm8s3', 'm8s4', 'm8s5'], beat: 'Noviembre. Se acerca la luna llena de Loy Krathong y Yai te sienta a su lado con un tronco de platanero, hojas y alfileres. Hacer un krathong tiene sus pasos, y ella no perdona ninguno.' },
+      { id: 'p23l2', title: 'Pedir un deseo', goal: 'Yi Peng, faroles y deseos: อธิษฐาน, อยากให้.', words: ['m8_yiipeng', 'm8_khoom', 'm8_athitthaan', 'm8_wang', 'm8_yaakhai', 'm8_maaithueng', 'm8_klaangkhuen', 'm8_chiiwit', 'm8_phrajan', 'm8_wanphen'], sentences: ['m8s6', 'm8s7', 'm8s8', 'm8s9', 'm8s10'], beat: 'Noche de Yi Peng. El cielo se llena de faroles y Noi ha venido desde su santuario para verlos contigo. Antes de soltar el krathong hay que pedir un deseo. Piensa bien el tuyo.', patterns: ['s2_querer_que'] },
+      { id: 'p23l3', title: 'Planes de futuro', goal: 'Sueños y objetivos: อนาคต, โอกาส, เป้าหมาย.', words: ['m8_anaakhot', 'm8_ookaat', 'm8_khwaamfan', 'm8_paomaai', 'm8_khroongkaan', 'm8_radap', 'm8_sakwan', 'm8_manjai', 'm8_penpaidai', 'm8_thaangkaan', 'm8_samret'], sentences: ['m8s11', 'm8s12', 'm8s13', 'm8s14', 'm8s15'], beat: 'Con los faroles todavía en el cielo, la familia habla de planes. Nong quiere abrir un café en el pueblo. Tu pareja y tú os miráis: ¿y vosotros? Hoy aprendes a hablar del futuro.' },
+      { id: 'p23l4', title: 'Si…, entonces…', goal: 'Condiciones y plan B: ถ้า…ก็…, แม้, จนกว่า, เผื่อ.', words: ['m8_mae', 'm8_ruemai', 'm8_jonkwaa', 'm8_phuea_porsi', 'm8_ngan', 'm8_maingan', 'm8_luean', 'm8_thaakoet'], sentences: ['m8s16', 'm8s17', 'm8s18', 'm8s19', 'm8s20'], beat: 'El krathong grande se suelta mañana y el parte anuncia de todo: una lluvia rara para noviembre, niebla, frío y viento. Yai irá pase lo que pase. Tú necesitas un plan B, y en thai eso empieza por ถ้า.', patterns: ['s2_condiciones'] },
+      { id: 'p23l5', title: 'Los campos de บัวตอง', goal: 'Flores amarillas en las montañas: บาน, ดอย, ฤดู.', words: ['m8_buatong', 'm8_thung', 'm8_baan', 'm8_dooi', 'm8_plaai', 'm8_rung', 'm8_nakthongthiao', 'm8_ruedu', 'm8_wiu'], sentences: ['m8s21', 'm8s22', 'm8s23', 'm8s24', 'm8s25'], beat: 'A finales de mes las montañas se vuelven amarillas: florece el bua tong en Doi Mae U Kho. Subís toda la familia en la camioneta de Pho, con Noi detrás, a ver el amanecer entre flores y niebla.' },
+      { id: 'p23l6', title: 'Fotos y recuerdos', goal: 'Imprimir, enmarcar y contar: รูป, อัลบั้ม, เรื่องราว.', words: ['m8_ruup', 'm8_khwaamsongjam', 'm8_bantheuk', 'm8_khayaai', 'm8_rueangraao', 'm8_at', 'm8_krop', 'm8_khwaen', 'm8_album'], sentences: ['m8s26', 'm8s27', 'm8s28', 'm8s29', 'm8s30'], extra: { kind: 'cuento', id: 'stm8' }, beat: 'De vuelta en casa, repasáis las fotos del año. Yai quiere una ampliada y enmarcada para su cuarto. Cada foto trae una historia, y la del krathong la cuenta ella.' },
+      { id: 'p23l7', title: 'Junto al río', goal: 'La noche del krathong: barcas, fuegos artificiales y promesas.', words: ['m8_khuu', 'm8_jom', 'm8_laen', 'm8_phlu', 'm8_manut', 'm8_nat', 'm8_naen', 'm8_prakuat', 'm8_sadaeng'], sentences: ['m8s31', 'm8s32', 'm8s33', 'm8s34', 'm8s35'], extra: { kind: 'dialogo', id: 'dm8' }, beat: 'Noche de luna llena junto al río. Yai, Nong, tu pareja, Noi y tú bajáis con vuestros krathongs entre música, faroles y fuegos artificiales. En la orilla no cabe ni un alfiler.', after: 'Tu krathong y el de tu pareja se alejan juntos río abajo. Yai dice que eso es buena señal.' },
     ],
   },
   {
@@ -655,18 +676,18 @@ export const STOPS_S2C: Stop[] = [
     place: 'El pueblo · los arrozales',
     title: 'Arroz nuevo, manos juntas',
     theme: 'Cosecha, frío y ayuda mutua',
-    level: 'B1',
+    level: 'A2–B1',
     stamp: 'COSECHA',
     message: { from: 'Pho', th: 'ปีนี้ข้าวดี ขอบใจที่มาช่วยนะลูก', rom: 'pii-níi khâao dii, khɔ̀ɔp-jai thîi maa chûay ná lûuk', es: 'Este año el arroz ha salido bueno. Gracias por venir a ayudar.' },
-    mission: { es: 'Ofrece tu ayuda en una tarea grande de casa (cocinar para muchos, limpiar, el huerto) y hacedla juntos.', th: 'มีอะไรให้ช่วยไหม', rom: 'mii à-rai hâi chûay mǎi', tip: 'Si te dicen ไม่เป็นไร, insiste una vez: casi siempre acaban aceptando.' },
+    mission: { es: 'Ofrece tu ayuda en una tarea grande de casa (cocinar para muchos, limpiar, el huerto) y hacedla juntos.', th: 'มีอะไรให้ช่วยไหม{PQ}', rom: 'mii à-rai hâi chûay mǎi {PQ}', tip: 'Si te dicen ไม่เป็นไร, insiste una vez: casi siempre acaban aceptando.', replies: [{ th: 'ไม่เป็นไร นั่งพักเถอะ', rom: 'mâi-pen-rai, nâng phák thə̀', es: 'No hace falta, tú descansa.' }, { th: 'ช่วยล้างผักหน่อย', rom: 'chûay láang phàk nɔ̀i', es: 'Ayúdame a lavar la verdura.' }] },
     lessons: [
-      { id: 'p24l1', title: 'Segar el arroz', goal: 'Hoz, espigas y sombrero de paja: เกี่ยวข้าว.', words: ['m9_kiao', 'm9_khiao', 'm9_ruang', 'm9_suk', 'm9_ngop', 'm9_faang', 'm9_tongkaan', 'm9_kiaokhong', 'm9_patjuban', 'm9_nguea'], sentences: ['m9s1', 'm9s2', 'm9s3', 'm9s4', 'm9s5'] },
-      { id: 'p24l2', title: 'Trillar y guardar', goal: 'Golpear las gavillas, secar el grano y llenar el granero.', words: ['m9_nuat', 'm9_faat', 'm9_khaaoplueak', 'm9_yung', 'm9_krasop', 'm9_taak', 'm9_laan', 'm9_kradong', 'm9_withiikaan', 'm9_raeng'], sentences: ['m9s6', 'm9s7', 'm9s8', 'm9s9', 'm9s10'] },
-      { id: 'p24l3', title: 'Mañanas de frío', goal: 'Mantas, abrigos, niebla y hoguera: ผิงไฟ, หนาวจน…', words: ['m9_phaahom', 'm9_suekannaao', 'm9_phingfai', 'm9_fuen', 'm9_naa', 'm9_san', 'm9_un', 'm9_prap', 'm9_raya', 'm9_sangket'], sentences: ['m9s11', 'm9s12', 'm9s13', 'm9s14', 'm9s15'] },
-      { id: 'p24l4', title: 'El Día del Padre', goal: '5 de diciembre: hablar de Pho y darle las gracias.', words: ['m9_wanpho', 'm9_samkhan', 'm9_khwaamruu', 'm9_khunkhaa', 'm9_siasala', 'm9_chalong', 'm9_khruem', 'm9_suesat', 'm9_baepyaang'], sentences: ['m9s16', 'm9s17', 'm9s18', 'm9s19', 'm9s20'] },
-      { id: 'p24l5', title: 'Contar la cosecha', goal: 'Toneladas, el doble y el precio: จำนวน, เท่า, เพียง.', words: ['m9_jamnuan', 'm9_tan', 'm9_phiang', 'm9_sin', 'm9_roongsii', 'm9_thao', 'm9_tam', 'm9_khaaosaan'], sentences: ['m9s21', 'm9s22', 'm9s23', 'm9s24', 'm9s25'], extra: { kind: 'numeros' } },
-      { id: 'p24l6', title: 'Entre vecinos', goal: 'Hoy por ti, mañana por mí: ลงแขก, ผลัดกัน, สามัคคี.', words: ['m9_longkhaek', 'm9_phueanbaan', 'm9_faai', 'm9_phlatkan', 'm9_jaang', 'm9_saamakkhii', 'm9_klum', 'm9_jaophaap', 'm9_samaachik'], sentences: ['m9s26', 'm9s27', 'm9s28', 'm9s29', 'm9s30'] },
-      { id: 'p24l7', title: 'La comida de la cosecha', goal: 'Arroz nuevo, brindis y gracias.', words: ['m9_khaaomai', 'm9_hung', 'm9_toem', 'm9_rotmue', 'm9_chaiyoo', 'm9_pinto', 'm9_mue', 'm9_implae'], sentences: ['m9s31', 'm9s32', 'm9s33', 'm9s34', 'm9s35'], extra: { kind: 'dialogo', id: 'dm9' } },
+      { id: 'p24l1', title: 'Segar el arroz', goal: 'Hoz, espigas y sombrero de paja: เกี่ยวข้าว.', words: ['m9_kiao', 'm9_khiao', 'm9_ruang', 'm9_suk', 'm9_ngop', 'm9_faang', 'm9_tongkaan', 'm9_kiaokhong', 'm9_patjuban', 'm9_nguea'], sentences: ['m9s1', 'm9s2', 'm9s3', 'm9s4', 'm9s5'], beat: 'Diciembre. Las espigas que plantaste en junio ya están doradas. Pho afila las hoces: él siega a mano, como siempre. Sombrero, sol y a agacharse otra vez.' },
+      { id: 'p24l2', title: 'Trillar y guardar', goal: 'Golpear las gavillas, secar el grano y llenar el granero.', words: ['m9_nuat', 'm9_faat', 'm9_khaaoplueak', 'm9_yung', 'm9_krasop', 'm9_taak', 'm9_laan', 'm9_kradong', 'm9_withiikaan', 'm9_raeng'], sentences: ['m9s6', 'm9s7', 'm9s8', 'm9s9', 'm9s10'], beat: 'El arroz segado se seca al sol y luego se trilla en la era. Lung golpea las gavillas sin cansarse y Yai recuerda cuando se hacía con búfalos. La paja, ahora, es para las vacas de Lung.' },
+      { id: 'p24l3', title: 'Mañanas de frío', goal: 'Mantas, abrigos, niebla y hoguera: ผิงไฟ, หนาวจน…', words: ['m9_phaahom', 'm9_suekannaao', 'm9_phingfai', 'm9_fuen', 'm9_naa', 'm9_san', 'm9_un', 'm9_prap', 'm9_raya', 'm9_sangket'], sentences: ['m9s11', 'm9s12', 'm9s13', 'm9s14', 'm9s15'], beat: 'Las mañanas de diciembre cortan. Hay tanta niebla que no se ve el camino y toda la familia acaba alrededor del fuego con una manta. Tu pareja dice que esto no es frío. Tú tiritas.' },
+      { id: 'p24l4', title: 'El Día del Padre', goal: '5 de diciembre: hablar de Pho y darle las gracias.', words: ['m9_wanpho', 'm9_samkhan', 'm9_khwaamruu', 'm9_khunkhaa', 'm9_siasala', 'm9_chalong', 'm9_khruem', 'm9_suesat', 'm9_baepyaang'], sentences: ['m9s16', 'm9s17', 'm9s18', 'm9s19', 'm9s20'], beat: '5 de diciembre, Día del Padre. Pho no es de discursos, así que hoy hablan los demás: lo que sabe, lo que trabaja, lo que te ha enseñado sin decir casi nada.' },
+      { id: 'p24l5', title: 'Contar la cosecha', goal: 'Toneladas, el doble y el precio: จำนวน, เท่า, เพียง.', words: ['m9_jamnuan', 'm9_tan', 'm9_phiang', 'm9_sin', 'm9_roongsii', 'm9_thao', 'm9_tam', 'm9_khaaosaan'], sentences: ['m9s21', 'm9s22', 'm9s23', 'm9s24', 'm9s25'], extra: { kind: 'numeros' }, beat: 'Con el arroz en sacos llega la hora de las cuentas. Lung, que para eso fue oficinista, saca la libreta: toneladas, precios, el doble que el año pasado. Y aun así, no se gana mucho.' },
+      { id: 'p24l6', title: 'Entre vecinos', goal: 'Hoy por ti, mañana por mí: ลงแขก, ผลัดกัน, สามัคคี.', words: ['m9_longkhaek', 'm9_phueanbaan', 'm9_faai', 'm9_phlatkan', 'm9_jaang', 'm9_saamakkhii', 'm9_klum', 'm9_jaophaap', 'm9_samaachik'], sentences: ['m9s26', 'm9s27', 'm9s28', 'm9s29', 'm9s30'], beat: 'Mañana vienen los vecinos a vuestro campo: es el ลงแขก, hoy por ti y mañana por mí. Nadie cobra y todos comen. Mae lleva cocinando desde ayer.' },
+      { id: 'p24l7', title: 'La comida de la cosecha', goal: 'Arroz nuevo, gracias y brindis: ชนแก้ว… y cómo decir con educación que no bebes.', words: ['m9_khaaomai', 'm9_hung', 'm9_toem', 'm9_rotmue', 'm9_chaiyoo', 'm9_pinto', 'm9_mue', 'm9_implae', 'm9_chonkaeo', 'm9_namplaao'], sentences: ['m9s31', 'm9s32', 'm9s33', 'm9s34', 'm9s35'], extra: { kind: 'dialogo', id: 'dm9' }, beat: 'Se acabó la siega. Bajo la casa de teca, vecinos y familia comparten arroz nuevo y curry. Pho, que habla poco, se levanta con el vaso en la mano.', after: 'Pho brinda por la cosecha, por los vecinos… y por ti. «Ya eres del pueblo», repite él. Tu pareja te aprieta la mano.' },
     ],
   },
 ];
