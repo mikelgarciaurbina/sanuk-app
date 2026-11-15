@@ -1,6 +1,6 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useEffectEvent, useState } from 'react';
-import { StyleSheet, View, useWindowDimensions } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown, ZoomIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
@@ -19,6 +19,7 @@ import { fx, stopSpeech } from '@/lib/audio';
 import { feriaSetup } from '@/lib/feria';
 import { useStore } from '@/lib/store';
 import { goBack } from '@/lib/nav';
+import { useAppDimensions } from '@/lib/layout';
 
 
 /** Una partida completa de la feria, con récord y plátanos. */
@@ -42,7 +43,7 @@ export default function Juego() {
     goBack('/(tabs)/feria');
   };
 
-  if (!meta || !Game) return null;
+  if (!meta || !Game) return <Locked name="Este puesto no existe" text="Noi te acompaña de vuelta para elegir otro juego." onClose={close} />;
   // un puesto cerrado no se abre ni desde el juego del día ni con un enlace
   const reached = Math.max(p.profile.startStop, currentLesson(p).stop.n);
   if (meta.unlock > reached) return <Locked name={meta.name} unlock={meta.unlock} onClose={close} />;
@@ -114,20 +115,20 @@ export default function Juego() {
 function Locked({ name, unlock, text, onClose }: { name: string; unlock?: number; text?: string; onClose: () => void }) {
   const insets = useSafeAreaInsets();
   return (
-    <View style={{ flex: 1, backgroundColor: color.niebla, paddingTop: insets.top + 40, paddingHorizontal: 24, paddingBottom: Math.max(insets.bottom, 16) + 8, gap: 16, alignItems: 'center' }}>
+    <ScrollView style={{ flex: 1, backgroundColor: color.niebla }} contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top + 40, paddingHorizontal: 24, paddingBottom: Math.max(insets.bottom, 16) + 8, gap: 16, alignItems: 'center' }}>
       <Noi pose="piensa" size={170} />
       <Txt v="h1" style={{ textAlign: 'center' }}>{name}</Txt>
       <Txt style={{ textAlign: 'center' }}>{text ?? `Este puesto de la feria se abre en la parada ${unlock} del camino. ¡Sigue avanzando y nos vemos allí!`}</Txt>
       <View style={{ flex: 1 }} />
       <Btn label="Volver a la feria" onPress={onClose} style={{ alignSelf: 'stretch' }} />
-    </View>
+    </ScrollView>
   );
 }
 
 /** Fin de partida: marcador que sube, estrellas por precisión y, con récord, fanfarria y fuegos artificiales. */
 function Results({ name, unit, result, prevBest, daily, onAgain, onClose }: { name: string; unit: string; result: GameResult; prevBest: number; daily: boolean; onAgain: () => void; onClose: () => void }) {
   const insets = useSafeAreaInsets();
-  const { width, height } = useWindowDimensions();
+  const { width, height, offsetX } = useAppDimensions();
   const juice = useJuice();
   const bananas = daily ? result.bananas * 2 : result.bananas;
   const score = result.score ?? result.correct;
@@ -153,7 +154,7 @@ function Results({ name, unit, result, prevBest, daily, onAgain, onClose }: { na
         ts.push(
           setTimeout(() => {
             fx.boom();
-            juice.burst({ x: width * (0.15 + Math.random() * 0.7), y: height * (0.1 + Math.random() * 0.3) }, k % 2 ? 'confeti' : 'estrellas', 26, 150);
+            juice.burst({ x: offsetX + width * (0.15 + Math.random() * 0.7), y: height * (0.1 + Math.random() * 0.3) }, k % 2 ? 'confeti' : 'estrellas', 26, 150);
           }, after + 400 + k * 420),
         );
     } else ts.push(setTimeout(() => fx.done(), 450));
@@ -167,7 +168,7 @@ function Results({ name, unit, result, prevBest, daily, onAgain, onClose }: { na
   return (
     <View style={{ flex: 1 }}>
       <Backdrop scene={record ? 'noche' : 'amanecer'} />
-      <View style={{ flex: 1, paddingTop: insets.top + 18, paddingHorizontal: 20, paddingBottom: Math.max(insets.bottom, 16) + 8, gap: 14 }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top + 18, paddingHorizontal: 20, paddingBottom: Math.max(insets.bottom, 16) + 8, gap: 14 }}>
         <Animated.View entering={ZoomIn.springify().damping(9)} style={{ alignItems: 'center', justifyContent: 'center' }}>
           <Glow size={250} tint={record ? color.buatong : '#FFFFFF'} style={{ position: 'absolute' }} />
           <Floaty amp={5}>
@@ -189,7 +190,7 @@ function Results({ name, unit, result, prevBest, daily, onAgain, onClose }: { na
               <Floaty amp={3} rotate={8}>
                 <Art name="platano" size={30} />
               </Floaty>
-              <Txt v="num" style={{ fontSize: 32 }}>+{bananas}</Txt>
+              <Txt v="num" style={styles.statNumber}>+{bananas}</Txt>
             </View>
             <Txt v="small">{daily ? 'plátanos · ×2 del día' : 'plátanos'}</Txt>
           </Animated.View>
@@ -200,7 +201,7 @@ function Results({ name, unit, result, prevBest, daily, onAgain, onClose }: { na
         <View style={{ flex: 1 }} />
         <Btn label="Otra partida" onPress={onAgain} />
         <Btn label="Volver a la feria" v="ghost" onPress={onClose} />
-      </View>
+      </ScrollView>
       {juice.layer}
     </View>
   );
@@ -219,7 +220,7 @@ function CountUp({ to, color: tint }: { to: number; color: string }) {
     return () => clearInterval(t);
   }, [to]);
   return (
-    <Txt v="num" style={{ fontSize: 32, color: tint }}>
+    <Txt v="num" style={[styles.statNumber, { color: tint }]}>
       {n}
     </Txt>
   );
@@ -258,4 +259,6 @@ const styles = StyleSheet.create({
   game: { flex: 1, zIndex: 1, overflow: 'visible' },
   best: { height: 32, paddingHorizontal: 12, borderRadius: 999, borderWidth: 2, borderColor: color.niebla3, backgroundColor: '#FFFFFF', justifyContent: 'center' },
   stat: { flex: 1, alignItems: 'center', gap: 2, padding: 16, borderRadius: 22, backgroundColor: '#FFFFFF', ...shadow.card },
+  // Al ampliar los números hay que ampliar también la línea: «num» usa 26 para su tamaño de 22.
+  statNumber: { fontSize: 32, lineHeight: 42 },
 });

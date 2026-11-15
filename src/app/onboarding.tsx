@@ -22,8 +22,9 @@ import { Art, Icon } from '@/components/icons';
 import { Noi } from '@/components/Noi';
 import { Confetti, Mountains, MistBand, Stars } from '@/components/Scenery';
 import { Bar, Btn, Rom, Sheet, SpeakBtn, Speech, Th, Tile, Txt, type TileState } from '@/components/ui';
+import { VoiceWarning } from '@/components/VoiceWarning';
 import { YAI_LETTER } from '@/content/yai';
-import { fx, say } from '@/lib/audio';
+import { fx, say, stopSpeech } from '@/lib/audio';
 import { HAS_SEASON_2, SEASON_2_STOPS } from '@/content';
 import { useStore, type Profile } from '@/lib/store';
 
@@ -58,6 +59,8 @@ export default function Onboarding() {
   const [gender, setGender] = useState<Profile['gender']>('m');
   const [level, setLevel] = useState(1);
   const [goal, setGoal] = useState(60);
+
+  useEffect(() => () => { void stopSpeech(); }, [step]);
 
   const next = () => setStep((s) => s + 1);
   const back = () => setStep((s) => Math.max(0, s - 1));
@@ -118,6 +121,7 @@ export default function Onboarding() {
                 </View>
               </View>
             </View>
+            <VoiceWarning compact />
             <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 6 }}>
               <Noi pose="escucha" size={96} />
               <Speech tail="left" style={{ flex: 1, marginBottom: 24 }}>
@@ -356,6 +360,7 @@ function MeetNoi({ onNext }: { onNext: () => void }) {
           </View>
         </Animated.View>
       ) : null}
+      <VoiceWarning compact />
     </Page>
   );
 }
@@ -464,11 +469,12 @@ function FirstWord({ onDone }: { onDone: () => void }) {
         <Txt v="h2">¿Qué ha dicho Noi?</Txt>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           <Noi pose="escucha" size={130} />
-          <View style={{ gap: 10 }}>
+          <View style={{ gap: 10, flexShrink: 1 }}>
             <SpeakBtn size={84} onPress={() => say('สวัสดี')} />
             <SpeakBtn slow size={40} onPress={() => say('สวัสดี', { slow: true })} />
           </View>
         </View>
+        <VoiceWarning compact />
         <View style={{ gap: 12 }}>
           {opts.map((o) => (
             <Tile key={o} state={state(o)} disabled={checked} height={58} onPress={() => setPick(o)} accessibilityLabel={o}>

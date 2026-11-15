@@ -1,0 +1,15 @@
+Sonidos de Noi · pareja seleccionada: opción 3, elefante musical
+
+Archivos: ok.wav (acierto, 590 ms), bad.wav (fallo, 530 ms).
+Formato: WAV PCM de 16 bits, mono, 44.100 Hz.
+
+Grabación de elefante de origen:
+«Elephant sound», ikbenraar, 15 de agosto de 2025.
+Página de origen: https://freesound.org/people/ikbenraar/sounds/819668/
+Licencia declarada por su autor: CC0 1.0.
+Licencia: https://creativecommons.org/publicdomain/zero/1.0/
+Archivo público utilizado: https://cdn.freesound.org/previews/819/819668_754558-hq.mp3
+
+Adaptaciones para Sanuk: fragmentos de la grabación, cambios moderados de altura y velocidad, filtrado, fundidos, ajuste de nivel y notas originales de marimba. Las notas ascienden al acertar y descienden al fallar.
+
+Los másteres elegidos se guardan en scripts/sfx/noi. El comando node scripts/make-sfx.mjs --noi los copia sin modificar a assets/sfx, para mantener la pareja elegida al regenerar los efectos.

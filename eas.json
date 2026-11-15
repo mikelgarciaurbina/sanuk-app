@@ -1,0 +1,30 @@
+{
+  "cli": {
+    "version": ">= 27.9.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "simulator": {
+      "distribution": "internal",
+      "environment": "development",
+      "ios": {
+        "simulator": true,
+        "image": "macos-tahoe-26.6-xcode-27.2"
+      }
+    },
+    "production": {
+      "distribution": "store",
+      "environment": "production",
+      "autoIncrement": true,
+      "ios": {
+        "simulator": false,
+        "image": "macos-tahoe-26.6-xcode-27.2"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {}
+    }
+  }
+}

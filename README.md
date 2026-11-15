@@ -19,7 +19,8 @@ Expo SDK 58 (React Native 0.88, Expo Router, Reanimated 4) para iOS, Android y w
 - **La carta de Yai**: el progreso que se ve. Cada palabra aprendida aparece sin niebla en la carta; llega al 100 % en la ceremonia del hilo y, al final, la contestas.
 - **20 juegos**, también sueltos en *la feria del templo*, que es de noche y con luces: Parejas, Memoria del templo, Monzón, ¿Sí o บ่?, Noche de farolillos, Oído de elefante, Trompa de tonos, ¿Tigre o camisa?, Eco, Puente de bambú, La palabra perdida, Cestas del mercado, Noi dice, Paga justo, Cena familiar, 1.864 curvas, Cueva de las letras, Une los puntos, Bloques de sílabas y Cuentos de Yai. Cada uno tiene su escenario animado, efectos en cada acierto, niveles en la feria y una racha en forma de llama. Lo que se falla vuelve más tarde en la misma partida, y solo baja en el repaso lo que de verdad no se sabía.
 - **Sin castigos**: errores con «ไม่เป็นไร», racha de farolillos protegida por paraguas de Bo Sang, plátanos como recompensa, repaso espaciado en el palabrario.
-- **Detalles**: los 5 tonos tienen 5 colores en toda la app, partícula ครับ/ค่ะ y pronombre según quien aprende, tipografía thai con bucles, voz th-TH (también al 60 %) con aviso si el dispositivo no la tiene instalada, sonidos pentatónicos de marimba y vibración.
+- **Recordatorio de Noi**: en Pasaporte → Ajustes se puede activar un aviso diario y elegir la hora. Empieza apagado; el permiso se pide al activarlo. La hora queda guardada y se programa en el dispositivo, con un único aviso recurrente que se actualiza al cambiarla y se cancela al desactivarlo o reiniciar el progreso. Al tocar la notificación se abre el camino. En primer plano no interrumpe una lección ni su audio.
+- **Detalles**: los 5 tonos tienen 5 colores en toda la app, partícula ครับ/ค่ะ y pronombre según quien aprende, tipografía thai con bucles, voz th-TH con modo «Más lento» y aviso si falta la voz del sistema, barritos de Noi con notas de madera para aciertos y fallos, y vibración.
 
 ## Arrancar
 
@@ -30,6 +31,32 @@ npm run typecheck
 ```
 
 Las librerías nativas (expo-audio, expo-haptics, expo-speech, react-native-svg) vienen en Expo Go; para publicar, `npx eas-cli@latest build`.
+
+## TestFlight
+
+La versión visible es `1.0.0` (`expo.version` en `app.json`). `eas.json` usa `cli.appVersionSource: "remote"` y `build.production.autoIncrement: true`: EAS incrementa el número de build de cada compilación de producción, sin cambiar la versión visible. El perfil `production` genera una app firmada para la tienda; `simulator` genera una app de simulador y no sirve para TestFlight.
+
+El checkout está vinculado a [@gartzia6/sanuk](https://expo.dev/accounts/gartzia6/projects/sanuk), proyecto `579d250c-0428-41af-8c4a-4cf052f1c3fc`. El perfil `production` usa el contador remoto de EAS con `autoIncrement: true`. Consulta su valor con `npx eas-cli@latest build:version:get --platform ios --profile production`. Si necesitas sincronizarlo con una build ya enviada a App Store Connect, ajusta el contador con `npx eas-cli@latest build:version:set --platform ios --profile production` antes de generar la siguiente.
+
+```bash
+npm run lint
+npm run typecheck
+npm run test:layout
+npm run test:audio
+npm run test:eco
+npm run test:reminders
+npm run temario:test
+npm run build:testflight       # genera la .ipa en EAS; incrementa el número de build
+npm run submit:testflight      # selecciona y envía la build a App Store Connect
+```
+
+La firma requiere la cuenta Apple Developer del propietario. La primera subida debe identificar la app de App Store Connect (`app.sanuk.thai`) y configurar las credenciales de firma y envío. Guarda su Apple ID numérico como `submit.production.ios.ascAppId` cuando esté confirmado; no se incluye un identificador de ejemplo. Las claves privadas permanecen en EAS o fuera del repositorio.
+
+La configuración incluye permiso de micrófono en español, manifiesto de privacidad con las razones declaradas por las dependencias instaladas, uso de cifrado no exento desactivado y audio de fondo desactivado. La voz grabada y el progreso permanecen en el dispositivo según el código actual. La validación de Apple, la firma y las pruebas nativas en dispositivos siguen siendo pasos separados de compilar los bundles JavaScript.
+
+Los perfiles iOS fijan Xcode 27.2 para incluir el soporte de pantalla completa del iPhone Duo (SDK 27.1 o posterior). La navegación nativa coloca las pestañas según la ventana; `ScreenFrame` reserva los márgenes asimétricos para los controles y mantiene los fondos hasta los bordes. Las rejillas y el mapa se adaptan al ancho local sin reiniciar la partida al plegar. Para revisar cambios, probar cerrado, abierto, girado y el iPhone normal; la web conserva su columna de 520 puntos.
+
+El recordatorio usa `expo-notifications` con `enableRemoteNotifications: false`: es local y no requiere credenciales APNs, un servidor ni obtener un token push. La nueva dependencia nativa y el selector de hora requieren una nueva build para probarse en TestFlight. El dispositivo aplica sus preferencias de notificaciones y modos de concentración; en Android el aviso usa la entrega estándar, sin pedir permiso de alarmas exactas.
 
 ## Revisar el temario
 

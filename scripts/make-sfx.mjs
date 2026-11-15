@@ -1,7 +1,8 @@
-// Sintetiza los efectos de sonido de Sanuk (WAV 16-bit mono 22,05 kHz).
-// Afinados en pentatónica, con timbre de marimba de madera (ranat ek).
+// Sintetiza los efectos de Sanuk (22,05 kHz) y copia los barritos de Noi elegidos (44,1 kHz).
+// WAV 16-bit mono. Los másteres de Noi combinan una grabación CC0 y notas de madera.
 // Uso: node scripts/make-sfx.mjs  →  assets/sfx/*.wav
-import { mkdirSync, writeFileSync } from 'node:fs';
+// Solo acierto/fallo de Noi: node scripts/make-sfx.mjs --noi
+import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const SR = 22050;
@@ -9,7 +10,6 @@ const OUT = join(import.meta.dirname, '..', 'assets', 'sfx');
 mkdirSync(OUT, { recursive: true });
 
 const note = (n) => 440 * Math.pow(2, (n - 69) / 12); // MIDI → Hz
-const silence = (sec) => new Float32Array(Math.round(SR * sec));
 
 /** Barra de madera: fundamental + armónicos inarmónicos, ataque instantáneo y caída exponencial. */
 function mallet(freq, dur = 0.35, amp = 0.6, decay = 9) {
@@ -122,18 +122,26 @@ function wav(name, data) {
   h.writeUInt32LE(SR * 2, 28);
   h.writeUInt16LE(2, 32);
   h.writeUInt16LE(16, 34);
+  h.write('data', 36);
   h.writeUInt32LE(pcm.length, 40);
   writeFileSync(join(OUT, `${name}.wav`), Buffer.concat([h, pcm]));
 }
 
+// Opción 3, «elefante musical»: conservar exactamente la pareja elegida al regenerar efectos.
+for (const name of ['ok', 'bad']) {
+  copyFileSync(join(import.meta.dirname, 'sfx', 'noi', `${name}.wav`), join(OUT, `${name}.wav`));
+}
+if (process.argv.includes('--noi')) {
+  console.log('Noi · acierto y fallo →', OUT);
+  process.exit(0);
+}
+
 // Pentatónica de do: do re mi sol la
-const E5 = note(76), G5 = note(79), A5 = note(81), C6 = note(84), D6 = note(86), E6 = note(88), C5 = note(72), A4 = note(69);
+const E5 = note(76), G5 = note(79), A5 = note(81), C6 = note(84), D6 = note(86), E6 = note(88), C5 = note(72);
 
 wav('tap', chirp(900, 1300, 0.045, 0.35));
 wav('pop', chirp(520, 1250, 0.08, 0.45));
-wav('ok', mix([mallet(E5, 0.3, 0.55), 0], [mallet(A5, 0.45, 0.6), 0.09]));
 wav('combo', mix([mallet(G5, 0.25, 0.5), 0], [mallet(A5, 0.25, 0.5), 0.07], [mallet(C6, 0.25, 0.5), 0.14], [mallet(E6, 0.5, 0.55), 0.21]));
-wav('bad', mix([mallet(A4 / 2, 0.22, 0.55, 22), 0], [noise(0.05, 0.25, 80, 0.5), 0]));
 wav('flip', noise(0.14, 0.35, 22, 0.35));
 wav('bell', bell(C6, 1.2, 0.4));
 wav('stamp', mix([chirp(140, 60, 0.12, 0.7), 0], [noise(0.09, 0.4, 45, 0.25), 0]));

@@ -1,5 +1,5 @@
 // Voz y tiempos de los juegos de «Oído y tonos»: decir thai sabiendo cuándo empieza y cuándo acaba
-// (aunque la voz del sistema no avise) para animar ondas, curvas y ecos a la vez, y temporizadores
+// para animar ondas, curvas y ecos a la vez, y temporizadores
 // que se cancelan solos al salir del juego.
 import { useEffect, useRef, useState } from 'react';
 
@@ -63,11 +63,9 @@ export type SpeakOpts = {
 export function useVoice() {
   const [talking, setTalking] = useState(false);
   const seq = useRef(0);
-  const timers = useTimers();
-  useEffect(() => () => stopSpeech(), []);
+  useEffect(() => () => { void stopSpeech(); }, []);
 
   const speak = (th: string, o: SpeakOpts = {}) => {
-    timers.clear();
     seq.current += 1;
     const id = seq.current;
     const ms = speechMs(o.rom ?? th, o.slow);
@@ -87,16 +85,16 @@ export function useVoice() {
     };
     setTalking(true);
     say(th, { slow: o.slow, onStart: start, onDone: end });
-    // por si la voz no avisa (web sin voz thai, errores…)
-    timers.later(start, 850);
-    timers.later(end, 850 + ms + 1500);
+    // La duración estimada solo anima la curva. Darla por terminada con un temporizador
+    // cortaba la voz lenta y arrancaba «tú» mientras Noi seguía hablando.
+    // say() ya resuelve los errores y el caso sin voz; aquí manda su final real.
   };
 
   const stop = () => {
     seq.current += 1;
-    timers.clear();
-    stopSpeech();
+    const stopped = stopSpeech();
     setTalking(false);
+    return stopped;
   };
 
   return { talking, speak, stop };

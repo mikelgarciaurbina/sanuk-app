@@ -5,6 +5,7 @@ import { LESSONS, RENAMED_LESSONS } from '@/content';
 import type { GameId } from '@/content/types';
 import type { Gender } from '@/lib/thai';
 import { daysBetween, todayKey } from '@/lib/random';
+import { DEFAULT_REMINDER, normalizeReminder, type DailyReminder } from '@/lib/reminder-config';
 
 /** `intro`: la palabra ya se ha presentado con su ficha. Responderla en un juego no la presenta. */
 export type WordStat = { s: number; due: number; seen: number; ok: number; bad: number; intro?: boolean };
@@ -17,7 +18,7 @@ export type Profile = {
   goal: number;
 };
 
-export type Settings = { sound: boolean; haptics: boolean; voiceRate: number; romanization: boolean };
+export type Settings = { sound: boolean; haptics: boolean; voiceRate: number; romanization: boolean; reminder: DailyReminder };
 
 export type Progress = {
   /** 2: el temario reordenó paradas y lecciones (las del mirador Kiew Lom van antes que la cueva Tham Lod) */
@@ -56,7 +57,7 @@ export const INITIAL: Progress = {
   games: {},
   stamps: [],
   missions: [],
-  settings: { sound: true, haptics: true, voiceRate: 0.85, romanization: true },
+  settings: { sound: true, haptics: true, voiceRate: 0.85, romanization: true, reminder: DEFAULT_REMINDER },
 };
 
 /** Parada de una lección por su id («p6l3» → «p6»). */
@@ -143,7 +144,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       .then((raw) => {
         if (raw) {
           const saved = migrate(JSON.parse(raw) as Progress & { v: number });
-          setP({ ...INITIAL, ...saved, settings: { ...INITIAL.settings, ...saved.settings } });
+          setP({ ...INITIAL, ...saved, settings: { ...INITIAL.settings, ...saved.settings, reminder: normalizeReminder(saved.settings?.reminder) } });
         }
       })
       .catch(() => {})

@@ -1,3 +1,4 @@
+import { useAppDimensions } from '@/lib/layout';
 // Une los puntos: escribe las consonantes como se aprenden en la escuela tailandesa, empezando por la cabeza (el
 // bucle) y en su sentido. En el templo, sobre una hoja de palma enmarcada en laca, una tinta dorada sigue tu dedo
 // por el trazo de verdad; cada punto se enciende con una nota más aguda y, al terminar, la letra destella y dice su
@@ -5,7 +6,7 @@
 // plantilla desaparece y, en el último nivel, también los puntos: solo queda el 1 y hay que escribirla de memoria;
 // si te pierdes, se enciende el siguiente punto.
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
-import { StyleSheet, Text, View, useWindowDimensions, type GestureResponderEvent } from 'react-native';
+import { StyleSheet, Text, View, type GestureResponderEvent } from 'react-native';
 import Animated, {
   Easing,
   FadeInDown,
@@ -343,7 +344,7 @@ export default function Traza({ mode, extra, rounds, onAnswer, onDone }: GamePro
   const feria = mode === 'feria';
   const score = useScore(mode);
   const juice = useJuice();
-  const { width: winW, height: winH } = useWindowDimensions();
+  const { width: winW, height: winH } = useAppDimensions();
   const total0 = feria ? 6 : Math.max(1, rounds ?? 1);
   const setName = extra?.kind === 'letras' && LETTER_SETS[extra.set] ? extra.set : 'media';
 

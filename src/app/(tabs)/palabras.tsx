@@ -1,6 +1,7 @@
+import { ScreenFrame } from '@/components/ScreenFrame';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { color, font, shadow } from '@/brand/tokens';
@@ -10,11 +11,19 @@ import { MIN_REVIEW_WORDS, STOPS, canReview, dueWords, introducedIds, wordsOf } 
 import type { Word } from '@/content/types';
 import { fx, say } from '@/lib/audio';
 import { useStore, type WordStat } from '@/lib/store';
+import { useAppDimensions } from '@/lib/layout';
+import { gridColumns } from '@/lib/viewport';
 
 /** El palabrario: todas las palabras del camino; cada una «crece» con el repaso. */
 export default function Palabras() {
+  return <ScreenFrame tab={Platform.OS === 'ios'}><PalabrasContent /></ScreenFrame>;
+}
+
+function PalabrasContent() {
   const { p } = useStore();
   const insets = useSafeAreaInsets();
+  const { width } = useAppDimensions();
+  const columns = gridColumns(width);
   const [stop, setStop] = useState<string>('todas');
   const [tab, setTab] = useState<'palabras' | 'gramatica'>('palabras');
   const due = dueWords(p);
@@ -75,9 +84,10 @@ export default function Palabras() {
   return (
     <View style={{ flex: 1, backgroundColor: color.niebla }}>
       <FlatList
+        key={columns}
         data={words}
         keyExtractor={(w) => w.id}
-        numColumns={2}
+        numColumns={columns}
         columnWrapperStyle={{ gap: 12, paddingHorizontal: 20 }}
         contentContainerStyle={{ paddingTop: insets.top + 12, paddingBottom: 30, gap: 12 }}
         ListHeaderComponent={

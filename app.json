@@ -10,7 +10,53 @@
     "backgroundColor": "#F3F6FA",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.sanuk.thai"
+      "bundleIdentifier": "app.sanuk.thai",
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "infoPlist": {
+        "CFBundleDevelopmentRegion": "es",
+        "CFBundleLocalizations": [
+          "es"
+        ],
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": false,
+          "NSAllowsLocalNetworking": true
+        }
+      },
+      "privacyManifests": {
+        "NSPrivacyTracking": false,
+        "NSPrivacyCollectedDataTypes": [],
+        "NSPrivacyAccessedAPITypes": [
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "CA92.1"
+            ]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryFileTimestamp",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "C617.1",
+              "0A2A.1",
+              "3B52.1"
+            ]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryDiskSpace",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "E174.1",
+              "85F4.1"
+            ]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategorySystemBootTime",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "35F9.1"
+            ]
+          }
+        ]
+      }
     },
     "android": {
       "package": "app.sanuk.thai",
@@ -41,14 +87,32 @@
       [
         "expo-audio",
         {
-          "microphonePermission": "Sanuk usa el micrófono para que grabes tu voz y la compares con la pronunciación thai."
+          "microphonePermission": "Sanuk usa el micrófono para que grabes tu voz y la compares con la pronunciación thai.",
+          "enableBackgroundPlayback": false,
+          "enableBackgroundRecording": false
         }
       ],
-      "expo-font"
+      "expo-font",
+      "expo-status-bar",
+      "expo-asset",
+      "@react-native-community/datetimepicker",
+      [
+        "expo-notifications",
+        {
+          "enableRemoteNotifications": false,
+          "enableBackgroundRemoteNotifications": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "579d250c-0428-41af-8c4a-4cf052f1c3fc"
+      }
+    },
+    "owner": "gartzia6"
   }
 }

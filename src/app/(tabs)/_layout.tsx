@@ -1,6 +1,7 @@
 import { Tabs, type BottomTabBarProps } from 'expo-router/js-tabs';
+import { NativeTabs } from 'expo-router/native-tabs';
 import { useEffect } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -58,6 +59,26 @@ function TabBar({ state, navigateToTab }: BottomTabBarProps) {
 }
 
 export default function TabsLayout() {
+  if (Platform.OS === 'ios') return (
+    <NativeTabs tintColor={color.azafranHondo} iconColor={{ default: color.tinta3, selected: color.azafranHondo }} labelStyle={{ fontFamily: font.uiHeavy, fontSize: 11 }} disableTransparentOnScrollEdge>
+      <NativeTabs.Trigger name="index" disableAutomaticContentInsets>
+        <NativeTabs.Trigger.Label>Camino</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf={{ default: 'map', selected: 'map.fill' }} />
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="feria" disableAutomaticContentInsets>
+        <NativeTabs.Trigger.Label>Feria</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="sparkles" />
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="palabras" disableAutomaticContentInsets>
+        <NativeTabs.Trigger.Label>Palabras</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf={{ default: 'text.book.closed', selected: 'text.book.closed.fill' }} />
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="pasaporte" disableAutomaticContentInsets>
+        <NativeTabs.Trigger.Label>Pasaporte</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf={{ default: 'person.crop.rectangle', selected: 'person.crop.rectangle.fill' }} />
+      </NativeTabs.Trigger>
+    </NativeTabs>
+  );
   return (
     <Tabs tabBar={(props) => <TabBar {...props} />} screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: color.niebla } }}>
       <Tabs.Screen name="index" />

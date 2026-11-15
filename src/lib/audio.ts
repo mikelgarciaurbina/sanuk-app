@@ -34,21 +34,45 @@ const SOURCES = {
   plip: require('../../assets/sfx/plip.wav'),
 } as const;
 
-/** Notas de la cadena de aciertos, de grave a agudo (pentatónica). */
-const CHAIN: Sfx[] = ['n1', 'n2', 'n3', 'n4', 'n5', 'n6', 'n7', 'n8'];
-
 export type Sfx = keyof typeof SOURCES;
+type ResultSound = 'ok' | 'bad';
 
 const players: Partial<Record<Sfx, AudioPlayer>> = {};
 let soundOn = true;
 let hapticsOn = true;
 let voiceRate = 0.85;
 let initialized = false;
+let quietEffects = 0;
+
+/** El micro y la comparación necesitan la sesión libre de efectos, incluso los ya iniciados. */
+export function suspendSoundEffects(): () => void {
+  quietEffects += 1;
+  pauseResult(false);
+  for (const player of Object.values(players)) {
+    try { player?.pause(); } catch {}
+  }
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    quietEffects -= 1;
+  };
+}
+
+// iOS no escala la duración de forma lineal: multiplicar por 0.6 apenas pausaba la voz.
+// Este ajuste se calibra con palabras thai; los otros motores conservan su factor de lectura lenta.
+const SLOW_VOICE_FACTOR = Platform.OS === 'ios' ? 0.1 : 0.6;
 
 export function configureAudio(opts: { sound: boolean; haptics: boolean; voiceRate: number }) {
   soundOn = opts.sound;
   hapticsOn = opts.haptics;
   voiceRate = opts.voiceRate;
+  if (!soundOn) {
+    pauseResult(false);
+    for (const player of Object.values(players)) {
+      try { player?.pause(); } catch {}
+    }
+  }
 }
 
 // ——— La voz thai ———
@@ -202,17 +226,104 @@ export async function initAudio() {
   try {
     await setAudioModeAsync({ playsInSilentMode: true });
   } catch {}
+  // Cargados antes de la primera respuesta: el primer soplido también debe oírse.
+  try {
+    playerFor('ok');
+    playerFor('bad');
+  } catch {}
   watchVoices();
   await refreshThaiVoice().catch(() => {});
 }
 
 export function sfx(name: Sfx) {
-  if (!soundOn) return;
+  if (!soundOn || quietEffects) return;
+  if (name === 'ok' || name === 'bad') {
+    pauseResult(false);
+    pendingResult = name;
+    flushResult();
+    return;
+  }
   try {
-    const p = (players[name] ??= createAudioPlayer(SOURCES[name]));
+    const p = playerFor(name);
+    p.volume = finishSpeech ? 0.12 : 1;
     p.seekTo(0);
     p.play();
   } catch {}
+}
+
+function playerFor(name: Sfx) {
+  return players[name] ??= createAudioPlayer(SOURCES[name], { updateInterval: 50 });
+}
+
+function mixEffects() {
+  for (const [name, player] of Object.entries(players)) {
+    if (name === 'ok' || name === 'bad') continue;
+    try { if (player) player.volume = finishSpeech ? 0.12 : 1; } catch {}
+  }
+}
+
+let pendingResult: ResultSound | null = null;
+let activeResult: { name: ResultSound; player: AudioPlayer; started: boolean } | null = null;
+let resultTimer: ReturnType<typeof setTimeout> | undefined;
+let resultSeq = 0;
+
+/** La pronunciación manda: se pausa el gesto de Noi y se guarda para después de la frase. */
+function pauseResult(resume: boolean) {
+  resultSeq += 1;
+  clearTimeout(resultTimer);
+  resultTimer = undefined;
+  if (!resume) pendingResult = null;
+  else if (activeResult && (!activeResult.started || activeResult.player.playing)) pendingResult ??= activeResult.name;
+  activeResult = null;
+  for (const name of ['ok', 'bad'] as const) {
+    try { players[name]?.pause(); } catch {}
+  }
+}
+
+function loaded(player: AudioPlayer): Promise<void> {
+  if (player.isLoaded) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      sub.remove();
+      reject(new Error('No se ha cargado el sonido de Noi'));
+    }, 3000);
+    const sub = player.addListener('playbackStatusUpdate', (status) => {
+      if (!status.isLoaded) return;
+      clearTimeout(timeout);
+      sub.remove();
+      resolve();
+    });
+  });
+}
+
+function flushResult() {
+  if (!soundOn || quietEffects || finishSpeech || !pendingResult) return;
+  clearTimeout(resultTimer);
+  // Deja pasar la llamada a say() del mismo gesto y una pequeña separación después del thai.
+  resultTimer = setTimeout(() => {
+    resultTimer = undefined;
+    if (!soundOn || quietEffects || finishSpeech || !pendingResult) return;
+    const name = pendingResult;
+    const seq = ++resultSeq;
+    const play = async () => {
+      const player = playerFor(name);
+      const active = { name, player, started: false };
+      activeResult = active;
+      await loaded(player);
+      if (seq !== resultSeq) return;
+      await player.seekTo(0);
+      if (seq !== resultSeq || finishSpeech || !soundOn) return;
+      player.volume = 0.8;
+      pendingResult = null;
+      active.started = true;
+      player.play();
+    };
+    play().catch(() => {
+      if (seq !== resultSeq) return;
+      activeResult = null;
+      pendingResult = null;
+    });
+  }, 80);
 }
 
 /** Lo que tardaría en decirse (ms), a ojo: solo para avisar del final cuando no hay voz que lo diga. */
@@ -226,70 +337,107 @@ const cutMute = () => {
   m?.cut();
 };
 
+let speechSeq = 0;
+let finishSpeech: (() => void) | null = null;
+let stopping = Promise.resolve();
+
+// La cancelación nativa es asíncrona. No se puede lanzar otra frase hasta que haya terminado:
+// un stop pendiente podría borrar la frase nueva. También se ordenan los toques rápidos.
 const hush = () => {
-  try {
-    Speech.stop().catch(() => {});
-  } catch {}
+  stopping = stopping.then(() => Speech.stop()).catch(() => {});
+  return stopping;
 };
 
 /**
- * Pronuncia thai con la voz del sistema. `slow` = 60 % de velocidad. `onDone` llega siempre y una sola vez:
+ * Pronuncia thai con la voz del sistema. `slow` = pronunciación pausada para repetir. `onDone` llega una sola vez:
  * al acabar, al cortarla otra frase o si la voz falla. Sin voz thai no se intenta (otra voz leería cualquier
  * cosa): se avisa del inicio y del final como si hubiera sonado, para que el juego siga.
  */
 export function say(th: string, opts: { slow?: boolean; onDone?: () => void; onStart?: () => void } = {}) {
+  const id = ++speechSeq;
+  const previous = finishSpeech;
   let settled = false;
   const done = () => {
     if (settled) return;
     settled = true;
+    if (finishSpeech === done) finishSpeech = null;
     opts.onDone?.();
+    mixEffects();
+    flushResult();
   };
+  finishSpeech = done;
+  mixEffects();
+  pauseResult(true);
+  const stopped = hush();
   cutMute();
-  hush();
-  if (listed === 'missing') {
-    const starts = setTimeout(() => opts.onStart?.(), 60);
-    const ends = setTimeout(() => {
-      if (mute === me) mute = null;
-      done();
-    }, 60 + guessMs(th, opts.slow));
-    const me = {
-      cut: () => {
-        clearTimeout(starts);
-        clearTimeout(ends);
-        done();
-      },
+  previous?.();
+
+  const speak = async () => {
+    await stopped;
+    if (id !== speechSeq) return;
+    // La primera frase también espera a conocer la voz: no debe usar por accidente la del teléfono.
+    const status = await thaiVoiceStatus();
+    if (id !== speechSeq) return;
+    const start = () => {
+      if (!settled && id === speechSeq) opts.onStart?.();
     };
-    mute = me;
-    return;
-  }
-  try {
+    if (status === 'missing') {
+      const starts = setTimeout(start, 60);
+      const ends = setTimeout(() => {
+        if (mute === me) mute = null;
+        done();
+      }, 60 + guessMs(th, opts.slow));
+      const me = {
+        cut: () => {
+          clearTimeout(starts);
+          clearTimeout(ends);
+          done();
+        },
+      };
+      mute = me;
+      return;
+    }
     Speech.speak(th, {
       language: THAI_LANG,
       voice: thaiVoice,
-      rate: opts.slow ? voiceRate * 0.6 : voiceRate,
+      rate: opts.slow ? voiceRate * SLOW_VOICE_FACTOR : voiceRate,
       pitch: 1.05,
-      onStart: opts.onStart,
+      // expo-audio desactiva su sesión al acabar un efecto. La síntesis debe gestionar la suya:
+      // compartirla dejaba a Noi muda después del primer sonido, tanto al repetir como en los juegos.
+      ...(Platform.OS === 'ios' ? { useApplicationAudioSession: false } : {}),
+      onStart: start,
       onDone: () => {
-        // ha sonado entera: la voz funciona
+        if (settled) return;
         failures = 0;
         if (failing) setVoiceState({ failing: false });
         done();
       },
       onStopped: done,
       onError: () => {
-        // Android avisa aquí cuando la voz no puede hablar (en la web también llega al cortar una frase, y no cuenta)
+        if (settled) return;
+        // Android avisa cuando la voz no puede hablar (web también al cortar una frase: no cuenta).
         if (Platform.OS === 'android' && ++failures >= 2) setVoiceState({ failing: true });
         done();
       },
     });
-  } catch {
-    done();
-  }
+  };
+  speak().catch(() => {
+    if (id === speechSeq) {
+      done();
+    }
+  });
 }
 
 export const stopSpeech = () => {
+  speechSeq += 1;
+  const previous = finishSpeech;
+  finishSpeech = null;
+  // Al salir de la pantalla no se arrastran reacciones pendientes al siguiente ejercicio.
+  pauseResult(false);
+  const stopped = hush();
   cutMute();
-  hush();
+  previous?.();
+  return stopped;
 };
 
 const canBuzz = () => hapticsOn && Platform.OS !== 'web';
@@ -304,10 +452,9 @@ export const fx = {
     sfx('pop');
     if (canBuzz()) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
   },
-  /** Acierto: cada acierto seguido sube una nota de la escala; cada 5 seguidos suena además el arpegio. */
-  ok(combo = 0) {
-    sfx(CHAIN[Math.max(0, Math.min(CHAIN.length - 1, combo - 1))]);
-    if (combo >= 5 && combo % 5 === 0) sfx('combo');
+  /** Acierto: barrito de Noi con notas ascendentes. La racha sigue contando en cada juego. */
+  ok(_combo = 0) {
+    sfx('ok');
     if (canBuzz()) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
   },
   /** Brillo de campanillas: acierto perfecto, premio, algo mágico. */
@@ -348,6 +495,7 @@ export const fx = {
     sfx('plip');
     if (canBuzz()) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
   },
+  /** Fallo: barrito más grave y notas descendentes, sin un aviso estridente. */
   bad() {
     sfx('bad');
     if (canBuzz()) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft).catch(() => {});

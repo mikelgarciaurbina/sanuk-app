@@ -1,3 +1,4 @@
+import { useAppDimensions } from '@/lib/layout';
 // Juego 13 · Noi dice. Noi, enorme en lo alto de una colina, pide en thai que le toques una parte del cuerpo:
 // «น้อยบอกว่า แตะหู» (Noi dice: toca la oreja). Al acertar, esa parte brilla, salen corazones, suena una nota más
 // aguda en cada acierto seguido y aparece la palabra con su traducción. Su izquierda es tu derecha. Si le tocas la
@@ -7,7 +8,7 @@
 // órdenes dobles (แตะหู แล้วแตะตา), rondas cada vez más rápidas, combos que multiplican y bonus por rapidez.
 // Lo que se falla vuelve unas órdenes después. Qué parte se ha tocado lo decide la geometría de ./frases/noiZones.
 import { useEffect, useEffectEvent, useId, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View, useWindowDimensions, type GestureResponderEvent } from 'react-native';
+import { Pressable, StyleSheet, Text, View, type GestureResponderEvent } from 'react-native';
 import Animated, { Easing, FadeIn, FadeInDown, useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
 import Svg, { Circle, Defs, Ellipse, LinearGradient, Path, RadialGradient, Stop } from 'react-native-svg';
 
@@ -176,7 +177,7 @@ function NoiDiceGame({ mode, plan, reads, onAnswer, onDone }: GameProps & { plan
   const score = useScore(mode);
   const juice = useJuice();
   const later = useLater();
-  const { width, height } = useWindowDimensions();
+  const { width, height } = useAppDimensions();
   const [rounds, setRounds] = useState(plan);
   // al tocar una parte que aún no se ha enseñado (la barriga…) solo se dice en español
   const [inPlay] = useState(() => new Set(plan.flatMap((r) => r.cmds.map((c) => c.target))));

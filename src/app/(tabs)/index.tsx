@@ -1,6 +1,8 @@
+import { ScreenFrame } from '@/components/ScreenFrame';
+import { BackgroundOutsets, useAppDimensions } from '@/lib/layout';
 import { router } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions, type ScrollViewInstance } from 'react-native';
+import { useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { Platform, Pressable, ScrollView, StyleSheet, View, type ScrollViewInstance } from 'react-native';
 import Animated, { FadeIn, FadeInDown, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming, ZoomIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Path } from 'react-native-svg';
@@ -30,15 +32,23 @@ const stopLabel = (s: Stop) => (seasonOf(s) === 2 ? `Luna ${moonOf(s)} · ${s.mo
 
 /** El camino: en la temporada 1 cada lección es una curva de la carretera; en la 2, un paso del año en el pueblo. */
 export default function Camino() {
+  return <ScreenFrame tab={Platform.OS === 'ios'}><CaminoContent /></ScreenFrame>;
+}
+
+function CaminoContent() {
   const { p, dismissNews } = useStore();
   const insets = useSafeAreaInsets();
-  const { width, height } = useWindowDimensions();
+  const { width, height } = useAppDimensions();
+  const outsets = useContext(BackgroundOutsets);
+  const wide = width >= 760;
+  const panelWidth = wide ? 340 : 0;
+  const stackSeason = wide || width < 420;
   const scroll = useRef<ScrollViewInstance>(null);
   const [hint, setHint] = useState<string | null>(null);
   // la cabecera flota sobre el mapa y su alto cambia (avisos, textos en dos líneas): el camino empieza por debajo de ella,
   // para que las últimas curvas de cada temporada no queden tapadas
   const [headH, setHeadH] = useState(insets.top + 240);
-  const TOP = headH + HEAD_ROOM;
+  const TOP = (wide ? insets.top + 20 : headH) + HEAD_ROOM;
 
   const cur = currentLesson(p);
   const curSeason = seasonOf(cur.stop);
@@ -51,7 +61,7 @@ export default function Camino() {
   // el React Compiler ya memoiza: no hace falta useMemo
   const list = LESSONS.filter((l) => seasonOf(l.stop) === season);
   const N = list.length;
-  const W = Math.min(width, 520);
+  const W = width - panelWidth;
   const amp = (W - 150) / 2;
   const cx = W / 2;
   const contentH = TOP + N * STEP + 140;
@@ -80,9 +90,11 @@ export default function Camino() {
   useEffect(() => {
     const k = curK >= 0 ? curK : seasonPassed ? N - 1 : 0;
     const y = TOP + (N - 1 - k) * STEP;
-    const t = setTimeout(() => scroll.current?.scrollTo({ y: Math.max(0, y - height * 0.45), animated: false }), 60);
+    // El cartel de «Empezar» también debe quedar por debajo de una cabecera que ocupe varias filas.
+    const targetY = Math.min(height - 100, Math.max(height * 0.48, wide ? 0 : headH + 110));
+    const t = setTimeout(() => scroll.current?.scrollTo({ y: Math.max(0, y - targetY), animated: false }), 60);
     return () => clearTimeout(t);
-  }, [curK, seasonPassed, N, height, season, TOP]);
+  }, [curK, seasonPassed, N, height, season, TOP, headH, wide]);
 
   const trees = useMemo(() => {
     const out: { x: number; y: number; r: number }[] = [];
@@ -116,7 +128,8 @@ export default function Camino() {
 
   return (
     <View style={{ flex: 1, backgroundColor: look.bg }}>
-      <ScrollView key={season} ref={scroll} contentContainerStyle={{ height: contentH, width: W, alignSelf: 'center' }} showsVerticalScrollIndicator={false}>
+      <View pointerEvents="none" style={{ position: 'absolute', top: 0, bottom: -outsets.bottom, left: -outsets.left, right: -outsets.right, backgroundColor: look.bg }} />
+      <ScrollView key={season} ref={scroll} style={{ marginLeft: panelWidth }} contentContainerStyle={{ height: contentH, width: W, alignSelf: 'center' }} showsVerticalScrollIndicator={false}>
         <Svg width={W} height={contentH} style={StyleSheet.absoluteFill}>
           {list.map((l, k) => {
             if (l.inStop !== 0) return null;
@@ -218,8 +231,8 @@ export default function Camino() {
         </View>
       </ScrollView>
 
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]} pointerEvents="box-none" onLayout={(e) => setHeadH(Math.round(e.nativeEvent.layout.height))}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+      <View style={[styles.header, { paddingTop: insets.top + 8 }, wide && { width: panelWidth, right: undefined }]} pointerEvents="box-none" onLayout={(e) => setHeadH(Math.round(e.nativeEvent.layout.height))}>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
           <HudChip icon={streak.litToday ? 'farol' : 'farolOff'} label={String(streak.count)} warn={streak.atRisk} />
           <HudChip icon="platano" label={String(p.bananas)} />
           <HudChip icon="paraguas" label={String(p.streak.umbrellas)} />
@@ -253,7 +266,7 @@ export default function Camino() {
             </Txt>
           </View>
         </Pressable>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <View style={{ flexDirection: stackSeason ? 'column' : 'row', alignItems: stackSeason ? 'flex-start' : 'center', gap: 8 }}>
           {season === 1 ? (
             <View style={styles.curves}>
               <Art name="curva" size={20} />
@@ -269,7 +282,7 @@ export default function Camino() {
               </Txt>
             </View>
           )}
-          <View style={{ flex: 1 }} />
+          {!stackSeason ? <View style={{ flex: 1 }} /> : null}
           {HAS_SEASON_2 ? <SeasonTabs season={season} locked2={curSeason === 1} onPick={pick} /> : null}
         </View>
         {p.news ? (

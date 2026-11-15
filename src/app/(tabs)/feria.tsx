@@ -1,6 +1,7 @@
+import { ScreenFrame } from '@/components/ScreenFrame';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { Easing, FadeInDown, useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withRepeat, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Rect } from 'react-native-svg';
@@ -17,6 +18,8 @@ import { fx } from '@/lib/audio';
 import { MIN_FERIA_WORDS, feriaWords } from '@/lib/feria';
 import { todayKey } from '@/lib/random';
 import { useStore } from '@/lib/store';
+import { useAppDimensions } from '@/lib/layout';
+import { gridColumns } from '@/lib/viewport';
 
 const CATS: ('Todos' | GameCategory)[] = ['Todos', 'Palabras', 'Oído y tonos', 'Frases', 'Vida real', 'Letras'];
 
@@ -30,8 +33,15 @@ export function gameOfTheDay(reached: number): GameMeta {
 
 /** La feria del templo (งานวัด), de noche y con luces: todos los juegos para jugar libremente. */
 export default function Feria() {
+  return <ScreenFrame tab={Platform.OS === 'ios'}><FeriaContent /></ScreenFrame>;
+}
+
+function FeriaContent() {
   const { p } = useStore();
   const insets = useSafeAreaInsets();
+  const { width } = useAppDimensions();
+  const columns = gridColumns(width);
+  const boothWidth = (width - 40 - (columns - 1) * 12) / columns;
   const [cat, setCat] = useState<(typeof CATS)[number]>('Todos');
   const reached = Math.max(p.profile.startStop, currentLesson(p).stop.n);
   const daily = gameOfTheDay(reached);
@@ -82,7 +92,7 @@ export default function Feria() {
 
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingHorizontal: 20 }}>
           {list.map((g, i) => (
-            <Booth key={g.id} g={g} i={i} locked={g.unlock > reached} best={p.games[g.id]?.best} plays={p.games[g.id]?.plays ?? 0} />
+            <Booth key={g.id} width={boothWidth} g={g} i={i} locked={g.unlock > reached} best={p.games[g.id]?.best} plays={p.games[g.id]?.plays ?? 0} />
           ))}
         </View>
       </ScrollView>
@@ -155,9 +165,9 @@ function Awning({ tint }: { tint: string }) {
   );
 }
 
-function Booth({ g, i, locked, best, plays }: { g: GameMeta; i: number; locked: boolean; best?: number; plays: number }) {
+function Booth({ g, i, locked, best, plays, width }: { g: GameMeta; i: number; locked: boolean; best?: number; plays: number; width: number }) {
   return (
-    <Animated.View entering={FadeInDown.delay(i * 40).springify().damping(15)} style={{ width: '47.5%' }}>
+    <Animated.View entering={FadeInDown.delay(i * 40).springify().damping(15)} style={{ width }}>
       <Press3D
         accessibilityLabel={locked ? `${g.name}, se abre en la parada ${g.unlock}` : g.name}
         onPress={() => {

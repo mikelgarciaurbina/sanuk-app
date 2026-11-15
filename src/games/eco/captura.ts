@@ -32,7 +32,7 @@ export type Mic = {
   kind: 'tono' | 'volumen';
   stop: () => Promise<Take>;
   /** deja de grabar sin guardar nada (al salir del juego) */
-  cancel: () => void;
+  cancel: () => Promise<void>;
 };
 
 export type MicOptions = {
@@ -58,8 +58,38 @@ let webWorks: boolean | null = null;
 let blobs: string[] = [];
 /** Grabaciones del teléfono (archivos de la caché) pendientes de borrar: cada intento deja un WAV de unos 100 kB. */
 let files: string[] = [];
+let closing = Promise.resolve();
+export const waitForCapture = () => closing;
+
+/** No abrir otro micro mientras el anterior todavía finaliza el archivo y restaura la sesión. */
+function managed(mic: Mic): Mic {
+  let stopped: Promise<Take> | undefined;
+  let cancelled: Promise<void> | undefined;
+  const track = <T,>(run: Promise<T>) => {
+    closing = Promise.all([closing, run]).then(() => {}, () => {});
+    return run;
+  };
+  return {
+    kind: mic.kind,
+    stop() {
+      if (cancelled) return cancelled.then(() => EMPTY);
+      return stopped ??= track(mic.stop());
+    },
+    cancel() {
+      if (stopped) return stopped.then(() => {}, () => {});
+      return cancelled ??= track(mic.cancel());
+    },
+  };
+}
+
 const keep = (uri: string | null) => {
   if (uri && !files.includes(uri)) files.push(uri);
+  if (uri && Platform.OS !== 'web') {
+    try {
+      const file = new File(uri);
+      if (!file.exists || file.size <= 0) return null;
+    } catch { return null; }
+  }
   return uri;
 };
 
@@ -84,9 +114,7 @@ export const rememberVoice = (p: Profile | null) => {
 
 /** Vuelve a dejar el audio para escuchar. */
 export async function restoreAudio() {
-  try {
-    await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
-  } catch {}
+  await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true, shouldRouteThroughEarpiece: false });
 }
 
 /** Suelta las grabaciones al salir del juego: las URL de Blob en la web y los archivos de la caché en el teléfono. */
@@ -207,8 +235,11 @@ async function openStream(o: MicOptions): Promise<Mic> {
   }
   try {
     uri = (await stream.startFileRecordingAsync({ format: 'wav' })).uri;
-  } catch {
-    // sin archivo se mide igual; solo no habrá con qué volver a oírse
+  } catch (error) {
+    // La comparación necesita un archivo: si no se puede guardar, probar el grabador convencional.
+    closed = true;
+    await drop();
+    throw error;
   }
   const t0 = Date.now();
   return {
@@ -221,8 +252,9 @@ async function openStream(o: MicOptions): Promise<Mic> {
         try {
           const r = await stream.stopFileRecordingAsync();
           uri = r.uri || uri;
-          if (r.duration > 0) ms = Math.round(r.duration * 1000);
-        } catch {}
+          if (r.duration > 0 && r.size > 44) ms = Math.round(r.duration * 1000);
+          else { keep(uri); uri = null; }
+        } catch { keep(uri); uri = null; }
       }
       await drop();
       // un flujo que no entrega nada no sirve: desde ahora, el grabador de siempre
@@ -231,11 +263,11 @@ async function openStream(o: MicOptions): Promise<Mic> {
       else if (works) streamWorks = true;
       return { uri: keep(uri), ms, frames: works ? m.frames : null, spoke: m.spoke() };
     },
-    cancel() {
+    async cancel() {
       if (closed) return;
       closed = true;
       keep(uri);
-      void drop();
+      await drop();
     },
   };
 }
@@ -329,13 +361,13 @@ async function openWeb(o: MicOptions): Promise<Mic | MicError | null> {
         end();
       }
     });
-  const drop = () => {
+  const drop = async () => {
     clearInterval(poll);
     stopTracks();
     try {
       source.disconnect();
     } catch {}
-    ctx.close().catch(() => {});
+    await ctx.close().catch(() => {});
   };
   return {
     kind: 'tono',
@@ -345,7 +377,7 @@ async function openWeb(o: MicOptions): Promise<Mic | MicError | null> {
       clearInterval(poll);
       const ms = Date.now() - t0;
       const uri = await saved();
-      drop();
+      await drop();
       releaseTakes();
       if (uri) blobs.push(uri);
       // un analizador que solo da ceros no está oyendo el micro: desde ahora, el grabador de siempre
@@ -354,13 +386,13 @@ async function openWeb(o: MicOptions): Promise<Mic | MicError | null> {
       else if (works) webWorks = true;
       return { uri, ms, frames: works ? m.frames : null, spoke: m.spoke() };
     },
-    cancel() {
+    async cancel() {
       if (closed) return;
       closed = true;
       try {
         if (recorder && recorder.state !== 'inactive') recorder.stop();
       } catch {}
-      drop();
+      await drop();
     },
   };
 }
@@ -369,9 +401,10 @@ async function openWeb(o: MicOptions): Promise<Mic | MicError | null> {
 
 async function openRecorder(o: MicOptions): Promise<Mic> {
   try {
-    await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+    await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true, shouldRouteThroughEarpiece: false });
     await o.recorder.prepareToRecordAsync();
     o.recorder.record();
+    if (!o.recorder.getStatus().isRecording) throw new Error('El micro no ha empezado a grabar');
   } catch (e) {
     await restoreAudio();
     throw e;
@@ -405,26 +438,23 @@ async function openRecorder(o: MicOptions): Promise<Mic> {
       await restoreAudio();
       return { uri: keep(uri), ms, frames: null, spoke: loud >= 3 };
     },
-    cancel() {
+    async cancel() {
       if (closed) return;
       closed = true;
       clearInterval(poll);
-      void (async () => {
-        try {
-          await o.recorder.stop();
-        } catch {}
-        await restoreAudio();
-      })();
+      try { await o.recorder.stop(); } catch {}
+      await restoreAudio();
     },
   };
 }
 
 /** Pide permiso y empieza a grabar por el mejor camino que haya. Devuelve el micro abierto, o por qué no se pudo. */
 export async function openMic(o: MicOptions): Promise<Mic | MicError> {
+  await closing;
   if (Platform.OS === 'web') {
     // getUserMedia ya pide el permiso: pedirlo antes por separado abriría el micro dos veces
     const web = await openWeb(o);
-    if (web) return web;
+    if (web) return typeof web === 'string' ? web : managed(web);
   }
   try {
     const perm = await requestRecordingPermissionsAsync();
@@ -432,15 +462,19 @@ export async function openMic(o: MicOptions): Promise<Mic | MicError> {
   } catch {
     return 'fallo';
   }
+  // expo-audio 58 desactiva la sesión 100 ms después de pausar/acabar un efecto.
+  // AudioStream no figura entre sus grabadores: dejar que esas desactivaciones pendientes
+  // terminen antes de abrirlo evita que apaguen el micro recién iniciado.
+  if (Platform.OS === 'ios') await new Promise<void>((resolve) => setTimeout(resolve, 160));
   if (Platform.OS !== 'web' && streamWorks !== false && streamClass()) {
     try {
-      return await openStream(o);
+      return managed(await openStream(o));
     } catch {
       streamWorks = false;
     }
   }
   try {
-    return await openRecorder(o);
+    return managed(await openRecorder(o));
   } catch {
     return 'fallo';
   }

@@ -1,5 +1,6 @@
+import { useAppDimensions } from '@/lib/layout';
 import { useEffect, useRef, useState } from 'react';
-import { AppState, Pressable, StyleSheet, Text, View, useWindowDimensions, type GestureResponderEvent } from 'react-native';
+import { AppState, Pressable, StyleSheet, Text, View, type GestureResponderEvent } from 'react-native';
 import Animated, { Easing, FadeIn, cancelAnimation, useAnimatedStyle, useFrameCallback, useSharedValue, withDelay, withSequence, withSpring, withTiming, ZoomIn } from 'react-native-reanimated';
 
 import { color, font } from '@/brand/tokens';
@@ -99,7 +100,7 @@ export default function Curvas({ mode, words, focus, rounds, reads = false, onAn
   const [measured, setGeo] = useState<Geo | null>(null);
   // hasta que llega la medida real (onLayout), la escena se dibuja con el tamaño de la ventana:
   // así nunca queda un cielo vacío si la medida tarda o no llega
-  const win = useWindowDimensions();
+  const win = useAppDimensions();
   const geo = measured ?? makeGeo(win.width, win.height, frame.top);
   const [phase, setPhase] = useState<'ready' | 'drive' | 'over'>(feria ? 'ready' : 'drive');
   const [q, setQ] = useState<Q | null>(null);

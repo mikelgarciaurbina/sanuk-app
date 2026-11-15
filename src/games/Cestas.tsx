@@ -1,3 +1,4 @@
+import { useAppDimensions } from '@/lib/layout';
 // Juego 12 · Cestas del mercado. En thai las cosas se cuentan con su clasificador: แมว สาม ตัว = «gato tres ‹de
 // animal›». En el puesto del mercado nocturno, la cinta trae bandejas con cosas: tócalas a su cesta o lánzalas con
 // el dedo. La cesta rebota, saltan monedas y suena la frase entera. Las cestas no se mueven del puesto, así que cada
@@ -7,7 +8,7 @@
 // pequeñas («vale, pero mejor คัน») y no cuenta como fallo. Usa el banco de clasificadores y las palabras
 // aprendidas que tienen clasificador; al repaso le llega el clasificador (la palabra que de verdad se practica).
 import { useEffect, useId, useRef, useState, type ComponentRef } from 'react';
-import { Pressable, StyleSheet, Text, View, useWindowDimensions, type GestureResponderEvent } from 'react-native';
+import { Pressable, StyleSheet, Text, View, type GestureResponderEvent } from 'react-native';
 import Animated, { Easing, FadeInDown, cancelAnimation, useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 import Svg, { Defs, Ellipse, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
 
@@ -208,7 +209,7 @@ export default function Cestas({ mode, words, focus, rounds, reads, onAnswer, on
   const juice = useJuice();
   const later = useLater();
   const reduced = useReducedMotion();
-  const win = useWindowDimensions();
+  const win = useAppDimensions();
   const [setup] = useState(() => makeGame(mode, words, focus, rounds ?? (feria ? 14 : 5)));
   const [items, setItems] = useState(setup.items);
   const [i, setI] = useState(0);

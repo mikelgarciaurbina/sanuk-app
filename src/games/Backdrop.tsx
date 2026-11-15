@@ -1,12 +1,13 @@
 // Escenarios de los juegos: fondos por capas con luz y profundidad, y vida ambiente (niebla, nubes, estrellas,
 // lluvia, farolillos, luces de feria, polvo de cueva). Ocupan toda la pantalla, también detrás de la cabecera.
 // Uso: <Backdrop scene="noche" /> como primer hijo del contenedor del juego.
-import { useEffect, useId, useState, type ReactElement } from 'react';
+import { useContext, useEffect, useId, useState, type ReactElement } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withRepeat, withTiming } from 'react-native-reanimated';
 import Svg, { Circle, Defs, Ellipse, G, LinearGradient, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 import { MistBand } from '@/components/Scenery';
+import { BackgroundOutsets } from '@/lib/layout';
 
 import { useGameFrame } from './fx';
 
@@ -20,13 +21,14 @@ const H = 844;
 
 export function Backdrop({ scene }: { scene: Scene }) {
   const frame = useGameFrame();
+  const outsets = useContext(BackgroundOutsets);
   const u = useId().replace(/[^a-zA-Z0-9]/g, '');
   const [size, setSize] = useState({ w: 0, h: 0 });
   const Art = ART[scene];
   return (
     <View
       pointerEvents="none"
-      style={[styles.fill, { top: -frame.top, bottom: -frame.bottom }]}
+      style={[styles.fill, { top: -frame.top, bottom: -frame.bottom - outsets.bottom, left: -outsets.left, right: -outsets.right }]}
       onLayout={(e) => setSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
       <Svg width="100%" height="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid slice">
         <Art u={u} />

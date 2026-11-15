@@ -8,6 +8,7 @@ import { Nunito_800ExtraBold } from '@expo-google-fonts/nunito/800ExtraBold';
 import { Nunito_900Black } from '@expo-google-fonts/nunito/900Black';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router/stack';
+import { router, usePathname } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
@@ -16,8 +17,12 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { color } from '@/brand/tokens';
+import { ReminderProvider } from '@/components/ReminderProvider';
+import { ScreenFrame } from '@/components/ScreenFrame';
 import { configureAudio, initAudio } from '@/lib/audio';
 import { StoreProvider, useStore } from '@/lib/store';
+import { contentWidth } from '@/lib/viewport';
+import { observeReminderTaps } from '@/lib/reminders';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -30,10 +35,11 @@ function AudioSettings() {
 }
 
 function Root() {
-  const { ready } = useStore();
+  const pathname = usePathname();
+  const { ready, p } = useStore();
   const { width } = useWindowDimensions();
-  // en la web, en tablets y en pantallas anchas (plegables abiertos) la app va en una columna centrada
-  const maxWidth = Platform.OS === 'web' ? 520 : width >= 700 ? 600 : undefined;
+  // Solo la presentación web limita el ancho. iOS gestiona sus áreas reservadas en cada pantalla.
+  const maxWidth = contentWidth(width, Platform.OS === 'web');
   const [fontsLoaded, fontError] = useFonts({
     Fredoka_600SemiBold,
     Fredoka_700Bold,
@@ -52,6 +58,10 @@ function Root() {
   useEffect(() => {
     if (loaded) SplashScreen.hideAsync().catch(() => {});
   }, [loaded]);
+  useEffect(() => {
+    if (!loaded) return;
+    return observeReminderTaps(() => router.navigate(p.onboarded ? '/(tabs)' : '/onboarding'));
+  }, [loaded, p.onboarded]);
 
   if (!loaded) return null;
   return (
@@ -60,10 +70,10 @@ function Root() {
       <StatusBar style="dark" />
       <View style={{ flex: 1, backgroundColor: color.niebla2 }}>
       <View style={{ flex: 1, width: '100%', maxWidth, alignSelf: 'center', overflow: 'hidden', backgroundColor: color.niebla }}>
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: color.niebla }, animation: 'slide_from_right' }}>
+      <Stack screenLayout={({ children, route }) => route.name === '(tabs)' ? children : <ScreenFrame>{children}</ScreenFrame>} screenOptions={{ headerShown: false, contentStyle: { backgroundColor: color.niebla }, animation: 'slide_from_right' }}>
         <Stack.Screen name="index" options={{ animation: 'none' }} />
         <Stack.Screen name="onboarding" options={{ animation: 'fade', gestureEnabled: false }} />
-        <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
+        <Stack.Screen name="(tabs)" options={{ animation: 'fade', statusBarStyle: pathname === '/feria' ? 'light' : 'dark' }} />
         <Stack.Screen name="leccion/[id]" options={{ animation: 'slide_from_bottom', gestureEnabled: false }} />
         <Stack.Screen name="juego/[id]" options={{ animation: 'slide_from_bottom', gestureEnabled: false }} />
         <Stack.Screen name="carta" options={{ animation: 'slide_from_bottom' }} />
@@ -81,7 +91,7 @@ export default function Layout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <StoreProvider>
-          <Root />
+          <ReminderProvider><Root /></ReminderProvider>
         </StoreProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

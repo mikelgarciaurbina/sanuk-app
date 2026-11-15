@@ -1,3 +1,4 @@
+import { useAppDimensions } from '@/lib/layout';
 // Bloques de sílabas: el juego que enseña a leer. Dos maneras de jugar con sílabas que son palabras de verdad:
 // · Construir: se oye la sílaba y se monta con bloques de juguete: consonante (su color dice su clase), vocal (sabe
 //   ir delante, detrás, encima, debajo o alrededor), marca de tono cuando ya se han estudiado y consonante final.
@@ -6,7 +7,7 @@
 //   pasos: clase + viva o muerta + marca = tono. Si se falla, se ve qué paso era.
 // En la feria, niveles contrarreloj; con las reglas ya estudiadas, el último es de lectura relámpago.
 import { useEffect, useEffectEvent, useRef, useState, type ComponentRef } from 'react';
-import { StyleSheet, Text, View, useWindowDimensions, type GestureResponderEvent } from 'react-native';
+import { StyleSheet, Text, View, type GestureResponderEvent } from 'react-native';
 import Animated, { Easing, FadeIn, FadeInDown, FadeOut, ZoomIn, useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 import Svg, { Defs, Ellipse, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
 
@@ -803,7 +804,7 @@ export default function Silabas({ mode, rounds, words, focus, extra, onAnswer, o
   const score = useScore(mode);
   const juice = useJuice();
   const later = useLater();
-  const { width: winW, height: winH } = useWindowDimensions();
+  const { width: winW, height: winH } = useAppDimensions();
   const set: LetterSet = extra?.kind === 'letras' ? extra.set : 'silabas';
 
   const [plan, setPlan] = useState<Plan>(() =>

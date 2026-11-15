@@ -724,19 +724,20 @@ function IntroCard({ word, width, height, playing, drawN, drawMs, onPress }: { w
     p.value = 0;
     p.value = withTiming(1, { duration: Math.max(520, drawMs * 0.92), easing: Easing.inOut(Easing.quad) });
   }, [drawN, drawMs, p]);
-  const big = height >= 150;
+  // La medalla y el contorno necesitan aire: en tarjetas bajas ocultaban la traducción.
+  const big = height >= 160;
   return (
     <View style={{ width, height }}>
       {playing ? <Glow size={width * 1.5} tint={t.fill} strength={0.7} style={{ position: 'absolute', left: -width * 0.25, top: height / 2 - width * 0.75 }} /> : null}
       <Pop trigger={playing ? 1 : 0} scale={playing ? 1.08 : 1} style={{ flex: 1 }}>
         <Press3D onPress={onPress} style={{ flex: 1 }} depth={12} accessibilityLabel={`${word.rom}: ${word.es}. Tono ${t.name.toLowerCase()}`}>
           <CardSkin skin={playing ? { ...SKINS.idle, border: t.fill, edge: mix(t.fill, '#000000', 0.25) } : SKINS.idle} radius={18} pad={3}>
-            {big ? <Medallion emoji={word.emoji} size={40} tint={medalOf(word.th)} /> : null}
-            <Th size={big ? 26 : 22} bold style={{ textAlign: 'center' }}>
+            {big ? <Medallion emoji={word.emoji} size={28} tint={medalOf(word.th)} /> : null}
+            <Th size={big ? 24 : 22} bold style={{ textAlign: 'center' }}>
               {word.th}
             </Th>
             <Text style={[styles.cardRom, { color: t.text }]}>{word.rom}</Text>
-            <Melody tones={[tone]} width={Math.max(40, width - 16)} height={big ? 42 : 30} progress={p} staff={false} stroke={5} />
+            <Melody tones={[tone]} width={Math.max(40, width - 16)} height={big ? 26 : Math.min(30, Math.max(12, height - 116))} progress={p} staff={false} stroke={5} />
             <Text style={styles.cardEs} numberOfLines={1}>
               {big || !word.emoji ? word.es : `${word.emoji} ${word.es}`}
             </Text>
@@ -788,8 +789,8 @@ function ToneKey({ tone, height, state, pulse, onPress }: { tone: ToneId; height
   const ink = off ? '#97A3B6' : t.on;
   const id = `k${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
   return (
-    <View style={{ width: 104, height, opacity: state === 'dim' ? 0.4 : state === 'sleep' ? 0.45 : 1 }}>
-      {state === 'ok' || pulse ? <Glow size={150} tint={t.fill} strength={0.7} style={{ position: 'absolute', left: -23, top: height / 2 - 75 }} /> : null}
+    <View style={{ width: 104, maxWidth: '31%', height, opacity: state === 'dim' ? 0.4 : state === 'sleep' ? 0.45 : 1 }}>
+      {state === 'ok' || pulse ? <Glow size={150} tint={t.fill} strength={0.7} style={{ position: 'absolute', left: '50%', marginLeft: -75, top: height / 2 - 75 }} /> : null}
       <Pop trigger={`${state}${pulse ? 1 : 0}`} scale={state === 'ok' || pulse ? 1.12 : 1} style={{ flex: 1 }}>
         <Press3D onPress={onPress} disabled={off || state === 'dim' || state === 'sleep'} style={{ flex: 1 }} depth={14} accessibilityLabel={`Tono ${t.name.toLowerCase()}: ${TONE_ANCHOR[tone]}`}>
           <View style={[styles.keyEdge, { backgroundColor: edge }]}>

@@ -1,3 +1,4 @@
+import { useAppDimensions } from '@/lib/layout';
 // Cueva de las letras: una cueva a oscuras, la linterna de Noi y letras talladas en la roca que brillan cuando les
 // da la luz. Lo que se busca se pide de memoria, nunca enseñando la letra: por su nombre («gɔɔ gài», el pollo), por
 // su sonido («una que suene kh»), por su clase («una de clase alta») o, con las vocales, por cómo suenan («aa») y
@@ -5,7 +6,7 @@
 // nombre y vuela a la colección. En la feria, tres galerías cada vez más hondas, todos los grupos ya estudiados
 // mezclados y una pila que se gasta: cada letra la recarga.
 import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from 'react';
-import { StyleSheet, Text, View, useWindowDimensions, type GestureResponderEvent, type LayoutChangeEvent } from 'react-native';
+import { StyleSheet, Text, View, type GestureResponderEvent, type LayoutChangeEvent } from 'react-native';
 import Animated, {
   Easing,
   FadeIn,
@@ -676,7 +677,7 @@ export default function Cueva({ mode, extra, rounds = 4, onAnswer, onDone }: Gam
   const [round, setRound] = useState<Round>(() => makeRound(setup.tasks[0], setup.sets, (feria ? LEVELS[0] : LESSON).n, false, 0.75));
   const [level, setLevel] = useState(0);
   const [phase, setPhase] = useState<'count' | 'play' | 'end'>(feria ? 'count' : 'play');
-  const win = useWindowDimensions();
+  const win = useAppDimensions();
   // tamaño provisional (la ventana menos la cabecera) hasta que llegue el onLayout
   const [box, setBox] = useState({ w: win.width, h: Math.max(420, win.height - 70 - frame.top) });
   const [measured, setMeasured] = useState(false);

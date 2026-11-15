@@ -1,6 +1,6 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeInRight } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -13,7 +13,7 @@ import { Noi } from '@/components/Noi';
 import { PatternCard } from '@/components/PatternCard';
 import { Btn, Hud, Txt } from '@/components/ui';
 import { WordIntro } from '@/components/WordIntro';
-import { afterToneRules, canRead, canReview, curvesFor, dueWords, lessonById, letterProgress, stopDone } from '@/content';
+import { afterToneRules, canRead, canReview, curvesFor, dueWords, isUnlocked, lessonById, letterProgress, stopDone } from '@/content';
 import { GameFrame } from '@/games/fx';
 import { GAME_BG, GAME_COMPONENTS, GAME_DARK } from '@/games/registry';
 import type { GameResult } from '@/games/types';
@@ -78,6 +78,17 @@ export default function Leccion() {
     if (step?.kind !== 'intro') return undefined;
     return built.sentences.find((s) => s.th.includes(step.word.th));
   }, [step, built.sentences]);
+
+  if ((!lesson && id !== 'repaso') || (lesson && !isUnlocked(p, lesson))) {
+    return (
+      <ScrollView style={{ flex: 1, backgroundColor: color.niebla }} contentContainerStyle={{ flexGrow: 1, alignItems: 'center', justifyContent: 'center', gap: 14, paddingHorizontal: 28, paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }}>
+        <Noi pose="piensa" size={140} />
+        <Txt v="h2" style={{ textAlign: 'center' }}>{lesson ? 'Esta curva aún está entre la niebla' : 'Esta curva no existe'}</Txt>
+        <Txt style={{ textAlign: 'center' }}>{lesson ? 'Termina la lección anterior del camino para llegar hasta aquí.' : 'Noi conoce el camino de vuelta. Elige una lección en la carretera.'}</Txt>
+        <Btn label="Volver al camino" onPress={close} style={{ alignSelf: 'stretch' }} />
+      </ScrollView>
+    );
+  }
 
   if (done) {
     return <LessonDone result={total} seconds={elapsed} letterBefore={letterBefore} lessonId={lesson?.id} />;

@@ -7,7 +7,7 @@
 // no da puntos ni cambia el repaso; «Otra vez» nunca cuenta como fallo; y «Ahora no puedo hablar» deja pasar sin
 // grabar nada. Donde no se puede medir el tono se ve el volumen (con su nombre) y se compara de oído; sin
 // micrófono, se dice en voz alta.
-import { RecordingPresets, createAudioPlayer, useAudioRecorder, type AudioPlayer } from 'expo-audio';
+import { RecordingPresets, useAudioRecorder } from 'expo-audio';
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, useWindowDimensions, type GestureResponderEvent } from 'react-native';
 import Animated, { Easing, FadeIn, ZoomIn, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated';
@@ -16,14 +16,15 @@ import type { NoiPose } from '@/brand/noi-art';
 import { color, font, tones as TONES, type ToneId } from '@/brand/tokens';
 import { Icon } from '@/components/icons';
 import { Rom, Th } from '@/components/ui';
-import { fx, stopSpeech } from '@/lib/audio';
+import { fx, stopSpeech, suspendSoundEffects } from '@/lib/audio';
 import { toneOfSyllable } from '@/lib/thai';
 
 import { Backdrop } from './Backdrop';
-import { canMeasurePitch, knownVoice, openMic, releaseTakes, rememberVoice, type Mic as OpenMic, type Take } from './eco/captura';
+import { canMeasurePitch, knownVoice, openMic, releaseTakes, rememberVoice, waitForCapture, type Mic as OpenMic, type Take } from './eco/captura';
 import { makeItems, spoken } from './eco/partes';
 import { IDEAL, Staff, Star } from './eco/pentagrama';
 import { BigBtn, Echo, EcoBar, InhaleNoi, Mic, QuietLink, Ridge, RoundBtn, Valley, type EchoVoice, type EcoMark } from './eco/piezas';
+import { playTake } from './eco/reproduccion';
 import { analyse, fitStaff, isVoiced, toSemitones, type Analysis, type Frame, type Slip } from './eco/tono';
 import { tapPoint, useJuice, type Point } from './fx';
 import { useScore } from './kit';
@@ -93,6 +94,8 @@ export default function Eco({ mode, words, focus, sentences, rounds, gender, ora
   const [shot, setShot] = useState<Shot | null>(null);
   const [shown, setShown] = useState(false);
   const [playing, setPlaying] = useState<'noi' | 'yo' | null>(null);
+  const [preparing, setPreparing] = useState(false);
+  const [audioError, setAudioError] = useState<string | null>(null);
   const [marks, setMarks] = useState<EcoMark[]>([]);
   const [points, setPoints] = useState(0);
   const [pose, setPose] = useState<NoiPose>('feliz');
@@ -116,7 +119,8 @@ export default function Eco({ mode, words, focus, sentences, rounds, gender, ora
   /** turno de sonido: lo que quedara pendiente de uno anterior (voz, temporizadores, estrellas) ya no cuenta */
   const seq = useRef(0);
   const recSeq = useRef(0);
-  const player = useRef<AudioPlayer | null>(null);
+  const player = useRef<(() => void) | null>(null);
+  const quiet = useRef<(() => void) | null>(null);
   const mic = useRef<OpenMic | null>(null);
   const buf = useRef<number[]>([]);
   const liveRef = useRef<Live | null>(null);
@@ -132,10 +136,21 @@ export default function Eco({ mode, words, focus, sentences, rounds, gender, ora
   const part = it?.parts[c];
 
   const dropPlayer = () => {
-    try {
-      player.current?.remove();
-    } catch {}
+    player.current?.();
     player.current = null;
+  };
+  const releaseQuiet = () => {
+    quiet.current?.();
+    quiet.current = null;
+  };
+  const silence = () => {
+    releaseQuiet();
+    const release = suspendSoundEffects();
+    quiet.current = release;
+    return () => {
+      release();
+      if (quiet.current === release) quiet.current = null;
+    };
   };
   const claim = () => {
     seq.current += 1;
@@ -150,10 +165,11 @@ export default function Eco({ mode, words, focus, sentences, rounds, gender, ora
   /** Calla a Noi y a la grabación; devuelve «¿sigo siendo yo quien suena?» para lo que venga después. */
   const hush = () => {
     const alive = claim();
-    voice.stop();
+    const stopped = voice.stop();
     dropPlayer();
+    releaseQuiet();
     setPlaying(null);
-    return alive;
+    return { alive, stopped };
   };
 
   // al salir (también a media grabación): se suelta el micro y el audio vuelve a quedar para escuchar
@@ -161,11 +177,13 @@ export default function Eco({ mode, words, focus, sentences, rounds, gender, ora
     gone.current = true;
     seq.current += 1;
     recSeq.current += 1;
-    mic.current?.cancel();
+    void mic.current?.cancel();
     mic.current = null;
     dropPlayer();
-    stopSpeech();
-    releaseTakes();
+    releaseQuiet();
+    void stopSpeech();
+    // La finalización nativa aún puede estar escribiendo un archivo al salir.
+    void waitForCapture().then(releaseTakes);
   });
   useEffect(() => {
     gone.current = false;
@@ -177,11 +195,13 @@ export default function Eco({ mode, words, focus, sentences, rounds, gender, ora
   /** Noi coge aire y grita el trozo: suena, rebota el eco y se dibuja la melodía de sus tonos. */
   const noiSays = (slow: boolean, after?: () => void) => {
     if (!part) return;
-    const alive = hush();
+    const { alive, stopped } = hush();
+    const restoreEffects = silence();
+    setAudioError(null);
     setPlaying('noi');
     setPose('celebra');
     inhale.set(withSequence(withTiming(1.12, { duration: 260, easing: Easing.out(Easing.quad) }), withSpring(1, { damping: 7, stiffness: 160 })));
-    timers.later(() => {
+    void stopped.then(() => timers.later(() => {
       if (!alive()) return;
       voice.speak(part.th, {
         rom: part.rom,
@@ -195,10 +215,11 @@ export default function Eco({ mode, words, focus, sentences, rounds, gender, ora
           if (!alive()) return;
           setPose('feliz');
           setPlaying(null);
+          restoreEffects();
           after?.();
         },
       });
-    }, 240);
+    }, 240));
   };
 
   const begin = useEffectEvent(() => {
@@ -233,35 +254,38 @@ export default function Eco({ mode, words, focus, sentences, rounds, gender, ora
 
   /** Suena tu grabación mientras una línea recorre tu voz. */
   const playMine = (t: Take, after?: () => void) => {
-    const alive = hush();
-    if (!t.uri) {
-      after?.();
-      return;
-    }
-    let done = false;
-    const end = () => {
-      if (done || !alive()) return;
-      done = true;
-      setPlaying(null);
-      setPose('feliz');
-      after?.();
-    };
-    try {
-      const p = createAudioPlayer(t.uri);
-      player.current = p;
-      setPlaying('yo');
-      setPose('escucha');
-      const ms = Math.max(600, t.ms);
-      head.set(withSequence(withTiming(0, { duration: 0 }), withTiming(1, { duration: ms, easing: Easing.linear })));
-      p.addListener('playbackStatusUpdate', (st) => {
-        if (st.didJustFinish) end();
+    const { alive, stopped } = hush();
+    const restoreEffects = silence();
+    head.set(0);
+    void stopped.then(() => {
+      if (!alive()) return;
+      player.current = playTake(t, {
+        onStart: () => {
+          if (!alive()) return;
+          setPlaying('yo');
+          setPose('escucha');
+        },
+        onProgress: (fraction) => {
+          if (alive()) head.set(withTiming(fraction, { duration: 50, easing: Easing.linear }));
+        },
+        onEnd: () => {
+          if (!alive()) return;
+          player.current = null;
+          setPlaying(null);
+          setPose('feliz');
+          restoreEffects();
+          after?.();
+        },
+        onError: () => {
+          if (!alive()) return;
+          player.current = null;
+          setPlaying(null);
+          restoreEffects();
+          after?.();
+          setAudioError('No he podido reproducir tu voz. Prueba a grabarla otra vez.');
+        },
       });
-      p.play();
-      // por si el reproductor no avisa del final
-      timers.later(end, ms + 1500);
-    } catch {
-      end();
-    }
+    });
   };
 
   /** Se enseña la nota: una estrella por sílaba, de izquierda a derecha, y Noi reacciona. */
@@ -301,7 +325,16 @@ export default function Eco({ mode, words, focus, sentences, rounds, gender, ora
     recSeq.current += 1;
     live.set(0);
     setPhase('compare');
-    const t = await m.stop();
+    let t: Take;
+    try { t = await m.stop(); }
+    catch {
+      if (!gone.current && !finished.current) {
+        releaseQuiet();
+        setAudioError('No he podido guardar tu voz. Prueba a grabarla otra vez.');
+        setPhase('ready');
+      }
+      return;
+    }
     if (gone.current || finished.current) return;
     setTake(t);
     trace.set([]);
@@ -317,10 +350,17 @@ export default function Eco({ mode, words, focus, sentences, rounds, gender, ora
     }
     setShot(s);
     setShown(false);
+    if (!t.uri) {
+      releaseQuiet();
+      setAudioError('No he podido guardar tu voz. Prueba a grabarla otra vez.');
+      setPhase('ready');
+      return;
+    }
     if (s && !s.a.heard) {
       // no se oyó una voz: no hay nada que comparar
       setPose('piensa');
       setPhase('result');
+      releaseQuiet();
       return;
     }
     // primero Noi y enseguida tú, seguidos: así el oído compara de verdad; la nota llega después
@@ -347,7 +387,7 @@ export default function Eco({ mode, words, focus, sentences, rounds, gender, ora
       void stopRec();
       return;
     }
-    const at = Date.now();
+    const at = L.now * 1000;
     if (at - L.drawn < 55) return;
     L.drawn = at;
     const known = knownVoice();
@@ -363,11 +403,16 @@ export default function Eco({ mode, words, focus, sentences, rounds, gender, ora
   const startRec = async () => {
     if (busy.current || finished.current || locked.current) return;
     busy.current = true;
+    setPreparing(true);
+    setAudioError(null);
+    const { alive, stopped } = hush();
+    silence();
     fx.tap();
     // si Noi aún estaba gritando, se calla: te toca
-    hush();
     setPose('escucha');
     try {
+      await stopped;
+      if (!alive()) return;
       buf.current = [];
       liveRef.current = { pts: [], sum: 0, n: 0, peak: 0, now: 0, first: -1, lastVoiced: 0, drawn: 0, est: (speechMs(part.rom) / 1000) * 0.9 };
       const m = await openMic({
@@ -378,8 +423,8 @@ export default function Eco({ mode, words, focus, sentences, rounds, gender, ora
           levels.set(buf.current.slice());
         },
       });
-      if (gone.current || finished.current) {
-        if (typeof m !== 'string') m.cancel();
+      if (!alive()) {
+        if (typeof m !== 'string') await m.cancel();
         return;
       }
       if (typeof m === 'string') {
@@ -407,19 +452,28 @@ export default function Eco({ mode, words, focus, sentences, rounds, gender, ora
       timers.later(() => {
         if (recSeq.current === id) void stopRec();
       }, MAX_MS);
+    } catch {
+      if (alive()) {
+        releaseQuiet();
+        setAudioError('No he podido abrir el micro. Vuelve a intentarlo.');
+        setPhase('ready');
+      }
     } finally {
       busy.current = false;
+      if (!gone.current) setPreparing(false);
     }
   };
 
   /** Comparar otra vez: Noi y, seguida, tu grabación. */
   const replay = () => {
     if (!take) return;
-    noiSays(false, () => playMine(take));
+    setPhase('compare');
+    noiSays(false, () => playMine(take, () => setPhase('result')));
   };
 
   // ——— Lo que viene después ———
   const clearTake = () => {
+    setAudioError(null);
     setTake(null);
     setShot(null);
     setShown(false);
@@ -505,7 +559,7 @@ export default function Eco({ mode, words, focus, sentences, rounds, gender, ora
     hush();
     finished.current = true;
     recSeq.current += 1;
-    mic.current?.cancel();
+    void mic.current?.cancel();
     mic.current = null;
     if (!feria) {
       onDone(result());
@@ -586,7 +640,7 @@ export default function Eco({ mode, words, focus, sentences, rounds, gender, ora
   const labels = sylls.map((s) => s.replace(/[^\p{L}\p{M}]/gu, ''));
   const multi = it.parts.length > 1;
   const waiting = phase === 'shout' || phase === 'ready';
-  const lockedUi = phase === 'rec' || phase === 'compare' || phase === 'next';
+  const lockedUi = preparing || phase === 'rec' || phase === 'compare' || phase === 'next';
   // quien ya lee thai ve la transcripción al tocar la tarjeta o al comparar; quien no, siempre
   const showRom = !reads || peek || phase === 'compare' || phase === 'result';
   const measuring = pitch && !noMic;
@@ -747,6 +801,7 @@ export default function Eco({ mode, words, focus, sentences, rounds, gender, ora
         )}
 
         {/* escuchar a Noi · más lento · grabar · comparar (Noi y tú, seguidos) */}
+        {audioError ? <View accessible accessibilityRole="alert"><Text style={[styles.tip, { color: '#FFB3B3' }]}>{audioError}</Text></View> : null}
         <View style={styles.controls}>
           <RoundBtn icon="speaker" label="Noi" hint="Escuchar a Noi" tint={color.cielo} deep={color.cieloHondo} onPress={() => noiSays(false, toReady)} disabled={lockedUi} small={compact} active={playing === 'noi'} />
           <RoundBtn icon="turtle" label="Lento" hint="Escuchar a Noi más lento" tint="#7C6CF2" deep="#5546C4" onPress={() => noiSays(true, toReady)} disabled={lockedUi} small={compact} />
@@ -754,9 +809,9 @@ export default function Eco({ mode, words, focus, sentences, rounds, gender, ora
             <Mic
               recording={phase === 'rec'}
               ready={phase === 'ready'}
-              label={phase === 'rec' ? 'Parar' : take ? 'Repetir' : 'Grabar'}
+              label={preparing ? 'Preparando…' : phase === 'rec' ? 'Parar' : take ? 'Repetir' : 'Grabar'}
               onPress={() => (phase === 'rec' ? void stopRec() : void startRec())}
-              disabled={phase === 'compare' || phase === 'next'}
+              disabled={preparing || phase === 'compare' || phase === 'next'}
               small={compact}
             />
           ) : (

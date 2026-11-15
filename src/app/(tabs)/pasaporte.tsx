@@ -1,3 +1,4 @@
+import { ScreenFrame } from '@/components/ScreenFrame';
 import { router } from 'expo-router';
 import { useState, type ReactNode } from 'react';
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
@@ -8,12 +9,14 @@ import { color, font, shadow } from '@/brand/tokens';
 import { Art, Icon } from '@/components/icons';
 import { Noi } from '@/components/Noi';
 import { MissionCard } from '@/components/MissionCard';
+import { ReminderSettings } from '@/components/ReminderSettings';
 import { Btn, Th, Txt } from '@/components/ui';
 import { HAS_SEASON_2, SEASON_2_STOPS, STOPS, TOTAL_CURVES, letterProgress, moonsDone, seasonOf } from '@/content';
 import { fx } from '@/lib/audio';
 import { fmt } from '@/lib/format';
 import { todayKey } from '@/lib/random';
 import { streakStatus, useStore } from '@/lib/store';
+import { useAppDimensions } from '@/lib/layout';
 
 const DAYS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 const STAMP_COLORS = [color.laca, color.mohom, color.arrozal, color.azafranHondo, color.cieloHondo, color.teca];
@@ -21,8 +24,14 @@ const ROAD_STOPS = STOPS.filter((s) => seasonOf(s) === 1);
 
 /** El pasaporte: sellos de cada parada, la racha de farolillos y los ajustes. */
 export default function Pasaporte() {
+  return <ScreenFrame tab={Platform.OS === 'ios'}><PasaporteContent /></ScreenFrame>;
+}
+
+function PasaporteContent() {
   const { p, setSetting, setProfile, reset } = useStore();
   const insets = useSafeAreaInsets();
+  const { width } = useAppDimensions();
+  const wide = width >= 760;
   const streak = streakStatus(p);
   const letter = letterProgress(p);
   const [confirm, setConfirm] = useState(false);
@@ -66,7 +75,8 @@ export default function Pasaporte() {
   return (
     <ScrollView style={{ flex: 1, backgroundColor: color.niebla }} contentContainerStyle={{ paddingTop: insets.top + 12, paddingBottom: 40, paddingHorizontal: 20, gap: 14 }}>
       <Txt v="h1" style={{ fontSize: 26 }}>Pasaporte</Txt>
-
+      <View style={{ flexDirection: wide ? 'row' : 'column', gap: wide ? 24 : 14, alignItems: 'flex-start' }}>
+      <View style={{ flex: wide ? 1 : undefined, width: wide ? undefined : '100%', gap: 14 }}>
       <View style={styles.passport}>
         <View style={styles.lanna} />
         <View style={styles.avatar}>
@@ -192,12 +202,15 @@ export default function Pasaporte() {
         <Icon name="arrow" size={22} />
       </Pressable>
 
+      </View>
+      <View style={{ flex: wide ? 1 : undefined, width: wide ? undefined : '100%', gap: 14 }}>
       <View style={styles.card}>
         <Txt v="h3">Ajustes</Txt>
         <Setting label="Sonidos" value={p.settings.sound} onChange={(v) => setSetting('sound', v)} />
         <Setting label="Vibración" value={p.settings.haptics} onChange={(v) => setSetting('haptics', v)} />
         <Setting label="Transcripción con tonos" value={p.settings.romanization} onChange={(v) => setSetting('romanization', v)} />
         <Setting label="Voz thai más lenta" value={p.settings.voiceRate < 0.8} onChange={(v) => setSetting('voiceRate', v ? 0.7 : 0.85)} />
+        <ReminderSettings />
         <Row label="Partícula">
           <View style={{ flexDirection: 'row', gap: 8 }}>
             {(['m', 'f'] as const).map((g) => (
@@ -230,6 +243,8 @@ export default function Pasaporte() {
 
       <Btn label={confirm ? 'Toca otra vez para borrar todo' : 'Empezar de cero'} v="ghost" onPress={doReset} />
       <Txt v="small" style={{ textAlign: 'center' }}>Sanuk · Thai, curva a curva</Txt>
+      </View>
+      </View>
     </ScrollView>
   );
 }

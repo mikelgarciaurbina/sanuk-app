@@ -1,5 +1,5 @@
 import { useEffect, type ReactNode } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
 import Animated, {
   Easing,
   SlideInDown,
@@ -45,6 +45,7 @@ export function Th({ children, size = 22, style, bold, numberOfLines }: { childr
   return (
     <Text
       numberOfLines={numberOfLines}
+      accessibilityLanguage="th-TH"
       style={[
         { fontFamily: bold ? font.thaiBold : font.thai, fontSize: size, lineHeight: Math.round(size * 1.55), color: color.tinta },
         Platform.OS === 'android' ? { includeFontPadding: false } : null,
@@ -99,7 +100,7 @@ const BTN: Record<BtnVariant, { face: string; depth: string; text: string; borde
   bad: { face: color.laca, depth: color.lacaHondo, text: '#FFFFFF' },
   ghost: { face: '#FFFFFF', depth: color.niebla3, text: color.tinta, border: color.niebla3 },
   off: { face: color.niebla2, depth: color.niebla3, text: color.tinta3 },
-  blue: { face: color.cielo, depth: color.cieloHondo, text: '#FFFFFF' },
+  blue: { face: color.cieloHondo, depth: color.mohom, text: '#FFFFFF' },
   dark: { face: color.tinta, depth: '#0B0F26', text: '#FFFFFF' },
 };
 
@@ -143,11 +144,11 @@ export function Btn({
         if (!silent) fx.tap();
         onPress?.();
       }}
-      style={[{ height: height + 5, borderRadius: 18, backgroundColor: s.depth }, style]}>
+      style={[{ minHeight: Math.max(44, height + 5), borderRadius: 18, backgroundColor: s.depth }, style]}>
       <Animated.View
         style={[
           styles.btnFace,
-          { height, backgroundColor: s.face, borderColor: s.border ?? s.face, borderWidth: s.border ? 2 : 0 },
+          { minHeight: height, flex: 1, backgroundColor: s.face, borderColor: s.border ?? s.face, borderWidth: s.border ? 2 : 0 },
           face,
         ]}>
         {icon}
@@ -282,7 +283,7 @@ export function SpeakBtn({ onPress, size = 64, slow, label }: { onPress: () => v
       silent
       accessibilityLabel={label ?? (slow ? 'Escuchar más lento' : 'Escuchar')}
       icon={<Icon name={slow ? 'turtle' : 'speaker'} size={slow ? 22 : size * 0.46} color={slow ? color.cieloHondo : '#FFFFFF'} />}
-      label={slow ? '60 %' : undefined}
+      label={slow ? 'Más lento' : undefined}
     />
   );
 }
@@ -333,7 +334,7 @@ export function Sheet({
         </View>
         <View style={{ flex: 1 }}>{typeof title === 'string' ? <Txt v="h2" style={{ color: fg }}>{title}</Txt> : title}</View>
       </View>
-      {children}
+      {children ? <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ gap: 14 }}>{children}</ScrollView> : null}
       <Btn label={action} v={kind === 'bad' ? 'bad' : kind === 'ok' ? 'ok' : 'primary'} onPress={onAction} />
     </Animated.View>
   );
@@ -354,8 +355,8 @@ export function Screen({ children, bg = color.niebla, style }: { children: React
 }
 
 export const styles = StyleSheet.create({
-  btnFace: { borderRadius: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingHorizontal: 16 },
-  btnText: { fontFamily: font.display, fontSize: 18, letterSpacing: 0.2 },
+  btnFace: { borderRadius: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 8 },
+  btnText: { fontFamily: font.display, fontSize: 18, letterSpacing: 0.2, flexShrink: 1, textAlign: 'center' },
   tile: { borderRadius: 16, borderWidth: 2, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, paddingVertical: 8 },
   chip: {
     flexDirection: 'row',
@@ -381,6 +382,6 @@ export const styles = StyleSheet.create({
   tone: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, borderRadius: 999, alignSelf: 'flex-start' },
   hud: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingBottom: 6 },
   x: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 20, paddingTop: 20, gap: 14, borderTopLeftRadius: 28, borderTopRightRadius: 28 },
+  sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, maxHeight: '95%', paddingHorizontal: 20, paddingTop: 20, gap: 14, borderTopLeftRadius: 28, borderTopRightRadius: 28 },
   sheetBadge: { width: 36, height: 36, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
 });
