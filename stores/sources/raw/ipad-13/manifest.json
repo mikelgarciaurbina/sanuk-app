@@ -1,0 +1,75 @@
+[
+  {
+    "file": "sources/raw/ipad-13/02-feria.png",
+    "deviceUDID": "118D3D9D-EB5D-42ED-8EBE-2C0C98C74BE9",
+    "display": "1",
+    "route": "/(tabs)/feria",
+    "scene": "feria",
+    "source": "Native iOS Simulator; current app JavaScript in an isolated capture binary; seeded local progress",
+    "sha256": "dfcdcd76f87dafff0b0c965d9815e67ea6d3f9a3e26a9e5ec0ce407e8d9d3f38"
+  },
+  {
+    "file": "sources/raw/ipad-13/03-tonos.png",
+    "deviceUDID": "118D3D9D-EB5D-42ED-8EBE-2C0C98C74BE9",
+    "display": "1",
+    "route": "/juego/tonos",
+    "scene": "tonos",
+    "source": "Native iOS Simulator; current app JavaScript in an isolated capture binary; seeded local progress",
+    "sha256": "a625461d89d4098a3a509b27c47e8465a4eaf8a81d85b9a79d98876c3653b0ef"
+  },
+  {
+    "file": "sources/raw/ipad-13/04-mercado.png",
+    "deviceUDID": "118D3D9D-EB5D-42ED-8EBE-2C0C98C74BE9",
+    "display": "1",
+    "route": "/juego/mercado",
+    "scene": "mercado",
+    "source": "Native iOS Simulator; current app JavaScript in an isolated capture binary; seeded local progress",
+    "sha256": "8808add75e4568628dfba07b48f3e0986de4c55973f7c36a605e4410526bbd34"
+  },
+  {
+    "file": "sources/raw/ipad-13/05-traza.png",
+    "deviceUDID": "118D3D9D-EB5D-42ED-8EBE-2C0C98C74BE9",
+    "display": "1",
+    "route": "/juego/traza",
+    "scene": "traza",
+    "source": "Native iOS Simulator; current app JavaScript in an isolated capture binary; seeded local progress",
+    "sha256": "3cbb2f85f033a59faa05dc8ee011723bbfdaabbb710d158461d96da1b00424b5"
+  },
+  {
+    "file": "sources/raw/ipad-13/06-cena.png",
+    "deviceUDID": "118D3D9D-EB5D-42ED-8EBE-2C0C98C74BE9",
+    "display": "1",
+    "route": "/juego/cena",
+    "scene": "cena",
+    "source": "Native iOS Simulator; current app JavaScript in an isolated capture binary; seeded local progress",
+    "sha256": "742fc617620afdffe3bb0beaf148c13f5618a77533b1b2a9e6057816d2303d96"
+  },
+  {
+    "file": "sources/raw/ipad-13/07-carta.png",
+    "deviceUDID": "118D3D9D-EB5D-42ED-8EBE-2C0C98C74BE9",
+    "display": "1",
+    "route": "/carta",
+    "scene": "carta",
+    "source": "Native iOS Simulator; current app JavaScript in an isolated capture binary; seeded local progress",
+    "sha256": "e962479f1222466311b714660a34f9462cab40b3dddbbe4a938c21e93a4c1ebf"
+  },
+  {
+    "file": "sources/raw/ipad-13/08-diario.png",
+    "deviceUDID": "118D3D9D-EB5D-42ED-8EBE-2C0C98C74BE9",
+    "display": "1",
+    "route": "/diario",
+    "scene": "diario",
+    "source": "Native iOS Simulator; current app JavaScript in an isolated capture binary; seeded local progress",
+    "sha256": "66cb0ff1a3255c6a532d112585e6c4ee9879b7f4a59ec8c3c746d6213f908746"
+  },
+  {
+    "file": "sources/raw/ipad-13/01-camino.png",
+    "deviceUDID": "118D3D9D-EB5D-42ED-8EBE-2C0C98C74BE9",
+    "display": "1",
+    "route": "/(tabs)",
+    "scene": "camino",
+    "source": "Native iOS Simulator; current app JavaScript in an isolated capture binary; seeded local progress",
+    "sha256": "dfb3ec79cebfba26d20c567c839544bf2f430c6f2e35a932823ca3863db9e902",
+    "readiness": "Full Camino UI visually verified in Device Hub before capture"
+  }
+]

@@ -1,0 +1,464 @@
+{
+  "capturedAt": "2026-11-16",
+  "appVersion": "1.0.0",
+  "appGitCommit": "fba1f38",
+  "workingTreeChanges": [
+    "Privacy and support links in Pasaporte",
+    "Opaque RGB app icon"
+  ],
+  "progress": "Local demonstration fixture; no real learner data",
+  "ios": "Native simulator app with current JavaScript; separate QA bundle identifier",
+  "android": "Native UI in official Expo Go 58.0.5 on Android API 35 emulator; production AAB not built by this workflow",
+  "duo": "Closed outer display 1 and fully open inner display 3 selected in Device Hub; inner uses native landscape orientation",
+  "captures": [
+    {
+      "file": "sources/raw/android-phone/01-camino.png",
+      "emulator": "Android 15 API 35 arm64 Google APIs",
+      "resolution": "1080x1920",
+      "density": "360",
+      "scene": "camino",
+      "route": "/(tabs)",
+      "source": "Real native React Native UI in Expo Go 58.0.5; local demonstration progress; no release binary submitted",
+      "sha256": "dd3c6ba2df219e2e977a4f2b3d4cf5b68a094a272af6090e1dbd404346e66d4b"
+    },
+    {
+      "file": "sources/raw/android-phone/02-feria.png",
+      "emulator": "Android 15 API 35 arm64 Google APIs",
+      "resolution": "1080x1920",
+      "density": "360",
+      "scene": "feria",
+      "route": "/(tabs)/feria",
+      "source": "Real native React Native UI in Expo Go 58.0.5; local demonstration progress; no release binary submitted",
+      "sha256": "98d0dccbb18e678727dd9eb09bf977643ad9d71e2aefe62b0d54a3e2ddb19a09"
+    },
+    {
+      "file": "sources/raw/android-phone/03-tonos.png",
+      "emulator": "Android 15 API 35 arm64 Google APIs",
+      "resolution": "1080x1920",
+      "density": "360",
+      "scene": "tonos",
+      "route": "/juego/tonos",
+      "source": "Real native React Native UI in Expo Go 58.0.5; local demonstration progress; no release binary submitted",
+      "sha256": "2750ae6421b8ce615957dc9cd1a3c06758109818b0f0b518d5c1f875812c4e33"
+    },
+    {
+      "file": "sources/raw/android-phone/04-mercado.png",
+      "emulator": "Android 15 API 35 arm64 Google APIs",
+      "resolution": "1080x1920",
+      "density": "360",
+      "scene": "mercado",
+      "route": "/juego/mercado",
+      "source": "Real native React Native UI in Expo Go 58.0.5; local demonstration progress; no release binary submitted",
+      "sha256": "80cbbc1be1bb808bc3beb1abde1286c55dfd04ab9884bcc8063cb7f21096583e"
+    },
+    {
+      "file": "sources/raw/android-phone/05-traza.png",
+      "emulator": "Android 15 API 35 arm64 Google APIs",
+      "resolution": "1080x1920",
+      "density": "360",
+      "scene": "traza",
+      "route": "/juego/traza",
+      "source": "Real native React Native UI in Expo Go 58.0.5; local demonstration progress; no release binary submitted",
+      "sha256": "4db25dd26aaa5eb24c5a365fc610a2f1e5f8213fe55db6514149cb4f3e7a6711"
+    },
+    {
+      "file": "sources/raw/android-phone/06-cena.png",
+      "emulator": "Android 15 API 35 arm64 Google APIs",
+      "resolution": "1080x1920",
+      "density": "360",
+      "scene": "cena",
+      "route": "/juego/cena",
+      "source": "Real native React Native UI in Expo Go 58.0.5; local demonstration progress; no release binary submitted",
+      "sha256": "c6e93d2ccf19ccd83c4ce03ebaa9be3f10a83516eed1602a9e11fdd915636c3a"
+    },
+    {
+      "file": "sources/raw/android-phone/07-carta.png",
+      "emulator": "Android 15 API 35 arm64 Google APIs",
+      "resolution": "1080x1920",
+      "density": "360",
+      "scene": "carta",
+      "route": "/carta",
+      "source": "Real native React Native UI in Expo Go 58.0.5; local demonstration progress; no release binary submitted",
+      "sha256": "39ae2fbefdded527458be07fd1b31a39e50884632809177e45b995e1990a8fa5"
+    },
+    {
+      "file": "sources/raw/android-phone/08-diario.png",
+      "emulator": "Android 15 API 35 arm64 Google APIs",
+      "resolution": "1080x1920",
+      "density": "360",
+      "scene": "diario",
+      "route": "/diario",
+      "source": "Real native React Native UI in Expo Go 58.0.5; local demonstration progress; no release binary submitted",
+      "sha256": "79c8a9765b4d9160b6dce5230ee730c9c28fc86d92dc6acbbae292a3a7305432"
+    },
+    {
+      "file": "sources/raw/android-tablet-10/01-camino.png",
+      "emulator": "Android 15 API 35 arm64 Google APIs",
+      "resolution": "1440x2560",
+      "density": "240",
+      "scene": "camino",
+      "route": "/(tabs)",
+      "source": "Real native React Native UI in Expo Go 58.0.5; local demonstration progress; no release binary submitted",
+      "sha256": "cc80ce74e93dab2c480afec153282cbc5c8f6277080bbce9abed10f253ed6e0d"
+    },
+    {
+      "file": "sources/raw/android-tablet-10/02-feria.png",
+      "emulator": "Android 15 API 35 arm64 Google APIs",
+      "resolution": "1440x2560",
+      "density": "240",
+      "scene": "feria",
+      "route": "/(tabs)/feria",
+      "source": "Real native React Native UI in Expo Go 58.0.5; local demonstration progress; no release binary submitted",
+      "sha256": "41a7cb6ab5b28061654791259d6554f3f4395224aaf901449923b21f4679126e"
+    },
+    {
+      "file": "sources/raw/android-tablet-10/04-mercado.png",
+      "emulator": "Android 15 API 35 arm64 Google APIs",
+      "resolution": "1440x2560",
+      "density": "240",
+      "scene": "mercado",
+      "route": "/juego/mercado",
+      "source": "Real native React Native UI in Expo Go 58.0.5; local demonstration progress; no release binary submitted",
+      "sha256": "fed0249ed309faf572fb224e64f890e52665dacd35fddae3cef7cf9dd2db4026"
+    },
+    {
+      "file": "sources/raw/android-tablet-10/07-carta.png",
+      "emulator": "Android 15 API 35 arm64 Google APIs",
+      "resolution": "1440x2560",
+      "density": "240",
+      "scene": "carta",
+      "route": "/carta",
+      "source": "Real native React Native UI in Expo Go 58.0.5; local demonstration progress; no release binary submitted",
+      "sha256": "d27676d0bb83dabd7d9dbe964e2eee132968d71635e6c12357496b14cae47ae1"
+    },
+    {
+      "file": "sources/raw/android-tablet-7/01-camino.png",
+      "emulator": "Android 15 API 35 arm64 Google APIs",
+      "resolution": "1080x1920",
+      "density": "240",
+      "scene": "camino",
+      "route": "/(tabs)",
+      "source": "Real native React Native UI in Expo Go 58.0.5; local demonstration progress; no release binary submitted",
+      "sha256": "50f91e6470d7ae8284b9299ea2441db9308d3d782490d95ad60538d7879704ee"
+    },
+    {
+      "file": "sources/raw/android-tablet-7/02-feria.png",
+      "emulator": "Android 15 API 35 arm64 Google APIs",
+      "resolution": "1080x1920",
+      "density": "240",
+      "scene": "feria",
+      "route": "/(tabs)/feria",
+      "source": "Real native React Native UI in Expo Go 58.0.5; local demonstration progress; no release binary submitted",
+      "sha256": "044de96f2a4df4eddc0d29b29735993cd99f30ef74329da00e620bb056b82076"
+    },
+    {
+      "file": "sources/raw/android-tablet-7/04-mercado.png",
+      "emulator": "Android 15 API 35 arm64 Google APIs",
+      "resolution": "1080x1920",
+      "density": "240",
+      "scene": "mercado",
+      "route": "/juego/mercado",
+      "source": "Real native React Native UI in Expo Go 58.0.5; local demonstration progress; no release binary submitted",
+      "sha256": "e41d7fd99dd05edcce88dfc68d49e4cbb839609a84ae2f69a5fb32fbdc3b22e7"
+    },
+    {
+      "file": "sources/raw/android-tablet-7/07-carta.png",
+      "emulator": "Android 15 API 35 arm64 Google APIs",
+      "resolution": "1080x1920",
+      "density": "240",
+      "scene": "carta",
+      "route": "/carta",
+      "source": "Real native React Native UI in Expo Go 58.0.5; local demonstration progress; no release binary submitted",
+      "sha256": "2b50d47cee7deb1f6ac271c6267f48de0054320c1dc553d55142f30baee26f21"
+    },
+    {
+      "file": "sources/raw/ipad-13/02-feria.png",
+      "deviceUDID": "118D3D9D-EB5D-42ED-8EBE-2C0C98C74BE9",
+      "display": "1",
+      "route": "/(tabs)/feria",
+      "scene": "feria",
+      "source": "Native iOS Simulator; current app JavaScript in an isolated capture binary; seeded local progress",
+      "sha256": "dfcdcd76f87dafff0b0c965d9815e67ea6d3f9a3e26a9e5ec0ce407e8d9d3f38"
+    },
+    {
+      "file": "sources/raw/ipad-13/03-tonos.png",
+      "deviceUDID": "118D3D9D-EB5D-42ED-8EBE-2C0C98C74BE9",
+      "display": "1",
+      "route": "/juego/tonos",
+      "scene": "tonos",
+      "source": "Native iOS Simulator; current app JavaScript in an isolated capture binary; seeded local progress",
+      "sha256": "a625461d89d4098a3a509b27c47e8465a4eaf8a81d85b9a79d98876c3653b0ef"
+    },
+    {
+      "file": "sources/raw/ipad-13/04-mercado.png",
+      "deviceUDID": "118D3D9D-EB5D-42ED-8EBE-2C0C98C74BE9",
+      "display": "1",
+      "route": "/juego/mercado",
+      "scene": "mercado",
+      "source": "Native iOS Simulator; current app JavaScript in an isolated capture binary; seeded local progress",
+      "sha256": "8808add75e4568628dfba07b48f3e0986de4c55973f7c36a605e4410526bbd34"
+    },
+    {
+      "file": "sources/raw/ipad-13/05-traza.png",
+      "deviceUDID": "118D3D9D-EB5D-42ED-8EBE-2C0C98C74BE9",
+      "display": "1",
+      "route": "/juego/traza",
+      "scene": "traza",
+      "source": "Native iOS Simulator; current app JavaScript in an isolated capture binary; seeded local progress",
+      "sha256": "3cbb2f85f033a59faa05dc8ee011723bbfdaabbb710d158461d96da1b00424b5"
+    },
+    {
+      "file": "sources/raw/ipad-13/06-cena.png",
+      "deviceUDID": "118D3D9D-EB5D-42ED-8EBE-2C0C98C74BE9",
+      "display": "1",
+      "route": "/juego/cena",
+      "scene": "cena",
+      "source": "Native iOS Simulator; current app JavaScript in an isolated capture binary; seeded local progress",
+      "sha256": "742fc617620afdffe3bb0beaf148c13f5618a77533b1b2a9e6057816d2303d96"
+    },
+    {
+      "file": "sources/raw/ipad-13/07-carta.png",
+      "deviceUDID": "118D3D9D-EB5D-42ED-8EBE-2C0C98C74BE9",
+      "display": "1",
+      "route": "/carta",
+      "scene": "carta",
+      "source": "Native iOS Simulator; current app JavaScript in an isolated capture binary; seeded local progress",
+      "sha256": "e962479f1222466311b714660a34f9462cab40b3dddbbe4a938c21e93a4c1ebf"
+    },
+    {
+      "file": "sources/raw/ipad-13/08-diario.png",
+      "deviceUDID": "118D3D9D-EB5D-42ED-8EBE-2C0C98C74BE9",
+      "display": "1",
+      "route": "/diario",
+      "scene": "diario",
+      "source": "Native iOS Simulator; current app JavaScript in an isolated capture binary; seeded local progress",
+      "sha256": "66cb0ff1a3255c6a532d112585e6c4ee9879b7f4a59ec8c3c746d6213f908746"
+    },
+    {
+      "file": "sources/raw/ipad-13/01-camino.png",
+      "deviceUDID": "118D3D9D-EB5D-42ED-8EBE-2C0C98C74BE9",
+      "display": "1",
+      "route": "/(tabs)",
+      "scene": "camino",
+      "source": "Native iOS Simulator; current app JavaScript in an isolated capture binary; seeded local progress",
+      "sha256": "dfb3ec79cebfba26d20c567c839544bf2f430c6f2e35a932823ca3863db9e902",
+      "readiness": "Full Camino UI visually verified in Device Hub before capture"
+    },
+    {
+      "file": "sources/raw/iphone/01-camino.png",
+      "deviceUDID": "727F29A1-B969-4003-9CDB-87CBA0CDCAF1",
+      "display": "1",
+      "route": "/(tabs)",
+      "scene": "camino",
+      "source": "Native iOS Simulator; current app JavaScript in an isolated capture binary; seeded local progress",
+      "sha256": "1fa62e2bc185cb2eed39239a0f238cc599de0abb6d8da40e6ad07b06fb9518ed"
+    },
+    {
+      "file": "sources/raw/iphone/02-feria.png",
+      "deviceUDID": "727F29A1-B969-4003-9CDB-87CBA0CDCAF1",
+      "display": "1",
+      "route": "/(tabs)/feria",
+      "scene": "feria",
+      "source": "Native iOS Simulator; current app JavaScript in an isolated capture binary; seeded local progress",
+      "sha256": "0b3f7a280beb5ba0157dd235df6647eb656f74646d57eedfd042ea25f0edcce0"
+    },
+    {
+      "file": "sources/raw/iphone/03-tonos.png",
+      "deviceUDID": "727F29A1-B969-4003-9CDB-87CBA0CDCAF1",
+      "display": "1",
+      "route": "/juego/tonos",
+      "scene": "tonos",
+      "source": "Native iOS Simulator; current app JavaScript in an isolated capture binary; seeded local progress",
+      "sha256": "e57204843dc878448b9d5a26d2c0df706e9043a080237167267cf63aae852bc7"
+    },
+    {
+      "file": "sources/raw/iphone/04-mercado.png",
+      "deviceUDID": "727F29A1-B969-4003-9CDB-87CBA0CDCAF1",
+      "display": "1",
+      "route": "/juego/mercado",
+      "scene": "mercado",
+      "source": "Native iOS Simulator; current app JavaScript in an isolated capture binary; seeded local progress",
+      "sha256": "407302cc3be2f4f43f0291da3c88e04049aa2b4ae147cf29505469035cb9981b"
+    },
+    {
+      "file": "sources/raw/iphone/05-traza.png",
+      "deviceUDID": "727F29A1-B969-4003-9CDB-87CBA0CDCAF1",
+      "display": "1",
+      "route": "/juego/traza",
+      "scene": "traza",
+      "source": "Native iOS Simulator; current app JavaScript in an isolated capture binary; seeded local progress",
+      "sha256": "dcfeb32f4df56a8cea68822b46ab9a41679c3b3cc270b10dfd1a541102354718"
+    },
+    {
+      "file": "sources/raw/iphone/06-cena.png",
+      "deviceUDID": "727F29A1-B969-4003-9CDB-87CBA0CDCAF1",
+      "display": "1",
+      "route": "/juego/cena",
+      "scene": "cena",
+      "source": "Native iOS Simulator; current app JavaScript in an isolated capture binary; seeded local progress",
+      "sha256": "43d17a63492c1b93927396affccd78953e162eadbed131662fc1fe5d67565572"
+    },
+    {
+      "file": "sources/raw/iphone/07-carta.png",
+      "deviceUDID": "727F29A1-B969-4003-9CDB-87CBA0CDCAF1",
+      "display": "1",
+      "route": "/carta",
+      "scene": "carta",
+      "source": "Native iOS Simulator; current app JavaScript in an isolated capture binary; seeded local progress",
+      "sha256": "1dd75f8a647c4c90982993a3c4e468699bd38e01af2b1866b205c7be6eeaafb8"
+    },
+    {
+      "file": "sources/raw/iphone/08-diario.png",
+      "deviceUDID": "727F29A1-B969-4003-9CDB-87CBA0CDCAF1",
+      "display": "1",
+      "route": "/diario",
+      "scene": "diario",
+      "source": "Native iOS Simulator; current app JavaScript in an isolated capture binary; seeded local progress",
+      "sha256": "4e99a94c9caa6b84db3c644cb6fd0fc5aec241324fbe5b0acbe367b0e883823e"
+    },
+    {
+      "file": "sources/raw/iphone-duo-inner/01-camino.png",
+      "deviceUDID": "594AE6F5-F1DA-461D-BEA3-1BBA46A59234",
+      "display": "3",
+      "route": "/(tabs)",
+      "scene": "camino",
+      "source": "Native iOS Simulator; current app JavaScript in an isolated capture binary; seeded local progress",
+      "sha256": "e249710476891b9345f80314e93b9a826c19067c079a13050ae5c2f1e11f9e42"
+    },
+    {
+      "file": "sources/raw/iphone-duo-inner/02-feria.png",
+      "deviceUDID": "594AE6F5-F1DA-461D-BEA3-1BBA46A59234",
+      "display": "3",
+      "route": "/(tabs)/feria",
+      "scene": "feria",
+      "source": "Native iOS Simulator; current app JavaScript in an isolated capture binary; seeded local progress",
+      "sha256": "f0118f86100b27e81a17b5ddffa7a5dccdf43dcf02268432b83acc7076e7367e"
+    },
+    {
+      "file": "sources/raw/iphone-duo-inner/03-tonos.png",
+      "deviceUDID": "594AE6F5-F1DA-461D-BEA3-1BBA46A59234",
+      "display": "3",
+      "route": "/juego/tonos",
+      "scene": "tonos",
+      "source": "Native iOS Simulator; current app JavaScript in an isolated capture binary; seeded local progress",
+      "sha256": "76754e2deed191cd316a9e44b201c0ed7e94d2c87f58be8362f68ae255440e0a"
+    },
+    {
+      "file": "sources/raw/iphone-duo-inner/04-mercado.png",
+      "deviceUDID": "594AE6F5-F1DA-461D-BEA3-1BBA46A59234",
+      "display": "3",
+      "route": "/juego/mercado",
+      "scene": "mercado",
+      "source": "Native iOS Simulator; current app JavaScript in an isolated capture binary; seeded local progress",
+      "sha256": "b4084bb92a7b40b1f00378c9aa95e891a055ecee84310c1c8f2a3d4e334821cc"
+    },
+    {
+      "file": "sources/raw/iphone-duo-inner/05-traza.png",
+      "deviceUDID": "594AE6F5-F1DA-461D-BEA3-1BBA46A59234",
+      "display": "3",
+      "route": "/juego/traza",
+      "scene": "traza",
+      "source": "Native iOS Simulator; current app JavaScript in an isolated capture binary; seeded local progress",
+      "sha256": "1880e0ea8a6f79825ea9da4b4ba5cdea063849ae664f00d514666f3e5ca94d73"
+    },
+    {
+      "file": "sources/raw/iphone-duo-inner/06-cena.png",
+      "deviceUDID": "594AE6F5-F1DA-461D-BEA3-1BBA46A59234",
+      "display": "3",
+      "route": "/juego/cena",
+      "scene": "cena",
+      "source": "Native iOS Simulator; current app JavaScript in an isolated capture binary; seeded local progress",
+      "sha256": "c5cc9ebc72b3d10c81dc94161896ccfaeb3ebd146cc6ea86124c1aa99da8a37e"
+    },
+    {
+      "file": "sources/raw/iphone-duo-inner/07-carta.png",
+      "deviceUDID": "594AE6F5-F1DA-461D-BEA3-1BBA46A59234",
+      "display": "3",
+      "route": "/carta",
+      "scene": "carta",
+      "source": "Native iOS Simulator; current app JavaScript in an isolated capture binary; seeded local progress",
+      "sha256": "7cc2e406481b3f588eb4a8898fdbcb37f487fb4c29e670616a00197aee98e94b"
+    },
+    {
+      "file": "sources/raw/iphone-duo-inner/08-diario.png",
+      "deviceUDID": "594AE6F5-F1DA-461D-BEA3-1BBA46A59234",
+      "display": "3",
+      "route": "/diario",
+      "scene": "diario",
+      "source": "Native iOS Simulator; current app JavaScript in an isolated capture binary; seeded local progress",
+      "sha256": "7be7ebc7d707e2bc1d10a299d69be5c5951f787c080fe179d5d4aeac1a962dd8"
+    },
+    {
+      "file": "sources/raw/iphone-duo-outer/01-camino.png",
+      "deviceUDID": "594AE6F5-F1DA-461D-BEA3-1BBA46A59234",
+      "display": "1",
+      "route": "/(tabs)",
+      "scene": "camino",
+      "source": "Native iOS Simulator; current app JavaScript in an isolated capture binary; seeded local progress",
+      "sha256": "f0525ab78373f6495f932be82f6920272ff0593b14e511f1daa76dd6c3942c08"
+    },
+    {
+      "file": "sources/raw/iphone-duo-outer/02-feria.png",
+      "deviceUDID": "594AE6F5-F1DA-461D-BEA3-1BBA46A59234",
+      "display": "1",
+      "route": "/(tabs)/feria",
+      "scene": "feria",
+      "source": "Native iOS Simulator; current app JavaScript in an isolated capture binary; seeded local progress",
+      "sha256": "45e2ebe5db5359eba928e495248ca3e013da27c1474b030aaedc36a6c79b5dcc"
+    },
+    {
+      "file": "sources/raw/iphone-duo-outer/03-tonos.png",
+      "deviceUDID": "594AE6F5-F1DA-461D-BEA3-1BBA46A59234",
+      "display": "1",
+      "route": "/juego/tonos",
+      "scene": "tonos",
+      "source": "Native iOS Simulator; current app JavaScript in an isolated capture binary; seeded local progress",
+      "sha256": "99343ae5c15ed629ee8fcc9791383533d1ef268e34ab9691fa40e661dac5675f"
+    },
+    {
+      "file": "sources/raw/iphone-duo-outer/04-mercado.png",
+      "deviceUDID": "594AE6F5-F1DA-461D-BEA3-1BBA46A59234",
+      "display": "1",
+      "route": "/juego/mercado",
+      "scene": "mercado",
+      "source": "Native iOS Simulator; current app JavaScript in an isolated capture binary; seeded local progress",
+      "sha256": "8ecf66821534f5655e804b8ba3cbd6aee24a4eebbff890cfd4b2fe8cd64c4bbf"
+    },
+    {
+      "file": "sources/raw/iphone-duo-outer/05-traza.png",
+      "deviceUDID": "594AE6F5-F1DA-461D-BEA3-1BBA46A59234",
+      "display": "1",
+      "route": "/juego/traza",
+      "scene": "traza",
+      "source": "Native iOS Simulator; current app JavaScript in an isolated capture binary; seeded local progress",
+      "sha256": "4f2e138a35c769abfdfbce316d489f617eb4a64734edfaafe5b625bb1e0ea3f8"
+    },
+    {
+      "file": "sources/raw/iphone-duo-outer/06-cena.png",
+      "deviceUDID": "594AE6F5-F1DA-461D-BEA3-1BBA46A59234",
+      "display": "1",
+      "route": "/juego/cena",
+      "scene": "cena",
+      "source": "Native iOS Simulator; current app JavaScript in an isolated capture binary; seeded local progress",
+      "sha256": "b2e789025007da405d9080183cf16f204ec7854698533506f7b337afa56a565b"
+    },
+    {
+      "file": "sources/raw/iphone-duo-outer/07-carta.png",
+      "deviceUDID": "594AE6F5-F1DA-461D-BEA3-1BBA46A59234",
+      "display": "1",
+      "route": "/carta",
+      "scene": "carta",
+      "source": "Native iOS Simulator; current app JavaScript in an isolated capture binary; seeded local progress",
+      "sha256": "82cf9c8f406ba3f58e45875271a17e3ee32321068d97f370970684ff383881e7"
+    },
+    {
+      "file": "sources/raw/iphone-duo-outer/08-diario.png",
+      "deviceUDID": "594AE6F5-F1DA-461D-BEA3-1BBA46A59234",
+      "display": "1",
+      "route": "/diario",
+      "scene": "diario",
+      "source": "Native iOS Simulator; current app JavaScript in an isolated capture binary; seeded local progress",
+      "sha256": "d457105684ded1140b5d13f15cbb5cf9c355e40f1e80bebb61b0764f8bb4d7c5"
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "appleName": {
+    "length": 25,
+    "limit": 30,
+    "pass": true
+  },
+  "appleSubtitle": {
+    "length": 19,
+    "limit": 30,
+    "pass": true
+  },
+  "applePromo": {
+    "length": 135,
+    "limit": 170,
+    "pass": true
+  },
+  "appleDescription": {
+    "length": 1851,
+    "limit": 4000,
+    "pass": true
+  },
+  "playTitle": {
+    "length": 25,
+    "limit": 30,
+    "pass": true
+  },
+  "playShort": {
+    "length": 80,
+    "limit": 80,
+    "pass": true
+  },
+  "playDescription": {
+    "length": 1851,
+    "limit": 4000,
+    "pass": true
+  },
+  "playReleaseNotes": {
+    "length": 299,
+    "limit": 500,
+    "pass": true
+  },
+  "appleKeywords": {
+    "utf8Bytes": 80,
+    "limit": 100,
+    "pass": true
+  }
+}

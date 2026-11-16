@@ -1,0 +1,44 @@
+{
+  "version": "1.0.0",
+  "primaryLocale": "es-ES",
+  "developer": "Mikel Garcia",
+  "supportEmail": "sanuk@overlayon.com",
+  "appName": "Sanuk · Aprende tailandés",
+  "bundleIdentifier": "app.sanuk.thai",
+  "androidPackage": "app.sanuk.thai",
+  "website": "https://sanuk.overlayon.com",
+  "supportUrl": "https://sanuk.overlayon.com/soporte",
+  "privacyUrl": "https://sanuk.overlayon.com/privacidad",
+  "urlsPublished": false,
+  "price": "free",
+  "ads": false,
+  "inAppPurchases": false,
+  "loginRequired": false,
+  "applePrimaryCategory": "Education",
+  "appleSecondaryCategory": "Games (opcional; Educational)",
+  "googleCategory": "Education",
+  "googleSuggestedTags": [
+    "Language education",
+    "Education"
+  ],
+  "copyright": "2026 Mikel Garcia",
+  "metadata": {
+    "name": "Sanuk · Aprende tailandés",
+    "subtitle": "Thai, curva a curva",
+    "promotionalText": "Tu primera palabra en tailandés abre un viaje. Aprende desde cero, juega con Noi y descubre una carta que entenderás palabra a palabra.",
+    "keywords": "thai,tailandes,idiomas,aprender,tonos,alfabeto,vocabulario,viaje,juegos,español",
+    "shortDescription": "Aprende tailandés desde cero con 20 juegos y un viaje por el norte de Tailandia.",
+    "fullDescription": "Tu primera palabra en tailandés puede ser el comienzo de una historia.\n\nViaja de Chiang Mai a Mae Hong Son con Noi, una pequeña elefanta que te acompaña entre montañas, mercados y farolillos. Al final de las 1.864 curvas hay una familia que quiere conocerte. Y una carta de Yai que irás entendiendo, palabra a palabra.\n\nEMPIEZA DESDE CERO, EN ESPAÑOL\nAprende saludos, vocabulario, frases útiles, tonos y escritura tailandesa con explicaciones en español. Activa la transcripción con tonos cuando necesites apoyo y avanza a tu ritmo.\n\nAPRENDE JUGANDO\n20 juegos convierten cada práctica en algo distinto. Entrena el oído, reconoce los tonos, une palabras, traza letras, compra en el mercado y participa en conversaciones. En Eco puedes escucharte para comparar tu pronunciación con la referencia.\n\nUN VIAJE QUE CONTINÚA\nRecorre 180 lecciones entre la carretera y la vida en el pueblo. Practica cómo pedir comida, presentarte, hablar con la familia y desenvolverte en situaciones cotidianas. Descubre 23 diálogos y 8 relatos que dan contexto a lo que aprendes.\n\nVUELVE A LAS PALABRAS QUE NECESITAS\nRepasa vocabulario con repetición espaciada. Guarda sellos en tu pasaporte, enciende farolillos con tu racha y consulta el diario para recordar lo vivido. Puedes activar un recordatorio local a la hora que elijas.\n\nUNA CARTA QUE SE VA ACLARANDO\nAl principio, la carta de Yai parece un misterio. A medida que aprendes, sus palabras se vuelven familiares. Tu progreso cambia lo que eres capaz de entender.\n\nSanuk es completamente gratuita, sin anuncios ni compras integradas. No necesitas crear una cuenta. Tu progreso se guarda en tu dispositivo.\n\nLa pronunciación utiliza las voces de tailandés de tu dispositivo. Su disponibilidad depende del sistema y puede requerir descargar una voz. El micrófono es opcional para grabarte en Eco.\n\nThai, curva a curva.",
+    "releaseNotes": "Primera versión de Sanuk.\n\n• Un viaje de Chiang Mai a Mae Hong Son y una nueva etapa en el pueblo.\n• 180 lecciones y 20 juegos para aprender tailandés desde el español.\n• Práctica de vocabulario, tonos, escritura y conversaciones.\n• La carta de Yai, el diario de viaje y tu pasaporte de aprendizaje."
+  },
+  "content": {
+    "lessons": 180,
+    "games": 20,
+    "words": 1402,
+    "sentences": 810,
+    "dialogues": 23,
+    "stories": 8,
+    "stops": 27
+  },
+  "submissionState": "Preparado localmente; requiere publicar las URLs, crear los binarios firmados y completar los datos privados de las cuentas."
+}

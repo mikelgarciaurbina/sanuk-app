@@ -1,0 +1,1247 @@
+{
+  "version": "1.0.0",
+  "verifiedAt": "2026-11-16T14:04:25",
+  "passed": true,
+  "screenshots": 48,
+  "counts": {
+    "apple/iphone": 8,
+    "apple/iphone-duo-outer": 8,
+    "apple/iphone-duo-inner": 8,
+    "apple/ipad-13": 8,
+    "google-play/phone": 8,
+    "google-play/tablet-7": 4,
+    "google-play/tablet-10": 4
+  },
+  "checks": [
+    {
+      "check": "count",
+      "folder": "apple/iphone",
+      "expected": 8,
+      "actual": 8,
+      "pass": true
+    },
+    {
+      "check": "screenshot",
+      "file": "apple/iphone/01-camino.png",
+      "size": [
+        1206,
+        2622
+      ],
+      "mode": "RGB",
+      "bytes": 526865,
+      "pass": true
+    },
+    {
+      "check": "screenshot",
+      "file": "apple/iphone/02-feria.png",
+      "size": [
+        1206,
+        2622
+      ],
+      "mode": "RGB",
+      "bytes": 720617,
+      "pass": true
+    },
+    {
+      "check": "screenshot",
+      "file": "apple/iphone/03-tonos.png",
+      "size": [
+        1206,
+        2622
+      ],
+      "mode": "RGB",
+      "bytes": 875603,
+      "pass": true
+    },
+    {
+      "check": "screenshot",
+      "file": "apple/iphone/04-mercado.png",
+      "size": [
+        1206,
+        2622
+      ],
+      "mode": "RGB",
+      "bytes": 771322,
+      "pass": true
+    },
+    {
+      "check": "screenshot",
+      "file": "apple/iphone/05-traza.png",
+      "size": [
+        1206,
+        2622
+      ],
+      "mode": "RGB",
+      "bytes": 966991,
+      "pass": true
+    },
+    {
+      "check": "screenshot",
+      "file": "apple/iphone/06-cena.png",
+      "size": [
+        1206,
+        2622
+      ],
+      "mode": "RGB",
+      "bytes": 627700,
+      "pass": true
+    },
+    {
+      "check": "screenshot",
+      "file": "apple/iphone/07-carta.png",
+      "size": [
+        1206,
+        2622
+      ],
+      "mode": "RGB",
+      "bytes": 543935,
+      "pass": true
+    },
+    {
+      "check": "screenshot",
+      "file": "apple/iphone/08-diario.png",
+      "size": [
+        1206,
+        2622
+      ],
+      "mode": "RGB",
+      "bytes": 717185,
+      "pass": true
+    },
+    {
+      "check": "count",
+      "folder": "apple/iphone-duo-outer",
+      "expected": 8,
+      "actual": 8,
+      "pass": true
+    },
+    {
+      "check": "screenshot",
+      "file": "apple/iphone-duo-outer/01-camino.png",
+      "size": [
+        1398,
+        2034
+      ],
+      "mode": "RGB",
+      "bytes": 453642,
+      "pass": true
+    },
+    {
+      "check": "screenshot",
+      "file": "apple/iphone-duo-outer/02-feria.png",
+      "size": [
+        1398,
+        2034
+      ],
+      "mode": "RGB",
+      "bytes": 739558,
+      "pass": true
+    },
+    {
+      "check": "screenshot",
+      "file": "apple/iphone-duo-outer/03-tonos.png",
+      "size": [
+        1398,
+        2034
+      ],
+      "mode": "RGB",
+      "bytes": 944208,
+      "pass": true
+    },
+    {
+      "check": "screenshot",
+      "file": "apple/iphone-duo-outer/04-mercado.png",
+      "size": [
+        1398,
+        2034
+      ],
+      "mode": "RGB",
+      "bytes": 935617,
+      "pass": true
+    },
+    {
+      "check": "screenshot",
+      "file": "apple/iphone-duo-outer/05-traza.png",
+      "size": [
+        1398,
+        2034
+      ],
+      "mode": "RGB",
+      "bytes": 995023,
+      "pass": true
+    },
+    {
+      "check": "screenshot",
+      "file": "apple/iphone-duo-outer/06-cena.png",
+      "size": [
+        1398,
+        2034
+      ],
+      "mode": "RGB",
+      "bytes": 798138,
+      "pass": true
+    },
+    {
+      "check": "screenshot",
+      "file": "apple/iphone-duo-outer/07-carta.png",
+      "size": [
+        1398,
+        2034
+      ],
+      "mode": "RGB",
+      "bytes": 404266,
+      "pass": true
+    },
+    {
+      "check": "screenshot",
+      "file": "apple/iphone-duo-outer/08-diario.png",
+      "size": [
+        1398,
+        2034
+      ],
+      "mode": "RGB",
+      "bytes": 663634,
+      "pass": true
+    },
+    {
+      "check": "count",
+      "folder": "apple/iphone-duo-inner",
+      "expected": 8,
+      "actual": 8,
+      "pass": true
+    },
+    {
+      "check": "screenshot",
+      "file": "apple/iphone-duo-inner/01-camino.png",
+      "size": [
+        2853,
+        2007
+      ],
+      "mode": "RGB",
+      "bytes": 535132,
+      "pass": true
+    },
+    {
+      "check": "screenshot",
+      "file": "apple/iphone-duo-inner/02-feria.png",
+      "size": [
+        2853,
+        2007
+      ],
+      "mode": "RGB",
+      "bytes": 1000502,
+      "pass": true
+    },
+    {
+      "check": "screenshot",
+      "file": "apple/iphone-duo-inner/03-tonos.png",
+      "size": [
+        2853,
+        2007
+      ],
+      "mode": "RGB",
+      "bytes": 1718205,
+      "pass": true
+    },
+    {
+      "check": "screenshot",
+      "file": "apple/iphone-duo-inner/04-mercado.png",
+      "size": [
+        2853,
+        2007
+      ],
+      "mode": "RGB",
+      "bytes": 1382453,
+      "pass": true
+    },
+    {
+      "check": "screenshot",
+      "file": "apple/iphone-duo-inner/05-traza.png",
+      "size": [
+        2853,
+        2007
+      ],
+      "mode": "RGB",
+      "bytes": 1879414,
+      "pass": true
+    },
+    {
+      "check": "screenshot",
+      "file": "apple/iphone-duo-inner/06-cena.png",
+      "size": [
+        2853,
+        2007
+      ],
+      "mode": "RGB",
+      "bytes": 1262032,
+      "pass": true
+    },
+    {
+      "check": "screenshot",
+      "file": "apple/iphone-duo-inner/07-carta.png",
+      "size": [
+        2853,
+        2007
+      ],
+      "mode": "RGB",
+      "bytes": 557604,
+      "pass": true
+    },
+    {
+      "check": "screenshot",
+      "file": "apple/iphone-duo-inner/08-diario.png",
+      "size": [
+        2853,
+        2007
+      ],
+      "mode": "RGB",
+      "bytes": 793100,
+      "pass": true
+    },
+    {
+      "check": "count",
+      "folder": "apple/ipad-13",
+      "expected": 8,
+      "actual": 8,
+      "pass": true
+    },
+    {
+      "check": "screenshot",
+      "file": "apple/ipad-13/01-camino.png",
+      "size": [
+        2048,
+        2732
+      ],
+      "mode": "RGB",
+      "bytes": 470958,
+      "pass": true
+    },
+    {
+      "check": "screenshot",
+      "file": "apple/ipad-13/02-feria.png",
+      "size": [
+        2048,
+        2732
+      ],
+      "mode": "RGB",
+      "bytes": 1210149,
+      "pass": true
+    },
+    {
+      "check": "screenshot",
+      "file": "apple/ipad-13/03-tonos.png",
+      "size": [
+        2048,
+        2732
+      ],
+      "mode": "RGB",
+      "bytes": 1462297,
+      "pass": true
+    },
+    {
+      "check": "screenshot",
+      "file": "apple/ipad-13/04-mercado.png",
+      "size": [
+        2048,
+        2732
+      ],
+      "mode": "RGB",
+      "bytes": 1177334,
+      "pass": true
+    },
+    {
+      "check": "screenshot",
+      "file": "apple/ipad-13/05-traza.png",
+      "size": [
+        2048,
+        2732
+      ],
+      "mode": "RGB",
+      "bytes": 1544984,
+      "pass": true
+    },
+    {
+      "check": "screenshot",
+      "file": "apple/ipad-13/06-cena.png",
+      "size": [
+        2048,
+        2732
+      ],
+      "mode": "RGB",
+      "bytes": 1172471,
+      "pass": true
+    },
+    {
+      "check": "screenshot",
+      "file": "apple/ipad-13/07-carta.png",
+      "size": [
+        2048,
+        2732
+      ],
+      "mode": "RGB",
+      "bytes": 532294,
+      "pass": true
+    },
+    {
+      "check": "screenshot",
+      "file": "apple/ipad-13/08-diario.png",
+      "size": [
+        2048,
+        2732
+      ],
+      "mode": "RGB",
+      "bytes": 581732,
+      "pass": true
+    },
+    {
+      "check": "count",
+      "folder": "google-play/phone",
+      "expected": 8,
+      "actual": 8,
+      "pass": true
+    },
+    {
+      "check": "screenshot",
+      "file": "google-play/phone/01-camino.png",
+      "size": [
+        1080,
+        1920
+      ],
+      "mode": "RGB",
+      "bytes": 292703,
+      "pass": true
+    },
+    {
+      "check": "screenshot",
+      "file": "google-play/phone/02-feria.png",
+      "size": [
+        1080,
+        1920
+      ],
+      "mode": "RGB",
+      "bytes": 407617,
+      "pass": true
+    },
+    {
+      "check": "screenshot",
+      "file": "google-play/phone/03-tonos.png",
+      "size": [
+        1080,
+        1920
+      ],
+      "mode": "RGB",
+      "bytes": 385424,
+      "pass": true
+    },
+    {
+      "check": "screenshot",
+      "file": "google-play/phone/04-mercado.png",
+      "size": [
+        1080,
+        1920
+      ],
+      "mode": "RGB",
+      "bytes": 453656,
+      "pass": true
+    },
+    {
+      "check": "screenshot",
+      "file": "google-play/phone/05-traza.png",
+      "size": [
+        1080,
+        1920
+      ],
+      "mode": "RGB",
+      "bytes": 452566,
+      "pass": true
+    },
+    {
+      "check": "screenshot",
+      "file": "google-play/phone/06-cena.png",
+      "size": [
+        1080,
+        1920
+      ],
+      "mode": "RGB",
+      "bytes": 335482,
+      "pass": true
+    },
+    {
+      "check": "screenshot",
+      "file": "google-play/phone/07-carta.png",
+      "size": [
+        1080,
+        1920
+      ],
+      "mode": "RGB",
+      "bytes": 431418,
+      "pass": true
+    },
+    {
+      "check": "screenshot",
+      "file": "google-play/phone/08-diario.png",
+      "size": [
+        1080,
+        1920
+      ],
+      "mode": "RGB",
+      "bytes": 367724,
+      "pass": true
+    },
+    {
+      "check": "count",
+      "folder": "google-play/tablet-7",
+      "expected": 4,
+      "actual": 4,
+      "pass": true
+    },
+    {
+      "check": "screenshot",
+      "file": "google-play/tablet-7/01-camino.png",
+      "size": [
+        1080,
+        1920
+      ],
+      "mode": "RGB",
+      "bytes": 173105,
+      "pass": true
+    },
+    {
+      "check": "screenshot",
+      "file": "google-play/tablet-7/02-feria.png",
+      "size": [
+        1080,
+        1920
+      ],
+      "mode": "RGB",
+      "bytes": 346772,
+      "pass": true
+    },
+    {
+      "check": "screenshot",
+      "file": "google-play/tablet-7/04-mercado.png",
+      "size": [
+        1080,
+        1920
+      ],
+      "mode": "RGB",
+      "bytes": 294016,
+      "pass": true
+    },
+    {
+      "check": "screenshot",
+      "file": "google-play/tablet-7/07-carta.png",
+      "size": [
+        1080,
+        1920
+      ],
+      "mode": "RGB",
+      "bytes": 205429,
+      "pass": true
+    },
+    {
+      "check": "count",
+      "folder": "google-play/tablet-10",
+      "expected": 4,
+      "actual": 4,
+      "pass": true
+    },
+    {
+      "check": "screenshot",
+      "file": "google-play/tablet-10/01-camino.png",
+      "size": [
+        1440,
+        2560
+      ],
+      "mode": "RGB",
+      "bytes": 227681,
+      "pass": true
+    },
+    {
+      "check": "screenshot",
+      "file": "google-play/tablet-10/02-feria.png",
+      "size": [
+        1440,
+        2560
+      ],
+      "mode": "RGB",
+      "bytes": 426089,
+      "pass": true
+    },
+    {
+      "check": "screenshot",
+      "file": "google-play/tablet-10/04-mercado.png",
+      "size": [
+        1440,
+        2560
+      ],
+      "mode": "RGB",
+      "bytes": 334649,
+      "pass": true
+    },
+    {
+      "check": "screenshot",
+      "file": "google-play/tablet-10/07-carta.png",
+      "size": [
+        1440,
+        2560
+      ],
+      "mode": "RGB",
+      "bytes": 217270,
+      "pass": true
+    },
+    {
+      "check": "artwork",
+      "file": "apple/creative/header.png",
+      "size": [
+        3840,
+        1646
+      ],
+      "mode": "RGB",
+      "bytes": 419496,
+      "pass": true
+    },
+    {
+      "check": "artwork",
+      "file": "apple/creative/search-results.png",
+      "size": [
+        3840,
+        2560
+      ],
+      "mode": "RGB",
+      "bytes": 633004,
+      "pass": true
+    },
+    {
+      "check": "artwork",
+      "file": "google-play/feature-graphic.png",
+      "size": [
+        1024,
+        500
+      ],
+      "mode": "RGB",
+      "bytes": 137179,
+      "pass": true
+    },
+    {
+      "check": "artwork",
+      "file": "brand/app-icon-ios-1024.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "mode": "RGB",
+      "bytes": 283978,
+      "pass": true
+    },
+    {
+      "check": "artwork",
+      "file": "brand/app-icon-google-512.png",
+      "size": [
+        512,
+        512
+      ],
+      "mode": "RGBA",
+      "bytes": 142462,
+      "pass": true
+    },
+    {
+      "check": "metadata",
+      "field": "appleName",
+      "length": 25,
+      "limit": 30,
+      "pass": true
+    },
+    {
+      "check": "metadata",
+      "field": "appleSubtitle",
+      "length": 19,
+      "limit": 30,
+      "pass": true
+    },
+    {
+      "check": "metadata",
+      "field": "applePromo",
+      "length": 135,
+      "limit": 170,
+      "pass": true
+    },
+    {
+      "check": "metadata",
+      "field": "appleDescription",
+      "length": 1851,
+      "limit": 4000,
+      "pass": true
+    },
+    {
+      "check": "metadata",
+      "field": "playTitle",
+      "length": 25,
+      "limit": 30,
+      "pass": true
+    },
+    {
+      "check": "metadata",
+      "field": "playShort",
+      "length": 80,
+      "limit": 80,
+      "pass": true
+    },
+    {
+      "check": "metadata",
+      "field": "playDescription",
+      "length": 1851,
+      "limit": 4000,
+      "pass": true
+    },
+    {
+      "check": "metadata",
+      "field": "playReleaseNotes",
+      "length": 299,
+      "limit": 500,
+      "pass": true
+    },
+    {
+      "check": "metadata",
+      "field": "appleKeywords",
+      "utf8Bytes": 80,
+      "limit": 100,
+      "pass": true
+    },
+    {
+      "check": "capture-count",
+      "expected": 48,
+      "actual": 48,
+      "pass": true
+    },
+    {
+      "check": "capture-provenance",
+      "file": "sources/raw/android-phone/01-camino.png",
+      "pass": true
+    },
+    {
+      "check": "raw-screen-content",
+      "file": "sources/raw/android-phone/01-camino.png",
+      "variance": 4610.8,
+      "pass": true
+    },
+    {
+      "check": "capture-provenance",
+      "file": "sources/raw/android-phone/02-feria.png",
+      "pass": true
+    },
+    {
+      "check": "raw-screen-content",
+      "file": "sources/raw/android-phone/02-feria.png",
+      "variance": 8645.1,
+      "pass": true
+    },
+    {
+      "check": "capture-provenance",
+      "file": "sources/raw/android-phone/03-tonos.png",
+      "pass": true
+    },
+    {
+      "check": "raw-screen-content",
+      "file": "sources/raw/android-phone/03-tonos.png",
+      "variance": 4699.9,
+      "pass": true
+    },
+    {
+      "check": "capture-provenance",
+      "file": "sources/raw/android-phone/04-mercado.png",
+      "pass": true
+    },
+    {
+      "check": "raw-screen-content",
+      "file": "sources/raw/android-phone/04-mercado.png",
+      "variance": 5154.5,
+      "pass": true
+    },
+    {
+      "check": "capture-provenance",
+      "file": "sources/raw/android-phone/05-traza.png",
+      "pass": true
+    },
+    {
+      "check": "raw-screen-content",
+      "file": "sources/raw/android-phone/05-traza.png",
+      "variance": 3191.9,
+      "pass": true
+    },
+    {
+      "check": "capture-provenance",
+      "file": "sources/raw/android-phone/06-cena.png",
+      "pass": true
+    },
+    {
+      "check": "raw-screen-content",
+      "file": "sources/raw/android-phone/06-cena.png",
+      "variance": 10638.2,
+      "pass": true
+    },
+    {
+      "check": "capture-provenance",
+      "file": "sources/raw/android-phone/07-carta.png",
+      "pass": true
+    },
+    {
+      "check": "raw-screen-content",
+      "file": "sources/raw/android-phone/07-carta.png",
+      "variance": 2876.0,
+      "pass": true
+    },
+    {
+      "check": "capture-provenance",
+      "file": "sources/raw/android-phone/08-diario.png",
+      "pass": true
+    },
+    {
+      "check": "raw-screen-content",
+      "file": "sources/raw/android-phone/08-diario.png",
+      "variance": 3279.0,
+      "pass": true
+    },
+    {
+      "check": "capture-provenance",
+      "file": "sources/raw/android-tablet-10/01-camino.png",
+      "pass": true
+    },
+    {
+      "check": "raw-screen-content",
+      "file": "sources/raw/android-tablet-10/01-camino.png",
+      "variance": 1269.4,
+      "pass": true
+    },
+    {
+      "check": "capture-provenance",
+      "file": "sources/raw/android-tablet-10/02-feria.png",
+      "pass": true
+    },
+    {
+      "check": "raw-screen-content",
+      "file": "sources/raw/android-tablet-10/02-feria.png",
+      "variance": 6980.0,
+      "pass": true
+    },
+    {
+      "check": "capture-provenance",
+      "file": "sources/raw/android-tablet-10/04-mercado.png",
+      "pass": true
+    },
+    {
+      "check": "raw-screen-content",
+      "file": "sources/raw/android-tablet-10/04-mercado.png",
+      "variance": 3512.9,
+      "pass": true
+    },
+    {
+      "check": "capture-provenance",
+      "file": "sources/raw/android-tablet-10/07-carta.png",
+      "pass": true
+    },
+    {
+      "check": "raw-screen-content",
+      "file": "sources/raw/android-tablet-10/07-carta.png",
+      "variance": 1613.7,
+      "pass": true
+    },
+    {
+      "check": "capture-provenance",
+      "file": "sources/raw/android-tablet-7/01-camino.png",
+      "pass": true
+    },
+    {
+      "check": "raw-screen-content",
+      "file": "sources/raw/android-tablet-7/01-camino.png",
+      "variance": 3180.4,
+      "pass": true
+    },
+    {
+      "check": "capture-provenance",
+      "file": "sources/raw/android-tablet-7/02-feria.png",
+      "pass": true
+    },
+    {
+      "check": "raw-screen-content",
+      "file": "sources/raw/android-tablet-7/02-feria.png",
+      "variance": 7630.8,
+      "pass": true
+    },
+    {
+      "check": "capture-provenance",
+      "file": "sources/raw/android-tablet-7/04-mercado.png",
+      "pass": true
+    },
+    {
+      "check": "raw-screen-content",
+      "file": "sources/raw/android-tablet-7/04-mercado.png",
+      "variance": 4238.7,
+      "pass": true
+    },
+    {
+      "check": "capture-provenance",
+      "file": "sources/raw/android-tablet-7/07-carta.png",
+      "pass": true
+    },
+    {
+      "check": "raw-screen-content",
+      "file": "sources/raw/android-tablet-7/07-carta.png",
+      "variance": 2155.3,
+      "pass": true
+    },
+    {
+      "check": "capture-provenance",
+      "file": "sources/raw/ipad-13/02-feria.png",
+      "pass": true
+    },
+    {
+      "check": "raw-screen-content",
+      "file": "sources/raw/ipad-13/02-feria.png",
+      "variance": 7095.6,
+      "pass": true
+    },
+    {
+      "check": "capture-provenance",
+      "file": "sources/raw/ipad-13/03-tonos.png",
+      "pass": true
+    },
+    {
+      "check": "raw-screen-content",
+      "file": "sources/raw/ipad-13/03-tonos.png",
+      "variance": 3091.2,
+      "pass": true
+    },
+    {
+      "check": "capture-provenance",
+      "file": "sources/raw/ipad-13/04-mercado.png",
+      "pass": true
+    },
+    {
+      "check": "raw-screen-content",
+      "file": "sources/raw/ipad-13/04-mercado.png",
+      "variance": 4224.0,
+      "pass": true
+    },
+    {
+      "check": "capture-provenance",
+      "file": "sources/raw/ipad-13/05-traza.png",
+      "pass": true
+    },
+    {
+      "check": "raw-screen-content",
+      "file": "sources/raw/ipad-13/05-traza.png",
+      "variance": 1657.3,
+      "pass": true
+    },
+    {
+      "check": "capture-provenance",
+      "file": "sources/raw/ipad-13/06-cena.png",
+      "pass": true
+    },
+    {
+      "check": "raw-screen-content",
+      "file": "sources/raw/ipad-13/06-cena.png",
+      "variance": 3596.5,
+      "pass": true
+    },
+    {
+      "check": "capture-provenance",
+      "file": "sources/raw/ipad-13/07-carta.png",
+      "pass": true
+    },
+    {
+      "check": "raw-screen-content",
+      "file": "sources/raw/ipad-13/07-carta.png",
+      "variance": 2037.8,
+      "pass": true
+    },
+    {
+      "check": "capture-provenance",
+      "file": "sources/raw/ipad-13/08-diario.png",
+      "pass": true
+    },
+    {
+      "check": "raw-screen-content",
+      "file": "sources/raw/ipad-13/08-diario.png",
+      "variance": 2005.8,
+      "pass": true
+    },
+    {
+      "check": "capture-provenance",
+      "file": "sources/raw/ipad-13/01-camino.png",
+      "pass": true
+    },
+    {
+      "check": "raw-screen-content",
+      "file": "sources/raw/ipad-13/01-camino.png",
+      "variance": 1452.5,
+      "pass": true
+    },
+    {
+      "check": "capture-provenance",
+      "file": "sources/raw/iphone/01-camino.png",
+      "pass": true
+    },
+    {
+      "check": "raw-screen-content",
+      "file": "sources/raw/iphone/01-camino.png",
+      "variance": 4936.2,
+      "pass": true
+    },
+    {
+      "check": "capture-provenance",
+      "file": "sources/raw/iphone/02-feria.png",
+      "pass": true
+    },
+    {
+      "check": "raw-screen-content",
+      "file": "sources/raw/iphone/02-feria.png",
+      "variance": 8201.7,
+      "pass": true
+    },
+    {
+      "check": "capture-provenance",
+      "file": "sources/raw/iphone/03-tonos.png",
+      "pass": true
+    },
+    {
+      "check": "raw-screen-content",
+      "file": "sources/raw/iphone/03-tonos.png",
+      "variance": 5129.9,
+      "pass": true
+    },
+    {
+      "check": "capture-provenance",
+      "file": "sources/raw/iphone/04-mercado.png",
+      "pass": true
+    },
+    {
+      "check": "raw-screen-content",
+      "file": "sources/raw/iphone/04-mercado.png",
+      "variance": 5210.4,
+      "pass": true
+    },
+    {
+      "check": "capture-provenance",
+      "file": "sources/raw/iphone/05-traza.png",
+      "pass": true
+    },
+    {
+      "check": "raw-screen-content",
+      "file": "sources/raw/iphone/05-traza.png",
+      "variance": 3866.0,
+      "pass": true
+    },
+    {
+      "check": "capture-provenance",
+      "file": "sources/raw/iphone/06-cena.png",
+      "pass": true
+    },
+    {
+      "check": "raw-screen-content",
+      "file": "sources/raw/iphone/06-cena.png",
+      "variance": 4865.9,
+      "pass": true
+    },
+    {
+      "check": "capture-provenance",
+      "file": "sources/raw/iphone/07-carta.png",
+      "pass": true
+    },
+    {
+      "check": "raw-screen-content",
+      "file": "sources/raw/iphone/07-carta.png",
+      "variance": 2827.2,
+      "pass": true
+    },
+    {
+      "check": "capture-provenance",
+      "file": "sources/raw/iphone/08-diario.png",
+      "pass": true
+    },
+    {
+      "check": "raw-screen-content",
+      "file": "sources/raw/iphone/08-diario.png",
+      "variance": 1986.3,
+      "pass": true
+    },
+    {
+      "check": "capture-provenance",
+      "file": "sources/raw/iphone-duo-inner/01-camino.png",
+      "pass": true
+    },
+    {
+      "check": "raw-screen-content",
+      "file": "sources/raw/iphone-duo-inner/01-camino.png",
+      "variance": 2920.9,
+      "pass": true
+    },
+    {
+      "check": "capture-provenance",
+      "file": "sources/raw/iphone-duo-inner/02-feria.png",
+      "pass": true
+    },
+    {
+      "check": "raw-screen-content",
+      "file": "sources/raw/iphone-duo-inner/02-feria.png",
+      "variance": 8118.9,
+      "pass": true
+    },
+    {
+      "check": "capture-provenance",
+      "file": "sources/raw/iphone-duo-inner/03-tonos.png",
+      "pass": true
+    },
+    {
+      "check": "raw-screen-content",
+      "file": "sources/raw/iphone-duo-inner/03-tonos.png",
+      "variance": 3356.6,
+      "pass": true
+    },
+    {
+      "check": "capture-provenance",
+      "file": "sources/raw/iphone-duo-inner/04-mercado.png",
+      "pass": true
+    },
+    {
+      "check": "raw-screen-content",
+      "file": "sources/raw/iphone-duo-inner/04-mercado.png",
+      "variance": 5278.6,
+      "pass": true
+    },
+    {
+      "check": "capture-provenance",
+      "file": "sources/raw/iphone-duo-inner/05-traza.png",
+      "pass": true
+    },
+    {
+      "check": "raw-screen-content",
+      "file": "sources/raw/iphone-duo-inner/05-traza.png",
+      "variance": 2016.2,
+      "pass": true
+    },
+    {
+      "check": "capture-provenance",
+      "file": "sources/raw/iphone-duo-inner/06-cena.png",
+      "pass": true
+    },
+    {
+      "check": "raw-screen-content",
+      "file": "sources/raw/iphone-duo-inner/06-cena.png",
+      "variance": 4608.7,
+      "pass": true
+    },
+    {
+      "check": "capture-provenance",
+      "file": "sources/raw/iphone-duo-inner/07-carta.png",
+      "pass": true
+    },
+    {
+      "check": "raw-screen-content",
+      "file": "sources/raw/iphone-duo-inner/07-carta.png",
+      "variance": 3428.9,
+      "pass": true
+    },
+    {
+      "check": "capture-provenance",
+      "file": "sources/raw/iphone-duo-inner/08-diario.png",
+      "pass": true
+    },
+    {
+      "check": "raw-screen-content",
+      "file": "sources/raw/iphone-duo-inner/08-diario.png",
+      "variance": 1762.7,
+      "pass": true
+    },
+    {
+      "check": "capture-provenance",
+      "file": "sources/raw/iphone-duo-outer/01-camino.png",
+      "pass": true
+    },
+    {
+      "check": "raw-screen-content",
+      "file": "sources/raw/iphone-duo-outer/01-camino.png",
+      "variance": 5200.0,
+      "pass": true
+    },
+    {
+      "check": "capture-provenance",
+      "file": "sources/raw/iphone-duo-outer/02-feria.png",
+      "pass": true
+    },
+    {
+      "check": "raw-screen-content",
+      "file": "sources/raw/iphone-duo-outer/02-feria.png",
+      "variance": 7349.4,
+      "pass": true
+    },
+    {
+      "check": "capture-provenance",
+      "file": "sources/raw/iphone-duo-outer/03-tonos.png",
+      "pass": true
+    },
+    {
+      "check": "raw-screen-content",
+      "file": "sources/raw/iphone-duo-outer/03-tonos.png",
+      "variance": 3731.0,
+      "pass": true
+    },
+    {
+      "check": "capture-provenance",
+      "file": "sources/raw/iphone-duo-outer/04-mercado.png",
+      "pass": true
+    },
+    {
+      "check": "raw-screen-content",
+      "file": "sources/raw/iphone-duo-outer/04-mercado.png",
+      "variance": 4954.4,
+      "pass": true
+    },
+    {
+      "check": "capture-provenance",
+      "file": "sources/raw/iphone-duo-outer/05-traza.png",
+      "pass": true
+    },
+    {
+      "check": "raw-screen-content",
+      "file": "sources/raw/iphone-duo-outer/05-traza.png",
+      "variance": 3075.8,
+      "pass": true
+    },
+    {
+      "check": "capture-provenance",
+      "file": "sources/raw/iphone-duo-outer/06-cena.png",
+      "pass": true
+    },
+    {
+      "check": "raw-screen-content",
+      "file": "sources/raw/iphone-duo-outer/06-cena.png",
+      "variance": 4348.6,
+      "pass": true
+    },
+    {
+      "check": "capture-provenance",
+      "file": "sources/raw/iphone-duo-outer/07-carta.png",
+      "pass": true
+    },
+    {
+      "check": "raw-screen-content",
+      "file": "sources/raw/iphone-duo-outer/07-carta.png",
+      "variance": 3002.3,
+      "pass": true
+    },
+    {
+      "check": "capture-provenance",
+      "file": "sources/raw/iphone-duo-outer/08-diario.png",
+      "pass": true
+    },
+    {
+      "check": "raw-screen-content",
+      "file": "sources/raw/iphone-duo-outer/08-diario.png",
+      "variance": 1898.5,
+      "pass": true
+    }
+  ],
+  "scope": "File formats, dimensions, metadata limits and provenance. Release binaries and live URLs are separate pre-submission checks."
+}

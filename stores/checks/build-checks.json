@@ -1,0 +1,27 @@
+{
+  "date": "2026-11-16",
+  "app": {
+    "lint": "passed",
+    "typecheck": "passed",
+    "icon": "1024x1024 RGB, removed an unused opaque alpha channel",
+    "configuredAndroidTargetSdk": 36,
+    "targetSdkEvidence": "react-native/gradle/libs.versions.toml and ExpoRootProjectPlugin; verify final AAB separately"
+  },
+  "site": {
+    "astroCheck": "passed, zero errors, warnings or hints",
+    "productionBuild": "passed",
+    "mobilePreview": {
+      "width": 390,
+      "documentWidth": 390,
+      "pages": [
+        "privacidad",
+        "soporte"
+      ]
+    }
+  },
+  "publication": {
+    "liveUrlsVerified": false,
+    "signedBinariesBuilt": false,
+    "storesSubmitted": false
+  }
+}

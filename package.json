@@ -57,7 +57,10 @@
     "temario:test": "node --test scripts/temario/temario.test.mts",
     "sfx": "node scripts/make-sfx.mjs",
     "noi:svg": "node scripts/render-noi.mts noi-svg",
-    "icons:svg": "node scripts/make-icons.mts icons-svg"
+    "icons:svg": "node scripts/make-icons.mts icons-svg",
+    "stores:update": "python3 stores/sources/prepare.py && python3 stores/sources/compose-screenshots.py && python3 stores/sources/catalog.py && python3 stores/sources/validate.py",
+    "stores:validate": "python3 stores/sources/validate.py",
+    "stores:pack": "python3 stores/sources/pack.py"
   },
   "private": true
 }

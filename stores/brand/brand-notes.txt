@@ -1,0 +1,11 @@
+Sanuk · Thai, curva a curva.
+
+Color principal #1D2347
+Azafrán #FFA41B
+Arrozal #13854F
+Farol #FF6A3D
+Alba #FFE2B8
+Niebla #F3F6FA
+
+Fredoka para titulares, Nunito para texto y Noto Sans Thai Looped para tailandés. Fuentes del proyecto con licencia OFL. No estirar el logotipo ni recortar a Noi. Usar la variante navy sobre fondos claros y white sobre fondos oscuros.
+Los SVG incluyen las fuentes en su interior para conservar el aspecto y permiten editar los elementos.

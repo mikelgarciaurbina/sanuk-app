@@ -1,5 +1,5 @@
 import { ScreenFrame } from '@/components/ScreenFrame';
-import { router } from 'expo-router';
+import { Link, router } from 'expo-router';
 import { useState, type ReactNode } from 'react';
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import Animated, { ZoomIn } from 'react-native-reanimated';
@@ -242,6 +242,10 @@ function PasaporteContent() {
       </View>
 
       <Btn label={confirm ? 'Toca otra vez para borrar todo' : 'Empezar de cero'} v="ghost" onPress={doReset} />
+      <View style={{ alignItems: 'center', gap: 12, paddingVertical: 8 }}>
+        <Link href="https://sanuk.overlayon.com/privacidad" style={styles.externalLink}>Política de privacidad</Link>
+        <Link href="https://sanuk.overlayon.com/soporte" style={styles.externalLink}>Ayuda y contacto</Link>
+      </View>
       <Txt v="small" style={{ textAlign: 'center' }}>Sanuk · Thai, curva a curva</Txt>
       </View>
       </View>
@@ -276,6 +280,7 @@ function Setting({ label, value, onChange }: { label: string; value: boolean; on
 }
 
 const styles = StyleSheet.create({
+  externalLink: { color: color.cieloHondo, fontFamily: font.uiHeavy, fontSize: 15, lineHeight: 24, paddingVertical: 10, paddingHorizontal: 12, minHeight: 44, textAlign: 'center' },
   passport: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, borderRadius: 24, backgroundColor: color.mohom, overflow: 'hidden' },
   lanna: { position: 'absolute', right: -30, top: -30, width: 120, height: 120, borderRadius: 60, borderWidth: 14, borderColor: '#33449A' },
   avatar: { width: 76, height: 76, borderRadius: 22, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },

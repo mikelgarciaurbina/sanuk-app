@@ -1,0 +1,74 @@
+[
+  {
+    "file": "sources/raw/iphone-duo-inner/01-camino.png",
+    "deviceUDID": "594AE6F5-F1DA-461D-BEA3-1BBA46A59234",
+    "display": "3",
+    "route": "/(tabs)",
+    "scene": "camino",
+    "source": "Native iOS Simulator; current app JavaScript in an isolated capture binary; seeded local progress",
+    "sha256": "e249710476891b9345f80314e93b9a826c19067c079a13050ae5c2f1e11f9e42"
+  },
+  {
+    "file": "sources/raw/iphone-duo-inner/02-feria.png",
+    "deviceUDID": "594AE6F5-F1DA-461D-BEA3-1BBA46A59234",
+    "display": "3",
+    "route": "/(tabs)/feria",
+    "scene": "feria",
+    "source": "Native iOS Simulator; current app JavaScript in an isolated capture binary; seeded local progress",
+    "sha256": "f0118f86100b27e81a17b5ddffa7a5dccdf43dcf02268432b83acc7076e7367e"
+  },
+  {
+    "file": "sources/raw/iphone-duo-inner/03-tonos.png",
+    "deviceUDID": "594AE6F5-F1DA-461D-BEA3-1BBA46A59234",
+    "display": "3",
+    "route": "/juego/tonos",
+    "scene": "tonos",
+    "source": "Native iOS Simulator; current app JavaScript in an isolated capture binary; seeded local progress",
+    "sha256": "76754e2deed191cd316a9e44b201c0ed7e94d2c87f58be8362f68ae255440e0a"
+  },
+  {
+    "file": "sources/raw/iphone-duo-inner/04-mercado.png",
+    "deviceUDID": "594AE6F5-F1DA-461D-BEA3-1BBA46A59234",
+    "display": "3",
+    "route": "/juego/mercado",
+    "scene": "mercado",
+    "source": "Native iOS Simulator; current app JavaScript in an isolated capture binary; seeded local progress",
+    "sha256": "b4084bb92a7b40b1f00378c9aa95e891a055ecee84310c1c8f2a3d4e334821cc"
+  },
+  {
+    "file": "sources/raw/iphone-duo-inner/05-traza.png",
+    "deviceUDID": "594AE6F5-F1DA-461D-BEA3-1BBA46A59234",
+    "display": "3",
+    "route": "/juego/traza",
+    "scene": "traza",
+    "source": "Native iOS Simulator; current app JavaScript in an isolated capture binary; seeded local progress",
+    "sha256": "1880e0ea8a6f79825ea9da4b4ba5cdea063849ae664f00d514666f3e5ca94d73"
+  },
+  {
+    "file": "sources/raw/iphone-duo-inner/06-cena.png",
+    "deviceUDID": "594AE6F5-F1DA-461D-BEA3-1BBA46A59234",
+    "display": "3",
+    "route": "/juego/cena",
+    "scene": "cena",
+    "source": "Native iOS Simulator; current app JavaScript in an isolated capture binary; seeded local progress",
+    "sha256": "c5cc9ebc72b3d10c81dc94161896ccfaeb3ebd146cc6ea86124c1aa99da8a37e"
+  },
+  {
+    "file": "sources/raw/iphone-duo-inner/07-carta.png",
+    "deviceUDID": "594AE6F5-F1DA-461D-BEA3-1BBA46A59234",
+    "display": "3",
+    "route": "/carta",
+    "scene": "carta",
+    "source": "Native iOS Simulator; current app JavaScript in an isolated capture binary; seeded local progress",
+    "sha256": "7cc2e406481b3f588eb4a8898fdbcb37f487fb4c29e670616a00197aee98e94b"
+  },
+  {
+    "file": "sources/raw/iphone-duo-inner/08-diario.png",
+    "deviceUDID": "594AE6F5-F1DA-461D-BEA3-1BBA46A59234",
+    "display": "3",
+    "route": "/diario",
+    "scene": "diario",
+    "source": "Native iOS Simulator; current app JavaScript in an isolated capture binary; seeded local progress",
+    "sha256": "7be7ebc7d707e2bc1d10a299d69be5c5951f787c080fe179d5d4aeac1a962dd8"
+  }
+]

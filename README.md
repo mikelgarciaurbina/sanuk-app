@@ -58,6 +58,18 @@ Los perfiles iOS fijan Xcode 27.2 para incluir el soporte de pantalla completa d
 
 El recordatorio usa `expo-notifications` con `enableRemoteNotifications: false`: es local y no requiere credenciales APNs, un servidor ni obtener un token push. La nueva dependencia nativa y el selector de hora requieren una nueva build para probarse en TestFlight. El dispositivo aplica sus preferencias de notificaciones y modos de concentración; en Android el aviso usa la entrega estándar, sin pedir permiso de alarmas exactas.
 
+## Material de las tiendas
+
+Las fichas de App Store y Google Play, las 48 capturas, los iconos, los logotipos, los creativos y sus originales están en [`stores/`](stores/README.md). El [catálogo visual](stores/index.html) reúne todo el material de publicación.
+
+```bash
+npm run stores:update     # regenera textos, composiciones y catálogo; valida el resultado
+npm run stores:validate   # comprueba dimensiones, formatos, límites y procedencia
+npm run stores:pack       # genera el ZIP en stores/releases/
+```
+
+Requieren las dependencias npm de la app y Pillow en Python. Las fichas se mantienen en `stores/sources/prepare.py` y la composición en `stores/sources/compose-screenshots.py`. El material se versiona con la app; los ZIP generados se guardan en `stores/releases/`, excluido de Git. `.easignore` excluye `stores/` del envío a EAS y conserva las reglas de `.gitignore`; mantener ambos archivos sincronizados al cambiar esas reglas.
+
 ## Revisar el temario
 
 Cada vez que cambies algo en `src/content`, pasa el revisor (Node 22.18 o más nuevo):
@@ -82,4 +94,5 @@ src/
   lib/          progreso (AsyncStorage), audio, lecciones, utilidades de thai
 scripts/        make-sfx.mjs (sonidos), render-noi.mts (SVG de Noi), make-icons.mts (iconos)
   temario/      revisores del temario: revisar.mts, nivel.mts, reglas.mts (excepciones) y listas de frecuencia
+stores/         fichas, capturas, marca, creativos, documentos, originales y catálogo de publicación
 ```

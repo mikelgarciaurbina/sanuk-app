@@ -1,0 +1,4 @@
+# Los originales y las exportaciones se versionan; el ZIP se regenera.
+/releases/
+__pycache__/
+*.pyc

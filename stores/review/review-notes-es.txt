@@ -1,0 +1,34 @@
+Sanuk 1.0 — información para revisión
+
+Desarrollador y contacto
+Mikel Garcia
+sanuk@overlayon.com
+Completar el teléfono de contacto privado en App Store Connect o Play Console.
+
+Acceso
+No se necesita cuenta, contraseña ni código de acceso. No hay inicio de sesión, anuncios, suscripciones ni compras integradas. Todo el contenido de aprendizaje es gratuito. La progresión desbloquea actividades al completar lecciones.
+
+Ruta sugerida
+1. Completar la bienvenida y elegir la partícula, motivación y meta diaria.
+2. En Camino, abrir la primera parada de Chiang Mai y comenzar una lección.
+3. En Feria, practicar las actividades disponibles según el progreso.
+4. En Pasaporte, consultar los ajustes, la política de privacidad y la ayuda.
+5. La carta de Yai y el diario se encuentran en Camino y Pasaporte.
+
+Audio y permisos
+La pronunciación usa la síntesis de voz del sistema en tailandés. Se requiere una voz tailandesa disponible en el dispositivo. En Android, la app muestra instrucciones si falta una voz local. El micrófono se solicita al elegir grabarse en Eco, con grabación y análisis locales. Los recordatorios son notificaciones locales opcionales. Ninguno de estos permisos se usa para publicidad o seguimiento.
+
+Datos
+El progreso y las preferencias se guardan localmente. No hay servidor de cuentas ni analítica propia. Se puede restablecer el progreso desde Pasaporte. Ver la política para los detalles de las voces del sistema y los correos voluntarios a soporte.
+
+Sitio previsto
+https://sanuk.overlayon.com
+https://sanuk.overlayon.com/privacidad
+https://sanuk.overlayon.com/soporte
+Publicar y comprobar estas páginas antes de enviar a revisión.
+
+Dispositivos
+App universal para iPhone y iPad, con interfaz adaptable al iPhone Duo abierto y cerrado. Android dispone de diseños para móvil y pantallas amplias.
+
+Capturas promocionales
+Las capturas del paquete muestran la app con un progreso de demostración local para enseñar actividades de diferentes etapas. No contienen información personal de usuarios.

@@ -1,0 +1,18 @@
+Sanuk 1.0 — App Review notes
+
+Contact: Mikel Garcia, sanuk@overlayon.com. Enter the private review contact phone number in the console.
+
+The app teaches Thai through Spanish. No account, credentials, payment, ads, subscriptions or in-app purchases are required. All learning content is free. Activities unlock through lesson progress.
+
+Suggested review path: complete onboarding; open the first stop in Camino and start a lesson; explore the available activities in Feria; open Pasaporte for preferences, privacy and support. Yai's letter and the travel diary are available from Camino and Pasaporte.
+
+Thai pronunciation uses the operating system's Thai text-to-speech voices. An installed Thai voice may be necessary. Android offers instructions if a local voice is unavailable. Microphone permission is optional and requested when recording in Eco. Recordings and voice analysis stay on-device. Daily reminders use optional local notifications.
+
+Progress is stored locally and can be reset from Pasaporte. There is no account backend or proprietary analytics. See the privacy policy for system voice providers and voluntary support email.
+
+Website: https://sanuk.overlayon.com
+Privacy: https://sanuk.overlayon.com/privacidad
+Support: https://sanuk.overlayon.com/soporte
+Publish and verify these pages before submission.
+
+Universal iPhone/iPad app with layouts for iPhone Duo open and closed. Promotional screenshots use local demonstration progress to show activities at different stages. No real user's personal data is included.

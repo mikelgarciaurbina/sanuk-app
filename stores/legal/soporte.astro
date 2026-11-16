@@ -1,0 +1,30 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Noi from '../components/Noi.astro';
+---
+<Layout title="Soporte · Sanuk" description="Ayuda con Sanuk, la voz tailandesa, los recordatorios y tu progreso." path="/soporte">
+  <section class="support wrap">
+    <div class="hello"><Noi pose="escucha" size={150} /><p class="eyebrow">Estamos al otro lado del camino</p><h1>¿Te echamos una mano?</h1>
+    <p class="lead">Escríbenos a <a href="mailto:sanuk@overlayon.com">sanuk@overlayon.com</a>. Sanuk está desarrollada por Mikel Garcia.</p></div>
+    <div class="faq">
+      <h2>No oigo la pronunciación tailandesa</h2><p>Comprueba el volumen y que tu dispositivo tenga instalada una voz en tailandés. Sanuk utiliza el motor de voz del sistema. Si la app muestra un aviso de voz, sigue sus indicaciones. En Android, revisa también los ajustes de síntesis de voz y descarga los datos de tailandés.</p>
+      <h2>Quiero practicar sin micrófono</h2><p>Puedes escuchar y repetir en voz alta. El micrófono se usa cuando eliges grabarte en Eco. Si no concediste permiso y quieres hacerlo después, actívalo en los ajustes de tu dispositivo.</p>
+      <h2>Cómo funciona el recordatorio</h2><p>Abre Pasaporte y activa el recordatorio diario. Elige la hora y permite las notificaciones. El aviso se programa en tu dispositivo. Puedes desactivarlo en cualquier momento.</p>
+      <h2>Dónde se guarda mi progreso</h2><p>En el almacenamiento local de la app. Reinstalarla, borrar sus datos o cambiar de dispositivo puede afectar al progreso. Las copias de seguridad dependen de los ajustes del sistema.</p>
+      <h2>Cómo empiezo otra vez</h2><p>En Pasaporte, busca «Empezar de cero» y confirma el restablecimiento. Se borrarán las lecciones, palabras y recompensas de tu recorrido guardado.</p>
+      <h2>Quiero comunicar un error</h2><p>Indica el modelo del dispositivo, la versión de iOS o Android, la versión de Sanuk y los pasos que provocan el problema. Si se trata de una traducción o pronunciación, incluye la palabra o frase y la lección o juego donde aparece.</p>
+    </div>
+    <p><a class="btn" href="mailto:sanuk@overlayon.com">Escribir a soporte</a> <a class="privacy" href="/privacidad">Política de privacidad</a></p>
+  </section>
+</Layout>
+<style>
+  .support { max-width: 900px; padding-block: 64px 96px; }
+  .hello { margin-bottom: 48px; }
+  .hello :global(.noi) { float: right; margin-left: 24px; }
+  h1 { max-width: 650px; }
+  h2 { font-size: 1.35rem; margin-top: 30px; }
+  p { line-height: 1.8; }
+  a:not(.btn) { color: var(--cielo-hondo); text-decoration: underline; text-underline-offset: 3px; overflow-wrap: anywhere; }
+  .privacy { display: inline-block; margin-left: 16px; }
+  @media (max-width: 520px) { .hello :global(.noi) { float: none; margin: 0 0 12px; } .privacy { margin-left: 0; margin-top: 16px; } }
+</style>

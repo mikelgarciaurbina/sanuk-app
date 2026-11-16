@@ -1,0 +1,338 @@
+[
+  {
+    "file": "apple/iphone/01-camino.png",
+    "width": 1206,
+    "height": 2622,
+    "source": "sources/raw/iphone/01-camino.png",
+    "alt": "Camino de aprendizaje por el norte de Tailandia, con las primeras paradas y lecciones."
+  },
+  {
+    "file": "apple/iphone/02-feria.png",
+    "width": 1206,
+    "height": 2622,
+    "source": "sources/raw/iphone/02-feria.png",
+    "alt": "Feria de juegos de Sanuk, con puestos de práctica para aprender tailandés."
+  },
+  {
+    "file": "apple/iphone/03-tonos.png",
+    "width": 1206,
+    "height": 2622,
+    "source": "sources/raw/iphone/03-tonos.png",
+    "alt": "Trompa de tonos, juego de escucha y reconocimiento de los tonos del tailandés."
+  },
+  {
+    "file": "apple/iphone/04-mercado.png",
+    "width": 1206,
+    "height": 2622,
+    "source": "sources/raw/iphone/04-mercado.png",
+    "alt": "Juego del mercado con productos, cantidades y vocabulario en tailandés."
+  },
+  {
+    "file": "apple/iphone/05-traza.png",
+    "width": 1206,
+    "height": 2622,
+    "source": "sources/raw/iphone/05-traza.png",
+    "alt": "Actividad para trazar una letra del alfabeto tailandés y reconocer su forma."
+  },
+  {
+    "file": "apple/iphone/06-cena.png",
+    "width": 1206,
+    "height": 2622,
+    "source": "sources/raw/iphone/06-cena.png",
+    "alt": "Escena ilustrada de una conversación de la historia de Sanuk para practicar tailandés."
+  },
+  {
+    "file": "apple/iphone/07-carta.png",
+    "width": 1206,
+    "height": 2622,
+    "source": "sources/raw/iphone/07-carta.png",
+    "alt": "Carta de Yai que se va entendiendo a medida que se aprenden sus palabras."
+  },
+  {
+    "file": "apple/iphone/08-diario.png",
+    "width": 1206,
+    "height": 2622,
+    "source": "sources/raw/iphone/08-diario.png",
+    "alt": "Diario de viaje de Sanuk con los momentos de la historia y las palabras aprendidas."
+  },
+  {
+    "file": "apple/iphone-duo-outer/01-camino.png",
+    "width": 1398,
+    "height": 2034,
+    "source": "sources/raw/iphone-duo-outer/01-camino.png",
+    "alt": "Camino de aprendizaje por el norte de Tailandia, con las primeras paradas y lecciones."
+  },
+  {
+    "file": "apple/iphone-duo-outer/02-feria.png",
+    "width": 1398,
+    "height": 2034,
+    "source": "sources/raw/iphone-duo-outer/02-feria.png",
+    "alt": "Feria de juegos de Sanuk, con puestos de práctica para aprender tailandés."
+  },
+  {
+    "file": "apple/iphone-duo-outer/03-tonos.png",
+    "width": 1398,
+    "height": 2034,
+    "source": "sources/raw/iphone-duo-outer/03-tonos.png",
+    "alt": "Trompa de tonos, juego de escucha y reconocimiento de los tonos del tailandés."
+  },
+  {
+    "file": "apple/iphone-duo-outer/04-mercado.png",
+    "width": 1398,
+    "height": 2034,
+    "source": "sources/raw/iphone-duo-outer/04-mercado.png",
+    "alt": "Juego del mercado con productos, cantidades y vocabulario en tailandés."
+  },
+  {
+    "file": "apple/iphone-duo-outer/05-traza.png",
+    "width": 1398,
+    "height": 2034,
+    "source": "sources/raw/iphone-duo-outer/05-traza.png",
+    "alt": "Actividad para trazar una letra del alfabeto tailandés y reconocer su forma."
+  },
+  {
+    "file": "apple/iphone-duo-outer/06-cena.png",
+    "width": 1398,
+    "height": 2034,
+    "source": "sources/raw/iphone-duo-outer/06-cena.png",
+    "alt": "Escena ilustrada de una conversación de la historia de Sanuk para practicar tailandés."
+  },
+  {
+    "file": "apple/iphone-duo-outer/07-carta.png",
+    "width": 1398,
+    "height": 2034,
+    "source": "sources/raw/iphone-duo-outer/07-carta.png",
+    "alt": "Carta de Yai que se va entendiendo a medida que se aprenden sus palabras."
+  },
+  {
+    "file": "apple/iphone-duo-outer/08-diario.png",
+    "width": 1398,
+    "height": 2034,
+    "source": "sources/raw/iphone-duo-outer/08-diario.png",
+    "alt": "Diario de viaje de Sanuk con los momentos de la historia y las palabras aprendidas."
+  },
+  {
+    "file": "apple/iphone-duo-inner/01-camino.png",
+    "width": 2853,
+    "height": 2007,
+    "source": "sources/raw/iphone-duo-inner/01-camino.png",
+    "alt": "Camino de aprendizaje por el norte de Tailandia, con las primeras paradas y lecciones."
+  },
+  {
+    "file": "apple/iphone-duo-inner/02-feria.png",
+    "width": 2853,
+    "height": 2007,
+    "source": "sources/raw/iphone-duo-inner/02-feria.png",
+    "alt": "Feria de juegos de Sanuk, con puestos de práctica para aprender tailandés."
+  },
+  {
+    "file": "apple/iphone-duo-inner/03-tonos.png",
+    "width": 2853,
+    "height": 2007,
+    "source": "sources/raw/iphone-duo-inner/03-tonos.png",
+    "alt": "Trompa de tonos, juego de escucha y reconocimiento de los tonos del tailandés."
+  },
+  {
+    "file": "apple/iphone-duo-inner/04-mercado.png",
+    "width": 2853,
+    "height": 2007,
+    "source": "sources/raw/iphone-duo-inner/04-mercado.png",
+    "alt": "Juego del mercado con productos, cantidades y vocabulario en tailandés."
+  },
+  {
+    "file": "apple/iphone-duo-inner/05-traza.png",
+    "width": 2853,
+    "height": 2007,
+    "source": "sources/raw/iphone-duo-inner/05-traza.png",
+    "alt": "Actividad para trazar una letra del alfabeto tailandés y reconocer su forma."
+  },
+  {
+    "file": "apple/iphone-duo-inner/06-cena.png",
+    "width": 2853,
+    "height": 2007,
+    "source": "sources/raw/iphone-duo-inner/06-cena.png",
+    "alt": "Escena ilustrada de una conversación de la historia de Sanuk para practicar tailandés."
+  },
+  {
+    "file": "apple/iphone-duo-inner/07-carta.png",
+    "width": 2853,
+    "height": 2007,
+    "source": "sources/raw/iphone-duo-inner/07-carta.png",
+    "alt": "Carta de Yai que se va entendiendo a medida que se aprenden sus palabras."
+  },
+  {
+    "file": "apple/iphone-duo-inner/08-diario.png",
+    "width": 2853,
+    "height": 2007,
+    "source": "sources/raw/iphone-duo-inner/08-diario.png",
+    "alt": "Diario de viaje de Sanuk con los momentos de la historia y las palabras aprendidas."
+  },
+  {
+    "file": "apple/ipad-13/01-camino.png",
+    "width": 2048,
+    "height": 2732,
+    "source": "sources/raw/ipad-13/01-camino.png",
+    "alt": "Camino de aprendizaje por el norte de Tailandia, con las primeras paradas y lecciones."
+  },
+  {
+    "file": "apple/ipad-13/02-feria.png",
+    "width": 2048,
+    "height": 2732,
+    "source": "sources/raw/ipad-13/02-feria.png",
+    "alt": "Feria de juegos de Sanuk, con puestos de práctica para aprender tailandés."
+  },
+  {
+    "file": "apple/ipad-13/03-tonos.png",
+    "width": 2048,
+    "height": 2732,
+    "source": "sources/raw/ipad-13/03-tonos.png",
+    "alt": "Trompa de tonos, juego de escucha y reconocimiento de los tonos del tailandés."
+  },
+  {
+    "file": "apple/ipad-13/04-mercado.png",
+    "width": 2048,
+    "height": 2732,
+    "source": "sources/raw/ipad-13/04-mercado.png",
+    "alt": "Juego del mercado con productos, cantidades y vocabulario en tailandés."
+  },
+  {
+    "file": "apple/ipad-13/05-traza.png",
+    "width": 2048,
+    "height": 2732,
+    "source": "sources/raw/ipad-13/05-traza.png",
+    "alt": "Actividad para trazar una letra del alfabeto tailandés y reconocer su forma."
+  },
+  {
+    "file": "apple/ipad-13/06-cena.png",
+    "width": 2048,
+    "height": 2732,
+    "source": "sources/raw/ipad-13/06-cena.png",
+    "alt": "Escena ilustrada de una conversación de la historia de Sanuk para practicar tailandés."
+  },
+  {
+    "file": "apple/ipad-13/07-carta.png",
+    "width": 2048,
+    "height": 2732,
+    "source": "sources/raw/ipad-13/07-carta.png",
+    "alt": "Carta de Yai que se va entendiendo a medida que se aprenden sus palabras."
+  },
+  {
+    "file": "apple/ipad-13/08-diario.png",
+    "width": 2048,
+    "height": 2732,
+    "source": "sources/raw/ipad-13/08-diario.png",
+    "alt": "Diario de viaje de Sanuk con los momentos de la historia y las palabras aprendidas."
+  },
+  {
+    "file": "google-play/phone/01-camino.png",
+    "width": 1080,
+    "height": 1920,
+    "source": "sources/raw/android-phone/01-camino.png",
+    "alt": "Camino de aprendizaje por el norte de Tailandia, con las primeras paradas y lecciones."
+  },
+  {
+    "file": "google-play/phone/02-feria.png",
+    "width": 1080,
+    "height": 1920,
+    "source": "sources/raw/android-phone/02-feria.png",
+    "alt": "Feria de juegos de Sanuk, con puestos de práctica para aprender tailandés."
+  },
+  {
+    "file": "google-play/phone/03-tonos.png",
+    "width": 1080,
+    "height": 1920,
+    "source": "sources/raw/android-phone/03-tonos.png",
+    "alt": "Trompa de tonos, juego de escucha y reconocimiento de los tonos del tailandés."
+  },
+  {
+    "file": "google-play/phone/04-mercado.png",
+    "width": 1080,
+    "height": 1920,
+    "source": "sources/raw/android-phone/04-mercado.png",
+    "alt": "Juego del mercado con productos, cantidades y vocabulario en tailandés."
+  },
+  {
+    "file": "google-play/phone/05-traza.png",
+    "width": 1080,
+    "height": 1920,
+    "source": "sources/raw/android-phone/05-traza.png",
+    "alt": "Actividad para trazar una letra del alfabeto tailandés y reconocer su forma."
+  },
+  {
+    "file": "google-play/phone/06-cena.png",
+    "width": 1080,
+    "height": 1920,
+    "source": "sources/raw/android-phone/06-cena.png",
+    "alt": "Escena ilustrada de una conversación de la historia de Sanuk para practicar tailandés."
+  },
+  {
+    "file": "google-play/phone/07-carta.png",
+    "width": 1080,
+    "height": 1920,
+    "source": "sources/raw/android-phone/07-carta.png",
+    "alt": "Carta de Yai que se va entendiendo a medida que se aprenden sus palabras."
+  },
+  {
+    "file": "google-play/phone/08-diario.png",
+    "width": 1080,
+    "height": 1920,
+    "source": "sources/raw/android-phone/08-diario.png",
+    "alt": "Diario de viaje de Sanuk con los momentos de la historia y las palabras aprendidas."
+  },
+  {
+    "file": "google-play/tablet-7/01-camino.png",
+    "width": 1080,
+    "height": 1920,
+    "source": "sources/raw/android-tablet-7/01-camino.png",
+    "alt": "Camino de aprendizaje por el norte de Tailandia, con las primeras paradas y lecciones."
+  },
+  {
+    "file": "google-play/tablet-7/02-feria.png",
+    "width": 1080,
+    "height": 1920,
+    "source": "sources/raw/android-tablet-7/02-feria.png",
+    "alt": "Feria de juegos de Sanuk, con puestos de práctica para aprender tailandés."
+  },
+  {
+    "file": "google-play/tablet-7/04-mercado.png",
+    "width": 1080,
+    "height": 1920,
+    "source": "sources/raw/android-tablet-7/04-mercado.png",
+    "alt": "Juego del mercado con productos, cantidades y vocabulario en tailandés."
+  },
+  {
+    "file": "google-play/tablet-7/07-carta.png",
+    "width": 1080,
+    "height": 1920,
+    "source": "sources/raw/android-tablet-7/07-carta.png",
+    "alt": "Carta de Yai que se va entendiendo a medida que se aprenden sus palabras."
+  },
+  {
+    "file": "google-play/tablet-10/01-camino.png",
+    "width": 1440,
+    "height": 2560,
+    "source": "sources/raw/android-tablet-10/01-camino.png",
+    "alt": "Camino de aprendizaje por el norte de Tailandia, con las primeras paradas y lecciones."
+  },
+  {
+    "file": "google-play/tablet-10/02-feria.png",
+    "width": 1440,
+    "height": 2560,
+    "source": "sources/raw/android-tablet-10/02-feria.png",
+    "alt": "Feria de juegos de Sanuk, con puestos de práctica para aprender tailandés."
+  },
+  {
+    "file": "google-play/tablet-10/04-mercado.png",
+    "width": 1440,
+    "height": 2560,
+    "source": "sources/raw/android-tablet-10/04-mercado.png",
+    "alt": "Juego del mercado con productos, cantidades y vocabulario en tailandés."
+  },
+  {
+    "file": "google-play/tablet-10/07-carta.png",
+    "width": 1440,
+    "height": 2560,
+    "source": "sources/raw/android-tablet-10/07-carta.png",
+    "alt": "Carta de Yai que se va entendiendo a medida que se aprenden sus palabras."
+  }
+]

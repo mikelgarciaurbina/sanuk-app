@@ -1,0 +1,82 @@
+[
+  {
+    "file": "sources/raw/android-phone/01-camino.png",
+    "emulator": "Android 15 API 35 arm64 Google APIs",
+    "resolution": "1080x1920",
+    "density": "360",
+    "scene": "camino",
+    "route": "/(tabs)",
+    "source": "Real native React Native UI in Expo Go 58.0.5; local demonstration progress; no release binary submitted",
+    "sha256": "dd3c6ba2df219e2e977a4f2b3d4cf5b68a094a272af6090e1dbd404346e66d4b"
+  },
+  {
+    "file": "sources/raw/android-phone/02-feria.png",
+    "emulator": "Android 15 API 35 arm64 Google APIs",
+    "resolution": "1080x1920",
+    "density": "360",
+    "scene": "feria",
+    "route": "/(tabs)/feria",
+    "source": "Real native React Native UI in Expo Go 58.0.5; local demonstration progress; no release binary submitted",
+    "sha256": "98d0dccbb18e678727dd9eb09bf977643ad9d71e2aefe62b0d54a3e2ddb19a09"
+  },
+  {
+    "file": "sources/raw/android-phone/03-tonos.png",
+    "emulator": "Android 15 API 35 arm64 Google APIs",
+    "resolution": "1080x1920",
+    "density": "360",
+    "scene": "tonos",
+    "route": "/juego/tonos",
+    "source": "Real native React Native UI in Expo Go 58.0.5; local demonstration progress; no release binary submitted",
+    "sha256": "2750ae6421b8ce615957dc9cd1a3c06758109818b0f0b518d5c1f875812c4e33"
+  },
+  {
+    "file": "sources/raw/android-phone/04-mercado.png",
+    "emulator": "Android 15 API 35 arm64 Google APIs",
+    "resolution": "1080x1920",
+    "density": "360",
+    "scene": "mercado",
+    "route": "/juego/mercado",
+    "source": "Real native React Native UI in Expo Go 58.0.5; local demonstration progress; no release binary submitted",
+    "sha256": "80cbbc1be1bb808bc3beb1abde1286c55dfd04ab9884bcc8063cb7f21096583e"
+  },
+  {
+    "file": "sources/raw/android-phone/05-traza.png",
+    "emulator": "Android 15 API 35 arm64 Google APIs",
+    "resolution": "1080x1920",
+    "density": "360",
+    "scene": "traza",
+    "route": "/juego/traza",
+    "source": "Real native React Native UI in Expo Go 58.0.5; local demonstration progress; no release binary submitted",
+    "sha256": "4db25dd26aaa5eb24c5a365fc610a2f1e5f8213fe55db6514149cb4f3e7a6711"
+  },
+  {
+    "file": "sources/raw/android-phone/06-cena.png",
+    "emulator": "Android 15 API 35 arm64 Google APIs",
+    "resolution": "1080x1920",
+    "density": "360",
+    "scene": "cena",
+    "route": "/juego/cena",
+    "source": "Real native React Native UI in Expo Go 58.0.5; local demonstration progress; no release binary submitted",
+    "sha256": "c6e93d2ccf19ccd83c4ce03ebaa9be3f10a83516eed1602a9e11fdd915636c3a"
+  },
+  {
+    "file": "sources/raw/android-phone/07-carta.png",
+    "emulator": "Android 15 API 35 arm64 Google APIs",
+    "resolution": "1080x1920",
+    "density": "360",
+    "scene": "carta",
+    "route": "/carta",
+    "source": "Real native React Native UI in Expo Go 58.0.5; local demonstration progress; no release binary submitted",
+    "sha256": "39ae2fbefdded527458be07fd1b31a39e50884632809177e45b995e1990a8fa5"
+  },
+  {
+    "file": "sources/raw/android-phone/08-diario.png",
+    "emulator": "Android 15 API 35 arm64 Google APIs",
+    "resolution": "1080x1920",
+    "density": "360",
+    "scene": "diario",
+    "route": "/diario",
+    "source": "Real native React Native UI in Expo Go 58.0.5; local demonstration progress; no release binary submitted",
+    "sha256": "79c8a9765b4d9160b6dce5230ee730c9c28fc86d92dc6acbbae292a3a7305432"
+  }
+]

@@ -1,0 +1,42 @@
+[
+  {
+    "file": "sources/raw/android-tablet-10/01-camino.png",
+    "emulator": "Android 15 API 35 arm64 Google APIs",
+    "resolution": "1440x2560",
+    "density": "240",
+    "scene": "camino",
+    "route": "/(tabs)",
+    "source": "Real native React Native UI in Expo Go 58.0.5; local demonstration progress; no release binary submitted",
+    "sha256": "cc80ce74e93dab2c480afec153282cbc5c8f6277080bbce9abed10f253ed6e0d"
+  },
+  {
+    "file": "sources/raw/android-tablet-10/02-feria.png",
+    "emulator": "Android 15 API 35 arm64 Google APIs",
+    "resolution": "1440x2560",
+    "density": "240",
+    "scene": "feria",
+    "route": "/(tabs)/feria",
+    "source": "Real native React Native UI in Expo Go 58.0.5; local demonstration progress; no release binary submitted",
+    "sha256": "41a7cb6ab5b28061654791259d6554f3f4395224aaf901449923b21f4679126e"
+  },
+  {
+    "file": "sources/raw/android-tablet-10/04-mercado.png",
+    "emulator": "Android 15 API 35 arm64 Google APIs",
+    "resolution": "1440x2560",
+    "density": "240",
+    "scene": "mercado",
+    "route": "/juego/mercado",
+    "source": "Real native React Native UI in Expo Go 58.0.5; local demonstration progress; no release binary submitted",
+    "sha256": "fed0249ed309faf572fb224e64f890e52665dacd35fddae3cef7cf9dd2db4026"
+  },
+  {
+    "file": "sources/raw/android-tablet-10/07-carta.png",
+    "emulator": "Android 15 API 35 arm64 Google APIs",
+    "resolution": "1440x2560",
+    "density": "240",
+    "scene": "carta",
+    "route": "/carta",
+    "source": "Real native React Native UI in Expo Go 58.0.5; local demonstration progress; no release binary submitted",
+    "sha256": "d27676d0bb83dabd7d9dbe964e2eee132968d71635e6c12357496b14cae47ae1"
+  }
+]
