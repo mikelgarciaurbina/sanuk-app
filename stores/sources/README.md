@@ -26,6 +26,8 @@ npm run stores:pack
 
 Los scripts detectan la raíz de `stores/` y usan las fuentes de `../node_modules`, dentro del proyecto de la app. Las fichas se editan en `sources/prepare.py` antes de ejecutar `stores:update`, que vuelve a escribir los TXT y `listing.json`. Los originales de capturas no se regeneran con estos comandos.
 
+La ficha de App Store se genera en `apple/es-ES/` y `apple/en-US/`. El diccionario `apple_en` de `prepare.py` contiene los textos ingleses. El catálogo muestra ambos idiomas con botones para copiar cada campo y el validador comprueba sus límites. `listing.json` incluye las dos versiones en `appleLocalizations`. La ficha inglesa indica que las lecciones y explicaciones de la app están en español.
+
 Pillow es necesario para la composición y validación. Sus dependencias están en `sources/requirements.txt`. El render vectorial usa Playwright, Chrome local y sharp. El script busca los módulos instalados o el runtime de Codex del usuario y permite configurar `CODEX_NODE_MODULES` y `CHROME_EXECUTABLE`. Ejecutarlo desde la raíz de la app con `node stores/sources/render-assets.mjs`. Los archivos de licencia de las fuentes están en `brand/licenses`.
 
 La captura Android localiza `adb` en PATH o en `ANDROID_HOME` / `ANDROID_SDK_ROOT`. Se puede indicar su ruta con `ADB` y la del proyecto temporal con `SANUK_CAPTURE_PROJECT`. La captura iOS requiere Xcode y el UDID del simulador.

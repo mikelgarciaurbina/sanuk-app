@@ -60,7 +60,7 @@ El recordatorio usa `expo-notifications` con `enableRemoteNotifications: false`:
 
 ## Material de las tiendas
 
-Las fichas de App Store y Google Play, las 48 capturas, los iconos, los logotipos, los creativos y sus originales están en [`stores/`](stores/README.md). El [catálogo visual](stores/index.html) reúne todo el material de publicación.
+Las fichas de App Store y Google Play, las 48 capturas, los iconos, los logotipos, los creativos y sus originales están en [`stores/`](stores/README.md). App Store incluye textos en español (`es-ES`) e inglés (`en-US`), con las lecciones y explicaciones de la app en español. El [catálogo visual](stores/index.html) reúne todo el material de publicación.
 
 ```bash
 npm run stores:update     # regenera textos, composiciones y catálogo; valida el resultado

@@ -48,6 +48,81 @@ for filename, value in {'name':title, 'subtitle':subtitle, 'promotional-text':pr
 for filename, value in {'title':title,'short-description':short,'full-description':description,'release-notes':notes}.items():
     put(f'google-play/es-ES/{filename}.txt',value)
 
+apple_en = {
+ 'name':'Sanuk · Learn Thai',
+ 'subtitle':'Thai, one curve at a time',
+ 'promotionalText':'Your first Thai word starts a journey. Play with Noi, learn from scratch with Spanish explanations, and uncover Yai’s letter one word at a time.',
+ 'keywords':'thai,learn,language,tones,alphabet,vocabulary,games,spanish,thailand,travel',
+ 'description':'''Your first word in Thai could be the start of a story.
+
+Learn Thai from scratch with lessons and explanations in Spanish.
+
+Travel from Chiang Mai to Mae Hong Son with Noi, a young elephant who guides you through mountains, markets, and lantern-lit evenings. At the end of 1,864 curves, a family is waiting to meet you. And there is a letter from Yai that you will come to understand, one word at a time.
+
+START FROM SCRATCH, WITH SPANISH EXPLANATIONS
+Learn greetings, vocabulary, useful phrases, tones, and Thai writing. Turn on tone-marked transliteration whenever you need a little help, and move at your own pace.
+
+LEARN THROUGH PLAY
+20 games make every practice session different. Train your ear, recognize tones, match words, trace letters, shop at the market, and take part in conversations. In Eco, record yourself and listen back to compare your pronunciation with the reference.
+
+A JOURNEY THAT KEEPS GOING
+Explore 180 lessons on the road and in the village. Practice ordering food, introducing yourself, talking with family, and handling everyday situations. Discover 23 dialogues and 8 stories that give context to what you learn.
+
+REVISIT THE WORDS YOU NEED
+Review vocabulary with spaced repetition. Collect stamps in your passport, light lanterns with your learning streak, and revisit your adventures in the travel diary. You can set an optional daily reminder on your device.
+
+A LETTER THAT BECOMES CLEARER
+At first, Yai’s letter feels like a mystery. As you learn, its words become familiar. Your progress changes what you can understand.
+
+Sanuk is completely free, with no ads or in-app purchases. No account is needed. Your progress is stored on your device.
+
+Pronunciation uses your device’s Thai voices. Availability depends on your system, and you may need to download a voice. The microphone is optional for recording yourself in Eco.
+
+Thai, one curve at a time.''',
+ 'releaseNotes':'''Welcome to Sanuk.
+
+• A journey from Chiang Mai to Mae Hong Son, followed by life in the village.
+• 180 lessons and 20 games to learn Thai through Spanish.
+• Practice vocabulary, tones, writing, and conversations.
+• Discover Yai’s letter, the travel diary, and your learning passport.'''
+}
+for filename, key in {'name':'name','subtitle':'subtitle','promotional-text':'promotionalText','description':'description','keywords':'keywords','release-notes':'releaseNotes'}.items():
+    put(f'apple/en-US/{filename}.txt',apple_en[key])
+put('apple/en-US/contact-and-urls.txt','''Public developer name
+Mikel Garcia
+
+Support email
+sanuk@overlayon.com
+
+Website / Marketing URL
+https://sanuk.overlayon.com
+
+Support URL
+https://sanuk.overlayon.com/soporte
+
+Privacy Policy URL
+https://sanuk.overlayon.com/privacidad
+
+Copyright
+2026 Mikel Garcia
+
+Price
+Free, with no ads or in-app purchases
+
+Store listing locale
+English (U.S.) — en-US
+
+Primary app language
+Spanish — es-ES. Lessons and explanations are in Spanish.
+
+Category
+Education
+
+Bundle identifier
+app.sanuk.thai
+
+The website URLs are prepared and await publication by the owner.''')
+
 review = '''Sanuk 1.0 — información para revisión
 
 Desarrollador y contacto
@@ -112,6 +187,10 @@ listing = {
  'googleCategory':'Education','googleSuggestedTags':['Language education','Education'],
  'copyright':'2026 Mikel Garcia',
  'metadata':{'name':title,'subtitle':subtitle,'promotionalText':promo,'keywords':keywords,'shortDescription':short,'fullDescription':description,'releaseNotes':notes},
+ 'appleLocalizations':{
+  'es-ES':{'name':title,'subtitle':subtitle,'promotionalText':promo,'description':description,'keywords':keywords,'releaseNotes':notes},
+  'en-US':apple_en
+ },
  'content':{'lessons':180,'games':20,'words':1402,'sentences':810,'dialogues':23,'stories':8,'stops':27},
  'submissionState':'Preparado localmente; requiere publicar las URLs, crear los binarios firmados y completar los datos privados de las cuentas.'
 }
@@ -160,7 +239,7 @@ Referencias oficiales [Apple App Privacy](https://developer.apple.com/app-store/
 ''')
 put('README.md','''# Sanuk 1.0 · paquete de publicación
 
-Preparado el 16 de noviembre de 2026 para Mikel Garcia. Idioma principal español de España. App completamente gratuita. Soporte sanuk@overlayon.com.
+Preparado el 16 de noviembre de 2026 para Mikel Garcia. Idioma principal de la app español de España. Fichas de App Store en español e inglés de Estados Unidos. App completamente gratuita. Soporte sanuk@overlayon.com.
 
 Abrir `index.html` para revisar imágenes y textos. Los archivos TXT se pueden copiar directamente a los campos de las consolas. `listing.json` reúne los datos de la ficha. El ZIP conserva esta misma estructura.
 
@@ -187,6 +266,7 @@ Las herramientas de captura necesitan simuladores y un proyecto de pruebas separ
 | Carpeta | Destino |
 | --- | --- |
 | apple/es-ES | Nombre, subtítulo, texto promocional, descripción, palabras clave y novedades |
+| apple/en-US | Ficha de App Store en inglés, incluidos contacto y URLs |
 | apple/iphone | Capturas del grupo iPhone mediano con Dynamic Island, 1206 × 2622 |
 | apple/iphone-duo-outer | Capturas de iPhone Duo cerrado, 1398 × 2034 |
 | apple/iphone-duo-inner | Capturas de iPhone Duo abierto en horizontal, 2853 × 2007 |
@@ -210,7 +290,7 @@ Las imágenes de Apple son RGB sin transparencia. El icono Android es PNG de 32 
 1. Publicar el sitio en https://sanuk.overlayon.com y comprobar desde fuera que `/privacidad` y `/soporte` responden sin contraseña. El código del sitio incluye ambas páginas, el pie de navegación y el dominio canónico. En Pasaporte se han añadido los enlaces.
 2. Confirmar que el buzón sanuk@overlayon.com recibe correo.
 3. Completar identidad, acuerdos de cuenta, estado de comerciante para la UE y contacto privado de revisión, incluido el teléfono. Estos datos pertenecen al titular de las cuentas.
-4. Crear las fichas `app.sanuk.thai` en las cuentas correspondientes. En Apple, elegir SKU estable, por ejemplo `sanuk-ios-1`, idioma es-ES y disponibilidad gratuita. En Google Play, crear una app gratuita en Educación y declarar que no contiene anuncios.
+4. Crear las fichas `app.sanuk.thai` en las cuentas correspondientes. En Apple, elegir SKU estable, por ejemplo `sanuk-ios-1`, idioma principal es-ES y disponibilidad gratuita. Añadir la localización English (U.S.), en-US, con los textos de `apple/en-US`. En Google Play, crear una app gratuita en Educación y declarar que no contiene anuncios.
 5. Generar los binarios de producción firmados con la configuración actual y las credenciales del titular. No se han creado ni subido binarios de tienda en este paquete.
 6. Probar esos binarios mediante TestFlight y la prueba interna/cerrada de Play, en especial audio tailandés, micrófono opcional, recordatorios, persistencia del progreso y adaptación de pantalla.
 7. Copiar los textos, subir los recursos de cada grupo y revisar las declaraciones propuestas de `review/privacy-and-content.md` contra el binario final.
@@ -244,12 +324,18 @@ Si la cuenta personal de Google Play se creó después del 13 de noviembre de 20
 
 Los recursos gráficos se derivan del sistema visual original de Sanuk y del personaje Noi. Las pantallas se capturan de la interfaz real con un progreso local de demostración. Consultar `sources/capture-manifest.json` para los dispositivos, escenas y rutas. Los originales de las pantallas se conservan en `sources/raw`. No se ha usado una pantalla de iPhone ampliada como sustituto de la interfaz del Duo, iPad o Android.
 
-Las capturas son material promocional. La validación de dimensiones del paquete no sustituye la prueba del binario firmado. Las URLs previstas deben publicarse antes del envío. Las fichas quedan preparadas en español; no se anuncia una interfaz en inglés.
+Las capturas son material promocional. La validación de dimensiones del paquete no sustituye la prueba del binario firmado. Las URLs previstas deben publicarse antes del envío. Las fichas de App Store están en español e inglés; la de Google Play está en español. La descripción inglesa indica que las lecciones y explicaciones de la app están en español. Las capturas conservan el idioma de la interfaz de la app.
 ''')
 
 limits = {'appleName':(title,30),'appleSubtitle':(subtitle,30),'applePromo':(promo,170),'appleDescription':(description,4000),'playTitle':(title,30),'playShort':(short,80),'playDescription':(description,4000),'playReleaseNotes':(notes,500)}
 checks={k:{'length':len(t),'limit':n,'pass':len(t)<=n} for k,(t,n) in limits.items()}
 checks['appleKeywords']={'utf8Bytes':len(keywords.encode()),'limit':100,'pass':len(keywords.encode())<=100}
+for field, limit in {'name':30,'subtitle':30,'promotionalText':170,'description':4000,'releaseNotes':4000,'keywords':100}.items():
+    value=apple_en[field]
+    if field=='keywords':
+        checks[f'apple.en-US.{field}']={'utf8Bytes':len(value.encode()),'limit':limit,'pass':len(value.encode())<=limit}
+    else:
+        checks[f'apple.en-US.{field}']={'length':len(value),'limit':limit,'pass':len(value)<=limit}
 put('checks/text-limits.json',json.dumps(checks,ensure_ascii=False,indent=2))
 assert all(v['pass'] for v in checks.values()),checks
 print('Textos y documentación preparados. Todos los límites de las fichas cumplen.')

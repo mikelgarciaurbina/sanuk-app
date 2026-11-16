@@ -1,0 +1,34 @@
+Public developer name
+Mikel Garcia
+
+Support email
+sanuk@overlayon.com
+
+Website / Marketing URL
+https://sanuk.overlayon.com
+
+Support URL
+https://sanuk.overlayon.com/soporte
+
+Privacy Policy URL
+https://sanuk.overlayon.com/privacidad
+
+Copyright
+2026 Mikel Garcia
+
+Price
+Free, with no ads or in-app purchases
+
+Store listing locale
+English (U.S.) — en-US
+
+Primary app language
+Spanish — es-ES. Lessons and explanations are in Spanish.
+
+Category
+Education
+
+Bundle identifier
+app.sanuk.thai
+
+The website URLs are prepared and await publication by the owner.

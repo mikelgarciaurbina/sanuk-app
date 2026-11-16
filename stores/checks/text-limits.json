@@ -43,5 +43,35 @@
     "utf8Bytes": 80,
     "limit": 100,
     "pass": true
+  },
+  "apple.en-US.name": {
+    "length": 18,
+    "limit": 30,
+    "pass": true
+  },
+  "apple.en-US.subtitle": {
+    "length": 25,
+    "limit": 30,
+    "pass": true
+  },
+  "apple.en-US.promotionalText": {
+    "length": 144,
+    "limit": 170,
+    "pass": true
+  },
+  "apple.en-US.description": {
+    "length": 1884,
+    "limit": 4000,
+    "pass": true
+  },
+  "apple.en-US.releaseNotes": {
+    "length": 283,
+    "limit": 4000,
+    "pass": true
+  },
+  "apple.en-US.keywords": {
+    "utf8Bytes": 75,
+    "limit": 100,
+    "pass": true
   }
 }
