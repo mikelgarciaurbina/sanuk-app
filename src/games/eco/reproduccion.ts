@@ -1,4 +1,5 @@
-import { createAudioPlayer, type AudioPlayer, type AudioStatus } from 'expo-audio';
+import { createAudioPlayer, setIsAudioActiveAsync, type AudioPlayer, type AudioStatus } from 'expo-audio';
+import { Platform } from 'react-native';
 
 import { restoreAudio, type Take } from './captura';
 
@@ -68,6 +69,12 @@ export function playTake(take: Take, options: PlaybackOptions): () => void {
     });
     if (closed || !player) return;
     await player.seekTo(0);
+    if (closed || !player) return;
+    // Cambiar de «grabar» a «escuchar» solo cambia la categoría de AVAudioSession.
+    // Tras la voz del sistema, iOS puede haber desactivado la salida aunque Expo conserve
+    // su estado de sesión activa: AVPlayer avanza igualmente, pero sin sonido.
+    // Activarla de forma explícita, con el archivo ya cargado, antes de darle al play.
+    if (Platform.OS === 'ios') await setIsAudioActiveAsync(true);
     if (closed || !player) return;
     clearTimeout(timer);
     // Solo protege frente a un reproductor bloqueado. Nunca adelanta el final de una grabación.

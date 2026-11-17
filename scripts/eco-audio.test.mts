@@ -45,21 +45,34 @@ test('Noi: una voz que tarda en empezar o acaba después de lo estimado no se co
   assert.equal(voice.stop(), stop.promise, 'el micro puede esperar a que termine el stop nativo');
 });
 
-function playback(t: TestContext) {
+function playback(t: TestContext, platform = 'ios') {
   t.mock.timers.enable({ apis: ['setTimeout'] });
   const restored = deferred<void>();
   const sought = deferred<void>();
   const events: string[] = [];
   let listener: ((status: any) => void) | undefined;
   let config: any;
+  // AVPlayer puede avanzar con AVAudioSession inactiva: es distinto de que Expo
+  // permita llamar a play(). El doble mantiene separados esos dos estados.
+  let sessionActive = false;
+  let activate = async () => {};
   const player = {
     isLoaded: false, duration: 2.5, volume: 0, muted: true, loop: true,
     addListener: (_: string, cb: typeof listener) => { listener = cb; return { remove: () => events.push('unlisten') }; },
     seekTo: (at: number) => { events.push(`seek:${at}`); return sought.promise; },
-    play: () => events.push('play'), pause: () => events.push('pause'), remove: () => events.push('remove'),
+    play: () => { events.push('play'); events.push(sessionActive ? 'session:active-on-play' : 'session:inactive-on-play'); },
+    pause: () => events.push('pause'), remove: () => events.push('remove'),
   };
   const mod = load('games/eco/reproduccion.ts', {
-    'expo-audio': { createAudioPlayer: (uri: string, options: unknown) => { events.push(`create:${uri}`); config = options; return player; } },
+    'expo-audio': {
+      createAudioPlayer: (uri: string, options: unknown) => { events.push(`create:${uri}`); config = options; return player; },
+      setIsAudioActiveAsync: async (active: boolean) => {
+        events.push(`activate:${active}`);
+        await activate();
+        sessionActive = active;
+      },
+    },
+    'react-native': { Platform: { OS: platform } },
     './captura': { restoreAudio: () => restored.promise },
   });
   const cancel = mod.playTake({ uri: 'file:///voz.m4a', ms: 20 }, {
@@ -67,8 +80,51 @@ function playback(t: TestContext) {
     onEnd: () => events.push('end'), onError: () => events.push('error'),
   });
   const emit = (status: unknown) => listener?.({ isLoaded: true, playing: false, didJustFinish: false, duration: 2.5, currentTime: 0, ...status as object });
-  return { restored, sought, player, events, emit, cancel, config: () => config };
+  return { restored, sought, player, events, emit, cancel, config: () => config,
+    activation: (fn: () => Promise<void>) => { activate = fn; } };
 }
+
+test('iOS reactiva la sesión después de la síntesis y antes de reproducir la toma', async (t) => {
+  const p = playback(t);
+  p.restored.resolve(); await flush();
+  p.player.isLoaded = true; p.emit({}); await flush();
+  p.sought.resolve(); await flush();
+  p.emit({ playing: true, currentTime: 1 });
+  assert.ok(p.events.includes('progress:0.4'), 'el estado playing no garantiza una salida audible');
+  assert.ok(p.events.includes('session:active-on-play'), 'reactivar AVAudioSession antes de reproducir el WAV');
+  assert.ok(!p.events.includes('session:inactive-on-play'));
+  assert.ok(p.events.indexOf('activate:true') > p.events.indexOf('seek:0'));
+  assert.ok(p.events.indexOf('activate:true') < p.events.indexOf('play'));
+  p.cancel();
+});
+
+test('salir mientras se reactiva la salida no reproduce una toma antigua', async (t) => {
+  const p = playback(t); const active = deferred<void>();
+  p.activation(() => active.promise);
+  p.restored.resolve(); await flush(); p.player.isLoaded = true; p.emit({}); await flush();
+  p.sought.resolve(); await flush();
+  assert.ok(p.events.includes('activate:true'));
+  assert.ok(!p.events.includes('play'));
+  p.cancel(); active.resolve(); await flush();
+  assert.ok(!p.events.includes('play')); assert.ok(!p.events.includes('error'));
+});
+
+test('un error al activar el altavoz avisa y libera el reproductor, sin fingir que se ha oído la voz', async (t) => {
+  const p = playback(t);
+  p.activation(async () => { throw Error('AVAudioSession'); });
+  p.restored.resolve(); await flush(); p.player.isLoaded = true; p.emit({}); await flush();
+  p.sought.resolve(); await flush();
+  assert.ok(p.events.includes('error')); assert.ok(p.events.includes('remove'));
+  assert.ok(!p.events.includes('play')); assert.ok(!p.events.includes('end'));
+});
+
+test('Android conserva su foco de audio sin una activación global de iOS', async (t) => {
+  const p = playback(t, 'android');
+  p.restored.resolve(); await flush(); p.player.isLoaded = true; p.emit({}); await flush();
+  p.sought.resolve(); await flush();
+  assert.ok(p.events.includes('play')); assert.ok(!p.events.includes('activate:true'));
+  p.cancel();
+});
 
 test('tu grabación espera modo de escucha, carga y seek; el cursor sigue el audio y solo acaba al final real', async (t) => {
   const p = playback(t);
