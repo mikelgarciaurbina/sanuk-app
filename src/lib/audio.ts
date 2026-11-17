@@ -34,6 +34,9 @@ const SOURCES = {
   plip: require('../../assets/sfx/plip.wav'),
 } as const;
 
+/** Un instante de silencio: lo único que «suena» para dejar la sesión de audio de iOS abierta (ver `keepSessionAlive`). */
+const SILENCE = require('../../assets/sfx/silence.wav');
+
 export type Sfx = keyof typeof SOURCES;
 type ResultSound = 'ok' | 'bad';
 
@@ -220,12 +223,38 @@ function watchVoices() {
   } catch {}
 }
 
+// ——— iOS: una sola sesión de audio, siempre abierta ———
+//
+// Los efectos, la voz de Noi y la grabación de Eco suenan por la MISMA sesión de audio (la de la app), y esa
+// sesión no se cierra mientras la app esté abierta. Las dos cosas van juntas; por separado ya fallaron:
+//
+// · expo-audio 58 desactiva la sesión 100 ms después de acabar o pausar cualquier efecto
+//   (ios/AudioModule.swift, `deactivateSession`). Si en ese momento Noi estaba hablando por la misma sesión, se
+//   quedaba muda. La desactivación solo se salta si hay un reproductor con `keepAudioSessionActive` que ya haya
+//   sonado: de ahí este reproductor de silencio, que suena una vez al arrancar y no se suelta nunca.
+// · Para esquivar lo anterior se probó a darle a la voz una sesión aparte (`useApplicationAudioSession: false`).
+//   Apple la documenta así: «mezcla y ATENÚA el resto del audio». En un iPhone, la grabación de Eco, que suena
+//   justo después de Noi, salía muchísimo más baja que Noi aunque los dos archivos tienen el mismo nivel
+//   (unos −15 dBFS, medido en tomas reales). El simulador no crea esa sesión aparte y por eso allí no pasaba.
+let keeper: AudioPlayer | null = null;
+
+function keepSessionAlive() {
+  if (keeper || Platform.OS !== 'ios') return;
+  try {
+    const player = createAudioPlayer(SILENCE, { keepAudioSessionActive: true });
+    player.volume = 0;
+    player.play();
+    keeper = player;
+  } catch {}
+}
+
 export async function initAudio() {
   if (initialized) return;
   initialized = true;
   try {
     await setAudioModeAsync({ playsInSilentMode: true });
   } catch {}
+  keepSessionAlive();
   // Cargados antes de la primera respuesta: el primer soplido también debe oírse.
   try {
     playerFor('ok');
@@ -402,9 +431,9 @@ export function say(th: string, opts: { slow?: boolean; onDone?: () => void; onS
       voice: thaiVoice,
       rate: opts.slow ? voiceRate * SLOW_VOICE_FACTOR : voiceRate,
       pitch: 1.05,
-      // expo-audio desactiva su sesión al acabar un efecto. La síntesis debe gestionar la suya:
-      // compartirla dejaba a Noi muda después del primer sonido, tanto al repetir como en los juegos.
-      ...(Platform.OS === 'ios' ? { useApplicationAudioSession: false } : {}),
+      // Noi habla por la sesión de la app, la misma de los efectos y de tu grabación: con una sesión aparte
+      // iOS atenúa todo lo demás. Es seguro porque esa sesión ya no se cierra (ver `keepSessionAlive`).
+      ...(Platform.OS === 'ios' ? { useApplicationAudioSession: true } : {}),
       onStart: start,
       onDone: () => {
         if (settled) return;

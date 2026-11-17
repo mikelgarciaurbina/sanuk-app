@@ -125,34 +125,66 @@ test('una toma cargada que no arranca no deja la interfaz bloqueada treinta segu
 });
 
 const { voiceVolume } = load('games/eco/volumen.ts', {});
-function wav(amp = 0.006) {
-  const rate = 16000, samples = 16000;
+function wav(amp = 0.012, lead = 0, tail = 0) {
+  const rate = 16000, voice = 16000, samples = lead + voice + tail;
   const b = Buffer.alloc(44 + samples * 2);
   b.write('RIFF', 0); b.writeUInt32LE(b.length - 8, 4); b.write('WAVEfmt ', 8); b.writeUInt32LE(16, 16);
   b.writeUInt16LE(1, 20); b.writeUInt16LE(1, 22); b.writeUInt32LE(rate, 24); b.writeUInt32LE(rate * 2, 28);
   b.writeUInt16LE(2, 32); b.writeUInt16LE(16, 34); b.write('data', 36); b.writeUInt32LE(samples * 2, 40);
-  for (let i = 0; i < samples; i++) b.writeInt16LE(Math.round(32767 * amp * Math.sin(2 * Math.PI * 220 * i / rate)), 44 + i * 2);
+  // `lead` y `tail` son el silencio de antes y de después de hablar (con un ruido de fondo mínimo).
+  for (let i = 0; i < samples; i++) {
+    const speaking = i >= lead && i < lead + voice;
+    b.writeInt16LE(Math.round(32767 * (speaking ? amp : 0.0002) * Math.sin(2 * Math.PI * 220 * i / rate)), 44 + i * 2);
+  }
   return b;
 }
-function rms(b: Uint8Array, start = 44) {
+function rms(b: Uint8Array, start = 44, end = b.length) {
   const v = new DataView(b.buffer, b.byteOffset, b.byteLength); let e = 0;
-  for (let i = start; i < b.length; i += 2) e += (v.getInt16(i, true) / 32768) ** 2;
-  return Math.sqrt(e / ((b.length - start) / 2));
+  for (let i = start; i < end; i += 2) e += (v.getInt16(i, true) / 32768) ** 2;
+  return Math.sqrt(e / ((end - start) / 2));
 }
+/** Nivel al que debe quedar la voz y techo que ningún pico puede pasar (ver src/games/eco/volumen.ts). */
+const VOICE = 0.23, CEILING = Math.round(32767 * 0.98);
 
 test('la copia de escucha hace audible un PCM bajo conservando duración, tono y archivo original', () => {
   const raw = wav(), before = Buffer.from(raw); const out = Buffer.from(voiceVolume(raw));
-  assert.ok(rms(raw) < 0.005); assert.ok(Math.abs(rms(out) - 0.12) < 0.001);
+  assert.ok(rms(raw) < 0.01); assert.ok(Math.abs(rms(out) - VOICE) < 0.005, `nivel ${rms(out)}`);
   assert.equal(out.length, raw.length); assert.deepEqual(out.subarray(0, 44), raw.subarray(0, 44));
   assert.deepEqual(raw, before);
-  const gain = out.readInt16LE(46) / raw.readInt16LE(46);
-  for (let at = 44; at < out.length; at += 2) assert.ok(Math.abs(out.readInt16LE(at) - raw.readInt16LE(at) * gain) < 5);
+  // Por debajo del codo la onda solo se escala: cada muestra queda a menos de un paso de la original.
+  const gain = rms(out) / rms(raw);
+  for (let at = 44; at < out.length; at += 2) assert.ok(Math.abs(out.readInt16LE(at) - raw.readInt16LE(at) * gain) < gain);
+});
+
+test('el nivel se mide en la voz: el silencio de antes y de después de hablar no la deja más baja', () => {
+  // Así son las tomas reales: medio segundo en silencio, la palabra y más de un segundo esperando.
+  const lead = 8000, tail = 20000; const raw = wav(0.011, lead, tail); const out = Buffer.from(voiceVolume(raw));
+  const voiced = rms(out, 44 + lead * 2, 44 + (lead + 16000) * 2);
+  assert.ok(Math.abs(voiced - VOICE) < 0.005, `voz a ${voiced}`);
+  assert.ok(rms(out) < 0.2, 'la media del archivo entero es más baja que la voz');
+});
+
+test('un golpe suelto no cuenta como voz ni se recorta: se redondea por debajo del techo', () => {
+  const lead = 8000; const raw = wav(0.011, lead, 20000);
+  // El dedo en la pantalla: 20 ms treinta veces más fuertes que la voz, en mitad del silencio.
+  for (let i = 1000; i < 1320; i++) raw.writeInt16LE(Math.round(32767 * 0.33 * Math.sin(2 * Math.PI * 900 * i / 16000)), 44 + i * 2);
+  const out = Buffer.from(voiceVolume(raw));
+  const voiced = rms(out, 44 + lead * 2, 44 + (lead + 16000) * 2);
+  assert.ok(Math.abs(voiced - VOICE) < 0.005, `voz a ${voiced}`);
+  let top = 0;
+  for (let at = 44; at < out.length; at += 2) {
+    const value = out.readInt16LE(at); top = Math.max(top, Math.abs(value));
+    assert.ok(Math.abs(value) <= CEILING);
+    assert.ok(value === 0 || Math.sign(value) === Math.sign(raw.readInt16LE(at)), 'un pico no da la vuelta');
+  }
+  assert.ok(top > 32767 * 0.9, 'el golpe llega arriba, pero curvado');
 });
 
 test('los picos no se recortan y las voces que ya tienen volumen no se amplifican', () => {
   const raw = wav(0.008); raw.writeInt16LE(10000, 400);
   const out = Buffer.from(voiceVolume(raw));
-  for (let at = 44; at < out.length; at += 2) assert.ok(Math.abs(out.readInt16LE(at)) <= Math.ceil(32768 * 0.9));
+  for (let at = 44; at < out.length; at += 2) assert.ok(Math.abs(out.readInt16LE(at)) <= CEILING);
+  assert.ok(out.readInt16LE(400) > 32767 * 0.9);
   assert.equal(voiceVolume(wav(0.5)), null);
 });
 
@@ -168,7 +200,7 @@ test('se respetan los chunks adicionales y las vistas con un desplazamiento en e
   const extra = Buffer.concat([original.subarray(0, 12), junk, original.subarray(12)]); extra.writeUInt32LE(extra.length - 8, 4);
   const storage = Buffer.concat([Buffer.alloc(7), extra, Buffer.alloc(3)]);
   const input = storage.subarray(7, 7 + extra.length); const out = Buffer.from(voiceVolume(input));
-  assert.deepEqual(out.subarray(0, 54), extra.subarray(0, 54)); assert.ok(Math.abs(rms(out, 54) - 0.12) < 0.001);
+  assert.deepEqual(out.subarray(0, 54), extra.subarray(0, 54)); assert.ok(Math.abs(rms(out, 54) - VOICE) < 0.005);
 });
 
 function capture(t: TestContext, stream = false) {
@@ -229,12 +261,59 @@ function capture(t: TestContext, stream = false) {
   };
 }
 
+test('el micro de iOS graba en el modo normal de voz: el parche de expo-audio está, se aplica solo y está aplicado', () => {
+  // AudioStream de expo-audio 58 abre el micro en modo de medición: en un iPhone la voz llega a unos -40 dBFS, sin
+  // el procesado de voz del sistema, y suena lejana. Sin este parche una build sale con ese fallo sin avisar.
+  const root = new URL('../', import.meta.url);
+  const version = JSON.parse(readFileSync(new URL('node_modules/expo-audio/package.json', root), 'utf8')).version;
+  const patch = readFileSync(new URL(`patches/expo-audio+${version}.patch`, root), 'utf8');
+  assert.match(patch, /^-\s+try session\.setCategory\(\.record, mode: \.measurement\)$/m);
+  assert.match(patch, /^\+\s+try session\.setCategory\(\.record, mode: \.default\)$/m);
+  const scripts = JSON.parse(readFileSync(new URL('package.json', root), 'utf8')).scripts;
+  assert.equal(scripts.postinstall, 'patch-package', 'npm install aplica el parche');
+  assert.match(scripts['eas-build-post-install'], /^patch-package\b/, 'y EAS lo comprueba otra vez antes de compilar');
+  const installed = readFileSync(new URL('node_modules/expo-audio/ios/AudioStream.swift', root), 'utf8');
+  assert.ok(installed.includes('setCategory(.record, mode: .default)') && !installed.includes('mode: .measurement'),
+    'la librería instalada no tiene el parche: ejecutar npm install');
+});
+
+function restoring(os: string, failFirst = false) {
+  const modes: any[] = [];
+  const mod = load('games/eco/captura.ts', {
+    'expo-audio': {
+      AudioModule: {}, requestRecordingPermissionsAsync: async () => ({ granted: true }),
+      setAudioModeAsync: async (mode: any) => { modes.push(mode); if (failFirst && modes.length === 1) throw Error('session busy'); },
+    },
+    'expo-file-system': { File: class {} },
+    'react-native': { Platform: { OS: os } },
+    './tono': { createTracker: () => ({ push: () => [] }), isVoiced: () => false },
+    './volumen': { voiceVolume },
+  });
+  return { modes, restore: () => mod.restoreAudio() as Promise<void> };
+}
+
+test('volver a escuchar en iOS saca la sesión del modo de medición del micro antes de recuperar la mezcla', async () => {
+  // expo-audio 58 solo llama a setCategory(_:mode: .default) sin opciones de mezcla (doNotMix). Con la mezcla por
+  // defecto conserva el modo de medición de AudioStream, que en un iPhone baja el nivel del altavoz.
+  const ios = restoring('ios'); await ios.restore();
+  assert.deepEqual(ios.modes.map((m) => m.interruptionMode), ['doNotMix', undefined]);
+  for (const mode of ios.modes) {
+    assert.equal(mode.allowsRecording, false); assert.equal(mode.playsInSilentMode, true); assert.equal(mode.shouldRouteThroughEarpiece, false);
+  }
+  const failing = restoring('ios', true); await failing.restore();
+  assert.equal(failing.modes.length, 2, 'si falla el primer paso, la categoría de escuchar se restaura igualmente');
+  for (const os of ['android', 'web']) {
+    const other = restoring(os); await other.restore();
+    assert.deepEqual(other.modes.map((m) => m.interruptionMode), [undefined], `${os} no necesita el paso de iOS`);
+  }
+});
+
 test('la captura conserva el PCM para analizar, devuelve una copia audible y limpia ambas al salir', async (t) => {
   const c = capture(t, true); c.voice(); const mic = await c.open(); c.emitVoice();
   const take = await mic.stop();
   assert.equal(take.uri, 'file:///listen-stream.wav'); assert.equal(take.spoke, true); assert.equal(take.frames.length, 8);
   assert.deepEqual(Buffer.from(c.files.get('file:///stream.wav')!.bytes!), wav());
-  assert.ok(Math.abs(rms(c.files.get(take.uri)!.bytes!) - .12) < .001);
+  assert.ok(Math.abs(rms(c.files.get(take.uri)!.bytes!) - VOICE) < .005);
   c.mod.releaseTakes(); assert.equal(c.files.size, 0);
 });
 

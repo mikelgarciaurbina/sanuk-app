@@ -1,0 +1,15 @@
+diff --git a/node_modules/expo-audio/ios/AudioStream.swift b/node_modules/expo-audio/ios/AudioStream.swift
+index b6face9..120a586 100644
+--- a/node_modules/expo-audio/ios/AudioStream.swift
++++ b/node_modules/expo-audio/ios/AudioStream.swift
+@@ -39,7 +39,9 @@ class AudioStream: SharedObject {
+         try? session.setActive(false)
+       }
+     }
+-    try session.setCategory(.record, mode: .measurement)
++    // Sanuk: modo normal en vez de .measurement. El modo de medición quita el procesado de voz del iPhone:
++    // la voz llega a unos -40 dBFS, sin ganancia ni enfoque, y al subirla suena lejana.
++    try session.setCategory(.record, mode: .default)
+     try session.setPreferredSampleRate(requestedSampleRate)
+     try session.setActive(true)
+ 

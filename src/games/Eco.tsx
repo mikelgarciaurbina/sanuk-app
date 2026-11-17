@@ -9,7 +9,7 @@
 // micrófono, se dice en voz alta.
 import { RecordingPresets, useAudioRecorder } from 'expo-audio';
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View, useWindowDimensions, type GestureResponderEvent } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View, useWindowDimensions, type GestureResponderEvent } from 'react-native';
 import Animated, { Easing, FadeIn, ZoomIn, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 
 import type { NoiPose } from '@/brand/noi-art';
@@ -38,6 +38,11 @@ const MAX_MS = 8000;
 const HUSH_S = 1.1;
 /** Marca de «aquí se levanta el lápiz» en el trazo en directo. */
 const GAP = -999;
+/**
+ * Respiro (ms) entre Noi y tu grabación en iOS. Tras la última sílaba, la cola de audio del sintetizador sigue
+ * 0,25 s en silencio antes de parar (medido en sus registros): tu voz empieza cuando ya ha terminado.
+ */
+const AFTER_NOI_MS = Platform.OS === 'ios' ? 300 : 0;
 
 /** shout: Noi grita · ready: te toca · rec: grabando · compare: suenan Noi y tú, seguidos · result: cómo ha salido · next: pasando al siguiente */
 type Phase = 'shout' | 'ready' | 'rec' | 'compare' | 'result' | 'next';
@@ -258,7 +263,7 @@ export default function Eco({ mode, words, focus, sentences, rounds, gender, ora
     const restoreEffects = silence();
     setPlaying('preparando');
     head.set(0);
-    void stopped.then(() => {
+    void stopped.then(() => timers.later(() => {
       if (!alive()) return;
       player.current = playTake(t, {
         onStart: () => {
@@ -286,7 +291,7 @@ export default function Eco({ mode, words, focus, sentences, rounds, gender, ora
           setAudioError('No he podido reproducir tu voz. Prueba a grabarla otra vez.');
         },
       });
-    });
+    }, AFTER_NOI_MS));
   };
 
   /** Se enseña la nota: una estrella por sílaba, de izquierda a derecha, y Noi reacciona. */

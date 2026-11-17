@@ -35,10 +35,26 @@ For the Eco audio issue reported on November 17, 2026, keep debugging and valida
 
 After confirming the simulator result, the user explicitly requested build 5 and its upload to TestFlight on November 17, 2026. That specific build and submission are authorized; the earlier restriction applied to the local debugging phase.
 
+Build 5 did not fix it on the iPhone. Later on November 17 the cause was found and fixed with local cable installs (see the README and the section below): the user confirmed on the physical iPhone 16 Pro that their voice in Eco now matches Noi's. That confirmation is for the local Release build only. No EAS build has been made with those changes, and none has been requested: ask before starting build 6.
+
 Use EAS to build, sign, and submit the app in the cloud (`eas build`, `eas submit`) and to ship over-the-air updates (`eas update`) — no local Xcode or Android Studio required. Run EAS CLI as `bunx eas-cli <command>` in Bun projects, or `npx eas-cli@latest <command>` otherwise; substitute that for bare `eas` in docs examples.
 Docs: https://docs.expo.dev/eas/index.md
 
+## Testing on a physical iPhone without EAS
+
+Audio session behavior (microphone mode, ducking, output level) cannot be judged in the simulator. To hear a change on the device without spending EAS builds, install a local Release build over the cable. `ios/` is generated and git-ignored; `expo prebuild` rewrites the `android`/`ios` scripts in `package.json`, so restore that file afterwards.
+
+```bash
+npx expo prebuild --platform ios
+cd ios && xcodebuild -workspace Sanuk.xcworkspace -scheme Sanuk -configuration Release -destination 'id=<device udid>' DEVELOPMENT_TEAM=54RSVZ573J CODE_SIGN_STYLE=Automatic -allowProvisioningUpdates -allowProvisioningDeviceRegistration build
+xcrun devicectl device install app --device <device udid> ~/Library/Developer/Xcode/DerivedData/Sanuk-*/Build/Products/Release-iphoneos/Sanuk.app
+```
+
+This needs the iPhone connected, unlocked and in Developer Mode, and the owner's Apple account signed in to Xcode. It installs over the TestFlight build with the same bundle identifier and keeps the app's data. Recordings made by Eco can be read back for measurement with `xcrun devicectl device copy from --domain-type appDataContainer --domain-identifier app.sanuk.thai --source Library/Caches/AudioStream/<file>`; they are the owner's voice, so measure and delete, never keep or commit them.
+
 ## Rules
+
+- `expo-audio` is patched (`patches/expo-audio+<version>.patch`, applied by `patch-package` on `postinstall` and again by `eas-build-post-install`): `AudioStream` must open the microphone with `mode: .default`, not `.measurement`. Never remove the patch or the two scripts. After upgrading `expo-audio`, re-apply the one-line change, regenerate with `npx patch-package expo-audio`, and have Eco checked by ear on a physical iPhone.
 
 - If `ios/` and `android/` directories do not exist, they are generated (Continuous Native Generation). Never create or edit them by hand — configure native behavior in `app.json` and config plugins.
 - Expo Go only includes its bundled native modules. After adding a library with native code, the app needs a development build: `npx expo run:ios|android` locally, or `eas build --profile development`.

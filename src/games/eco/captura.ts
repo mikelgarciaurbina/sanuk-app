@@ -8,8 +8,12 @@
 //   la Web Audio API: getUserMedia + AnalyserNode para el tono y MediaRecorder para volver a oírse.
 // · Si nada de eso está: el grabador de siempre (`useAudioRecorder`), que solo sabe decir el volumen.
 //
-// Al parar o al salir se deja el audio del teléfono como estaba, pase lo que pase: en iOS, `AudioStream.start()`
-// pone la sesión en «solo grabar» y, sin devolverla a «reproducir», Noi se quedaría muda.
+// En iOS, `AudioStream` de expo-audio 58 abre el micro en modo de medición, sin el procesado de voz del iPhone: la
+// voz llega a unos −40 dBFS y, al subirla, suena lejana. patches/expo-audio+58.0.12.patch lo cambia al modo
+// normal (voz a unos −20 dBFS, cercana); `npm install` lo aplica solo y hay una prueba que avisa si falta.
+//
+// Al parar o al salir se deja el audio del teléfono como estaba, pase lo que pase: `AudioStream.start()` pone la
+// sesión en «solo grabar» y hay que devolverla a «reproducir» (ver `restoreAudio`).
 import { AudioModule, requestRecordingPermissionsAsync, setAudioModeAsync, type AudioRecorder, type AudioStreamBuffer } from 'expo-audio';
 import { File } from 'expo-file-system';
 import { Platform } from 'react-native';
@@ -94,7 +98,7 @@ const keep = (uri: string | null) => {
   return uri;
 };
 
-/** El modo de medición de iOS entrega PCM sin ganancia automática: puede dibujarse bien y apenas oírse. */
+/** La voz llega del micro más baja que la de Noi: la copia de escucha la iguala (ver ./volumen). */
 function listeningCopy(uri: string | null, spoke: boolean): string | null {
   if (!uri || !spoke) return uri;
   try {
@@ -130,9 +134,25 @@ export const rememberVoice = (p: Profile | null) => {
   voice = p;
 };
 
-/** Vuelve a dejar el audio para escuchar. */
+const LISTEN = { allowsRecording: false, playsInSilentMode: true, shouldRouteThroughEarpiece: false } as const;
+
+/**
+ * Vuelve a dejar el audio para escuchar.
+ *
+ * En iOS no basta con cambiar la categoría: también hay que asegurar el MODO normal de la sesión. Con la mezcla
+ * por defecto, expo-audio 58 vuelve a «reproducir» con `setCategory(_:options:)`, que conserva el modo que hubiera
+ * (ios/AudioModule.swift, `setAudioMode`). Sin el parche del micro, `AudioStream` deja el modo de medición, que
+ * según la cabecera de Apple «da un nivel de reproducción más bajo»: la sesión se quedaba en «reproducir» pero
+ * midiendo, y en un iPhone tu grabación y todos los efectos salían sin fuerza hasta cerrar la app (el simulador
+ * no tiene ese procesado y suena igual). Solo con `doNotMix` expo-audio llama a `setCategory(_:mode: .default)`;
+ * después se recupera la mezcla de siempre. Con el parche el modo ya es el normal y este paso queda de seguro.
+ */
 export async function restoreAudio() {
-  await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true, shouldRouteThroughEarpiece: false });
+  if (Platform.OS === 'ios') {
+    // Si este paso fallara, el siguiente sigue dejando al menos la categoría de escuchar.
+    try { await setAudioModeAsync({ ...LISTEN, interruptionMode: 'doNotMix' }); } catch {}
+  }
+  await setAudioModeAsync(LISTEN);
 }
 
 /** Suelta las grabaciones al salir del juego: las URL de Blob en la web y los archivos de la caché en el teléfono. */

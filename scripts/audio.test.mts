@@ -45,7 +45,14 @@ function loadAudio(t: TestContext, platform = 'ios') {
     playing: boolean; isLoaded: boolean; volume: number;
     seekTo: () => Promise<void>; play: () => void; pause: () => void;
   }>();
-  const createAudioPlayer = (source: string) => {
+  // Reproductores que mantienen abierta la sesión de iOS: no son efectos y no cuentan como tales.
+  const keepers: { source: string; volume: number; plays: number; pauses: number }[] = [];
+  const createAudioPlayer = (source: string, options?: { keepAudioSessionActive?: boolean }) => {
+    if (options?.keepAudioSessionActive) {
+      const keeper = { source: source.split('/').at(-1)!, volume: 1, plays: 0, pauses: 0, play: () => { keeper.plays += 1; }, pause: () => { keeper.pauses += 1; } };
+      keepers.push(keeper);
+      return keeper;
+    }
     const player = {
       playing: false, isLoaded: true, volume: 1,
       seekTo: async () => {},
@@ -84,7 +91,7 @@ function loadAudio(t: TestContext, platform = 'ios') {
     setTimeout,
     clearTimeout,
   });
-  return { audio: exports, speech, playbacks, voices, effects, players };
+  return { audio: exports, speech, playbacks, voices, effects, players, keepers };
 }
 
 test('grabar o comparar silencia todos los efectos y no recupera un sonido antiguo al terminar', async (t) => {
@@ -111,7 +118,24 @@ test('grabar o comparar silencia todos los efectos y no recupera un sonido antig
   assert.deepEqual(effects, ['tap.wav', 'pop.wav']);
 });
 
-test('iOS: saludar y repetir, a velocidad normal y lenta, usa una sesión independiente de los efectos', async (t) => {
+test('iOS: la sesión de audio se abre una vez con un silencio y no la cierran ni los efectos ni el modo sin sonido', async (t) => {
+  // expo-audio desactiva la sesión 100 ms después de cada efecto salvo que haya sonado un reproductor que la
+  // mantenga. Sin él, compartir la sesión con la voz dejaba a Noi muda a media palabra.
+  const { audio, keepers, effects } = loadAudio(t);
+  await audio.initAudio();
+  await audio.initAudio();
+  assert.equal(keepers.length, 1);
+  assert.equal(keepers[0].source, 'silence.wav');
+  assert.equal(keepers[0].volume, 0); assert.equal(keepers[0].plays, 1);
+  audio.sfx('tap');
+  const release = audio.suspendSoundEffects();
+  audio.configureAudio({ sound: false, haptics: false, voiceRate: 0.85 });
+  release();
+  assert.equal(keepers[0].pauses, 0, 'pausarlo no la cerraría, pero tampoco hace falta tocarlo');
+  assert.deepEqual(effects, ['tap.wav'], 'el silencio no cuenta como efecto');
+});
+
+test('iOS: saludar y repetir, a velocidad normal y lenta, suena por la sesión de la app, la misma de los efectos y de Eco', async (t) => {
   const { audio, playbacks } = loadAudio(t);
   await audio.initAudio();
   for (const [text, slow] of [['สวัสดี', false], ['ขอบคุณครับ', false], ['สวัสดี', true]] as const) {
@@ -120,7 +144,7 @@ test('iOS: saludar y repetir, a velocidad normal y lenta, usa una sesión indepe
     await flush();
     const playback = playbacks.at(-1)!;
     assert.equal(playback.text, text);
-    assert.equal(playback.options.useApplicationAudioSession, false);
+    assert.equal(playback.options.useApplicationAudioSession, true, 'una sesión aparte hace que iOS atenúe el resto del audio');
     assert.equal(playback.options.voice, 'kanya');
     assert.equal(playback.options.rate, slow ? 0.085 : 0.85);
     playback.options.onDone();
@@ -217,12 +241,13 @@ test('sin voz tailandesa, los callbacks permiten continuar y repetir sin quedar 
 });
 
 test('Android conserva el idioma compatible con su motor de voz', async (t) => {
-  const { audio, playbacks } = loadAudio(t, 'android');
+  const { audio, playbacks, keepers } = loadAudio(t, 'android');
   await audio.initAudio();
   audio.say('สวัสดี');
   await flush();
   assert.equal(playbacks[0].options.language, 'th');
   assert.equal(playbacks[0].options.useApplicationAudioSession, undefined);
+  assert.equal(keepers.length, 0, 'el silencio que mantiene la sesión es solo para iOS');
 });
 
 test('acierto y fallo reproducen los dos gestos de Noi, también con racha, sin el antiguo arpegio', async (t) => {
@@ -339,7 +364,8 @@ test('los WAV incluyen el bloque data legible por iOS y contienen muestras audib
     assert.equal(wav.toString('ascii', 8, 16), 'WAVEfmt ', name);
     assert.equal(wav.toString('ascii', 36, 40), 'data', name);
     assert.equal(wav.readUInt32LE(40), wav.length - 44, name);
-    assert.ok(wav.subarray(44).some((byte) => byte !== 0), name);
+    // El silencio que mantiene abierta la sesión de iOS es el único que debe estar vacío.
+    assert.equal(wav.subarray(44).some((byte) => byte !== 0), name !== 'silence.wav', name);
   }
 });
 
