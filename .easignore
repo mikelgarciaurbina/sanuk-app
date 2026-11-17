@@ -52,4 +52,5 @@ example
 
 # Recursos de publicación, ajenos a la compilación de la app.
 /stores/
+/scripts/qa/
 .git

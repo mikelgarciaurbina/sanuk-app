@@ -1,0 +1,29 @@
+{
+  "takes": [
+    {
+      "normalized": true,
+      "raw": {
+        "frames": 66509,
+        "rate": 48000,
+        "rms": 0.03738556249108786,
+        "peak": 0.145233154296875
+      },
+      "listening": {
+        "frames": 66509,
+        "rate": 48000,
+        "rms": 0.11999999609604649,
+        "peak": 0.466156005859375
+      },
+      "spoke": true
+    }
+  ],
+  "playbackStarts": 1,
+  "playbackEnds": 1,
+  "playbackErrors": 0,
+  "realThaiSpeech": true,
+  "userConfirmedAudible": true,
+  "simulator": "iPhone 16 Pro / iOS 27.0",
+  "physicalIPhoneValidated": false,
+  "easBuildsStarted": 0,
+  "testFlightUploads": 0
+}

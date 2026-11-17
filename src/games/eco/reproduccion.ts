@@ -1,5 +1,4 @@
-import { createAudioPlayer, setIsAudioActiveAsync, type AudioPlayer, type AudioStatus } from 'expo-audio';
-import { Platform } from 'react-native';
+import { createAudioPlayer, type AudioPlayer, type AudioStatus } from 'expo-audio';
 
 import { restoreAudio, type Take } from './captura';
 
@@ -47,6 +46,8 @@ export function playTake(take: Take, options: PlaybackOptions): () => void {
     if (!ready) return;
     if (!started && status.playing) {
       started = true;
+      clearTimeout(timer);
+      timer = setTimeout(() => end(true), Math.max(30000, status.duration * 1000 + 15000));
       options.onStart?.();
     }
     if (started && status.duration > 0) options.onProgress?.(Math.max(0, Math.min(1, status.currentTime / status.duration)));
@@ -56,7 +57,7 @@ export function playTake(take: Take, options: PlaybackOptions): () => void {
     if (!take.uri) { end(true); return; }
     await restoreAudio();
     if (closed) return;
-    player = createAudioPlayer(take.uri, { updateInterval: 50, keepAudioSessionActive: true });
+    player = createAudioPlayer(take.uri, { updateInterval: 50, keepAudioSessionActive: true, allowsExternalPlayback: false });
     player.volume = 1;
     player.muted = false;
     player.loop = false;
@@ -68,17 +69,11 @@ export function playTake(take: Take, options: PlaybackOptions): () => void {
       if (player?.isLoaded || closed) resolve();
     });
     if (closed || !player) return;
-    await player.seekTo(0);
-    if (closed || !player) return;
-    // Cambiar de «grabar» a «escuchar» solo cambia la categoría de AVAudioSession.
-    // Tras la voz del sistema, iOS puede haber desactivado la salida aunque Expo conserve
-    // su estado de sesión activa: AVPlayer avanza igualmente, pero sin sonido.
-    // Activarla de forma explícita, con el archivo ya cargado, antes de darle al play.
-    if (Platform.OS === 'ios') await setIsAudioActiveAsync(true);
-    if (closed || !player) return;
     clearTimeout(timer);
-    // Solo protege frente a un reproductor bloqueado. Nunca adelanta el final de una grabación.
-    timer = setTimeout(() => end(true), Math.max(30000, player.duration * 1000 + 15000));
+    // Cada intento usa un reproductor nuevo, ya situado al principio. Un seek adicional
+    // solo añade una espera nativa que puede quedarse pendiente antes de arrancar.
+    // play() gestiona su sesión: no forzar la habilitación global de audio de iOS.
+    timer = setTimeout(() => end(true), 4000);
     ready = true;
     player.play();
   };

@@ -54,9 +54,24 @@ La firma utiliza las credenciales del propietario en EAS. El destino de envío e
 
 La configuración incluye permiso de micrófono en español, manifiesto de privacidad con las razones declaradas por las dependencias instaladas, uso de cifrado no exento desactivado y audio de fondo desactivado. La voz grabada y el progreso permanecen en el dispositivo según el código actual. La validación de Apple, la firma y las pruebas nativas en dispositivos siguen siendo pasos separados de compilar los bundles JavaScript.
 
-El 17 de noviembre se notificó que Eco dibujaba la voz y avanzaba la comparación sin reproducirla en un iPhone 16 Pro con iOS 27.2.1 y Sanuk 1.0.0 (3). El reproductor ahora espera a reactivar explícitamente la sesión de audio de iOS después de la síntesis y antes de reproducir la toma. Las pruebas cubren esa espera, su cancelación y los errores de activación. La comprobación en simulador utiliza audio sintético; hay que confirmar la audición de una grabación real en la nueva build de TestFlight, incluida la opción «Comparar» y varias tomas seguidas. La build 3 no contiene este cambio.
+El 17 de noviembre se notificó que Eco dibujaba la voz pero no se oía la grabación en un iPhone 16 Pro con iOS 27.2.1 y Sanuk 1.0.0 (3). La [build 4](https://expo.dev/accounts/gartzia6/projects/sanuk/builds/796f25fc-b5b7-4ef4-addf-9048202590be) añadió una reactivación global de audio; el titular confirmó que seguía sin oírse y observó un bloqueo intermitente. La prueba anterior con un WAV generado era insuficiente para validar el recorrido completo.
 
-La corrección está en [Sanuk 1.0.0 (4)](https://expo.dev/accounts/gartzia6/projects/sanuk/builds/796f25fc-b5b7-4ef4-addf-9048202590be), compilada y enviada a TestFlight el 17 de noviembre de 2026. App Store Connect confirmó `VALID` e `IN_BETA_TESTING` a las 09:38 (Europe/Madrid). Esta disponibilidad permite probarla en el dispositivo físico; no confirma por sí sola que se haya resuelto la incidencia. No se ha reenviado la versión a App Review.
+El código local actual conserva el PCM original para analizar los tonos y prepara una copia de escucha con ganancia limitada y protección de picos. El reproductor nuevo empieza desde cero sin un `seek` innecesario ni la activación global de la build 4. Si el audio no arranca, devuelve el control en cuatro segundos. Mientras se prepara la toma, la interfaz indica «Preparando tu voz…».
+
+Se probó el componente real de Eco con el micrófono nativo en un iPhone 16 Pro simulado con iOS 27.0. El titular grabó «khop khun» y confirmó que oía su voz después de Noi. La toma conservó sus 66.509 muestras a 48 kHz; la copia pasó de RMS 0,0374 a 0,1200 sin recortar picos. La comparación terminó sin errores. Las métricas sin audio personal están en `scripts/qa/eco-native-result-2026-11-17.json`. Sigue pendiente la validación de este código en el iPhone físico con iOS 27.2.1.
+
+Por petición del titular, esta revisión no genera builds de EAS ni envíos a TestFlight. La build 4 conserva el código anterior. No se ha reenviado la app a App Review.
+
+### Repetir la prueba local de Eco
+
+`scripts/qa/eco-native-entry.js` monta el juego real con la palabra de la lección, sus fuentes y proveedores. Observa la captura, los estados y los archivos nativos; no activa el muestreo del reproductor, no fabrica la grabación ni sustituye la entrada del micrófono. Ejecutarlo en una copia temporal del proyecto y una app de simulador con identificador propio y las mismas versiones nativas de `package-lock.json`.
+
+```sh
+# En la copia temporal, con src, assets, scripts/qa y node_modules disponibles:
+npx expo export:embed --entry-file scripts/qa/eco-native-entry.js --platform ios --dev false --bundle-output /tmp/sanuk-eco-qa-bundle/main.jsbundle --assets-dest /tmp/sanuk-eco-qa-bundle
+```
+
+Incorporar ese bundle y sus assets a la app local aislada del simulador. Grabar una frase real, escuchar la secuencia completa, volver a tocar «Comparar» y hacer otra toma. Comprobar también silencio y cancelación. El registro `eco-fullflow-qa.json` y las copias `native-take-*.wav` se guardan en Documents de esa app de prueba para inspección local; no se versionan grabaciones. `scripts/qa/` se excluye de los archivos enviados a EAS. Una señal o un cursor que avanza no sustituyen la comprobación de que se oye la voz.
 
 Los perfiles iOS fijan Xcode 27.2 para incluir el soporte de pantalla completa del iPhone Duo (SDK 27.1 o posterior). La navegación nativa coloca las pestañas según la ventana; `ScreenFrame` reserva los márgenes asimétricos para los controles y mantiene los fondos hasta los bordes. Las rejillas y el mapa se adaptan al ancho local sin reiniciar la partida al plegar. Para revisar cambios, probar cerrado, abierto, girado y el iPhone normal; la web conserva su columna de 520 puntos.
 

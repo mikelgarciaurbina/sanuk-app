@@ -93,7 +93,7 @@ export default function Eco({ mode, words, focus, sentences, rounds, gender, ora
   const [take, setTake] = useState<Take | null>(null);
   const [shot, setShot] = useState<Shot | null>(null);
   const [shown, setShown] = useState(false);
-  const [playing, setPlaying] = useState<'noi' | 'yo' | null>(null);
+  const [playing, setPlaying] = useState<'noi' | 'yo' | 'preparando' | null>(null);
   const [preparing, setPreparing] = useState(false);
   const [audioError, setAudioError] = useState<string | null>(null);
   const [marks, setMarks] = useState<EcoMark[]>([]);
@@ -256,6 +256,7 @@ export default function Eco({ mode, words, focus, sentences, rounds, gender, ora
   const playMine = (t: Take, after?: () => void) => {
     const { alive, stopped } = hush();
     const restoreEffects = silence();
+    setPlaying('preparando');
     head.set(0);
     void stopped.then(() => {
       if (!alive()) return;
@@ -659,6 +660,8 @@ export default function Eco({ mode, words, focus, sentences, rounds, gender, ora
       : phase === 'compare'
         ? playing === 'yo'
           ? '…y ahora tú'
+          : playing === 'preparando'
+            ? 'Preparando tu voz…'
           : 'Primero Noi…'
         : unheard
           ? 'No te he oído bien. Acércate al micro y prueba otra vez'

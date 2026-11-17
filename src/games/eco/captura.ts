@@ -15,6 +15,7 @@ import { File } from 'expo-file-system';
 import { Platform } from 'react-native';
 
 import { createTracker, isVoiced, pitchOfBlock, type Frame, type Profile } from './tono';
+import { voiceVolume } from './volumen';
 
 /** Una grabación terminada. */
 export type Take = {
@@ -92,6 +93,23 @@ const keep = (uri: string | null) => {
   }
   return uri;
 };
+
+/** El modo de medición de iOS entrega PCM sin ganancia automática: puede dibujarse bien y apenas oírse. */
+function listeningCopy(uri: string | null, spoke: boolean): string | null {
+  if (!uri || !spoke) return uri;
+  try {
+    const original = new File(uri);
+    const bytes = voiceVolume(original.bytesSync());
+    if (!bytes) return uri;
+    const audible = new File(original.parentDirectory, `listen-${original.name}`);
+    keep(audible.uri);
+    audible.write(bytes);
+    return keep(audible.uri) ?? uri;
+  } catch {
+    // Un fallo al ajustar el volumen nunca debe destruir la toma que ya se ha guardado.
+    return uri;
+  }
+}
 
 type StreamClass = (typeof AudioModule)['AudioStream'];
 /**
@@ -261,7 +279,8 @@ async function openStream(o: MicOptions): Promise<Mic> {
       const works = buffers > 0;
       if (!works && ms > 700) streamWorks = false;
       else if (works) streamWorks = true;
-      return { uri: keep(uri), ms, frames: works ? m.frames : null, spoke: m.spoke() };
+      const spoke = m.spoke();
+      return { uri: listeningCopy(keep(uri), spoke), ms, frames: works ? m.frames : null, spoke };
     },
     async cancel() {
       if (closed) return;

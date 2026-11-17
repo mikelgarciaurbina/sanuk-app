@@ -45,149 +45,145 @@ test('Noi: una voz que tarda en empezar o acaba después de lo estimado no se co
   assert.equal(voice.stop(), stop.promise, 'el micro puede esperar a que termine el stop nativo');
 });
 
-function playback(t: TestContext, platform = 'ios') {
+function playback(t: TestContext) {
   t.mock.timers.enable({ apis: ['setTimeout'] });
   const restored = deferred<void>();
-  const sought = deferred<void>();
   const events: string[] = [];
   let listener: ((status: any) => void) | undefined;
   let config: any;
-  // AVPlayer puede avanzar con AVAudioSession inactiva: es distinto de que Expo
-  // permita llamar a play(). El doble mantiene separados esos dos estados.
-  let sessionActive = false;
-  let activate = async () => {};
   const player = {
     isLoaded: false, duration: 2.5, volume: 0, muted: true, loop: true,
     addListener: (_: string, cb: typeof listener) => { listener = cb; return { remove: () => events.push('unlisten') }; },
-    seekTo: (at: number) => { events.push(`seek:${at}`); return sought.promise; },
-    play: () => { events.push('play'); events.push(sessionActive ? 'session:active-on-play' : 'session:inactive-on-play'); },
-    pause: () => events.push('pause'), remove: () => events.push('remove'),
+    seekTo: () => { events.push('seek'); return new Promise<void>(() => {}); },
+    play: () => events.push('play'), pause: () => events.push('pause'), remove: () => events.push('remove'),
   };
   const mod = load('games/eco/reproduccion.ts', {
     'expo-audio': {
       createAudioPlayer: (uri: string, options: unknown) => { events.push(`create:${uri}`); config = options; return player; },
-      setIsAudioActiveAsync: async (active: boolean) => {
-        events.push(`activate:${active}`);
-        await activate();
-        sessionActive = active;
-      },
+      setIsAudioActiveAsync: () => { throw Error('No cambiar la habilitación global desde una comparación'); },
     },
-    'react-native': { Platform: { OS: platform } },
     './captura': { restoreAudio: () => restored.promise },
   });
-  const cancel = mod.playTake({ uri: 'file:///voz.m4a', ms: 20 }, {
+  const cancel = mod.playTake({ uri: 'file:///voz.wav', ms: 20 }, {
     onStart: () => events.push('start'), onProgress: (n: number) => events.push(`progress:${n}`),
     onEnd: () => events.push('end'), onError: () => events.push('error'),
   });
   const emit = (status: unknown) => listener?.({ isLoaded: true, playing: false, didJustFinish: false, duration: 2.5, currentTime: 0, ...status as object });
-  return { restored, sought, player, events, emit, cancel, config: () => config,
-    activation: (fn: () => Promise<void>) => { activate = fn; } };
+  const loaded = async () => { restored.resolve(); await flush(); player.isLoaded = true; emit({}); await flush(); };
+  return { restored, player, events, emit, loaded, cancel, config: () => config };
 }
 
-test('iOS reactiva la sesión después de la síntesis y antes de reproducir la toma', async (t) => {
-  const p = playback(t);
-  p.restored.resolve(); await flush();
-  p.player.isLoaded = true; p.emit({}); await flush();
-  p.sought.resolve(); await flush();
-  p.emit({ playing: true, currentTime: 1 });
-  assert.ok(p.events.includes('progress:0.4'), 'el estado playing no garantiza una salida audible');
-  assert.ok(p.events.includes('session:active-on-play'), 'reactivar AVAudioSession antes de reproducir el WAV');
-  assert.ok(!p.events.includes('session:inactive-on-play'));
-  assert.ok(p.events.indexOf('activate:true') > p.events.indexOf('seek:0'));
-  assert.ok(p.events.indexOf('activate:true') < p.events.indexOf('play'));
+test('un reproductor nuevo empieza desde cero sin depender de un seek nativo que puede quedar pendiente', async (t) => {
+  const p = playback(t); await p.loaded();
+  assert.ok(p.events.includes('play')); assert.ok(!p.events.includes('seek')); assert.ok(!p.events.includes('error'));
+  assert.equal(p.config().keepAudioSessionActive, true);
+  assert.equal(p.config().allowsExternalPlayback, false, 'el archivo local no se delega a un reproductor AirPlay remoto');
   p.cancel();
 });
 
-test('salir mientras se reactiva la salida no reproduce una toma antigua', async (t) => {
-  const p = playback(t); const active = deferred<void>();
-  p.activation(() => active.promise);
-  p.restored.resolve(); await flush(); p.player.isLoaded = true; p.emit({}); await flush();
-  p.sought.resolve(); await flush();
-  assert.ok(p.events.includes('activate:true'));
-  assert.ok(!p.events.includes('play'));
-  p.cancel(); active.resolve(); await flush();
-  assert.ok(!p.events.includes('play')); assert.ok(!p.events.includes('error'));
-});
-
-test('un error al activar el altavoz avisa y libera el reproductor, sin fingir que se ha oído la voz', async (t) => {
-  const p = playback(t);
-  p.activation(async () => { throw Error('AVAudioSession'); });
-  p.restored.resolve(); await flush(); p.player.isLoaded = true; p.emit({}); await flush();
-  p.sought.resolve(); await flush();
-  assert.ok(p.events.includes('error')); assert.ok(p.events.includes('remove'));
-  assert.ok(!p.events.includes('play')); assert.ok(!p.events.includes('end'));
-});
-
-test('Android conserva su foco de audio sin una activación global de iOS', async (t) => {
-  const p = playback(t, 'android');
-  p.restored.resolve(); await flush(); p.player.isLoaded = true; p.emit({}); await flush();
-  p.sought.resolve(); await flush();
-  assert.ok(p.events.includes('play')); assert.ok(!p.events.includes('activate:true'));
-  p.cancel();
-});
-
-test('tu grabación espera modo de escucha, carga y seek; el cursor sigue el audio y solo acaba al final real', async (t) => {
+test('el cursor y el final siguen la reproducción real, sin dar por terminada la toma por su duración estimada', async (t) => {
   const p = playback(t);
   assert.deepEqual(p.events, []);
-  p.restored.resolve(); await flush();
-  assert.deepEqual(p.events, ['create:file:///voz.m4a']);
-  assert.equal(p.config().keepAudioSessionActive, true);
-  p.player.isLoaded = true;
-  p.emit({}); await flush();
-  assert.ok(p.events.includes('seek:0'));
-  assert.ok(!p.events.includes('play'));
-  p.sought.resolve(); await flush();
-  assert.ok(p.events.includes('play'));
+  await p.loaded();
   assert.ok(!p.events.includes('start'));
   assert.equal(p.player.volume, 1); assert.equal(p.player.muted, false);
   p.emit({ playing: true, currentTime: 1.25 });
   assert.ok(p.events.includes('start')); assert.ok(p.events.includes('progress:0.5'));
   t.mock.timers.tick(4000);
-  assert.ok(!p.events.includes('end'), 'no usa el antiguo ms+1500 para terminar antes');
+  assert.ok(!p.events.includes('end'));
   p.emit({ didJustFinish: true, currentTime: 2.5 });
-  assert.equal(p.events.filter((e) => e === 'end').length, 1);
-  assert.ok(p.events.includes('remove'));
   p.emit({ didJustFinish: true });
-  assert.equal(p.events.filter((e) => e === 'end').length, 1);
+  assert.equal(p.events.filter(e => e === 'end').length, 1);
+  assert.ok(p.events.includes('remove'));
 });
 
-test('cancelar mientras carga impide que un evento atrasado reproduzca tu voz en otra ronda', async (t) => {
-  const p = playback(t);
-  p.restored.resolve(); await flush();
-  p.cancel(); p.player.isLoaded = true; p.emit({}); p.sought.resolve(); await flush();
+test('cancelar mientras carga impide reproducir una toma antigua cuando llega el evento tardío', async (t) => {
+  const p = playback(t); p.restored.resolve(); await flush();
+  p.cancel(); p.player.isLoaded = true; p.emit({}); await flush();
   assert.ok(!p.events.includes('play')); assert.ok(!p.events.includes('end')); assert.ok(!p.events.includes('error'));
-  assert.equal(p.events.filter((e) => e === 'remove').length, 1);
+  assert.equal(p.events.filter(e => e === 'remove').length, 1);
 });
 
-test('cancelar con un seek pendiente tampoco arranca la reproducción', async (t) => {
-  const p = playback(t);
-  p.restored.resolve(); await flush(); p.player.isLoaded = true; p.emit({}); await flush();
-  p.cancel(); p.sought.resolve(); await flush();
-  assert.ok(!p.events.includes('play')); assert.ok(!p.events.includes('end'));
+test('salir antes de restaurar la sesión no llega a crear un reproductor', async (t) => {
+  const p = playback(t); p.cancel(); p.restored.resolve(); await flush();
+  assert.deepEqual(p.events, []);
 });
 
-test('un archivo inválido y un reproductor bloqueado avisan del error en vez de simular una comparación', async (t) => {
-  const p = playback(t);
-  p.restored.resolve(); await flush(); p.emit({ error: 'cannot decode' });
-  assert.ok(p.events.includes('error')); assert.ok(!p.events.includes('end')); assert.ok(!p.events.includes('play'));
-});
-
-test('una carga que no termina devuelve el control con un error y libera el reproductor', async (t) => {
-  const p = playback(t);
-  p.restored.resolve(); await flush(); t.mock.timers.tick(8000); await flush();
+test('un archivo inválido avisa y libera el reproductor', async (t) => {
+  const p = playback(t); p.restored.resolve(); await flush(); p.emit({ error: 'cannot decode' });
   assert.ok(p.events.includes('error')); assert.ok(p.events.includes('remove')); assert.ok(!p.events.includes('play'));
+});
+
+test('una carga que no termina devuelve el control sin simular una comparación', async (t) => {
+  const p = playback(t); p.restored.resolve(); await flush(); t.mock.timers.tick(8000); await flush();
+  assert.ok(p.events.includes('error')); assert.ok(p.events.includes('remove')); assert.ok(!p.events.includes('play'));
+});
+
+test('una toma cargada que no arranca no deja la interfaz bloqueada treinta segundos', async (t) => {
+  const p = playback(t); await p.loaded(); t.mock.timers.tick(4000);
+  assert.ok(p.events.includes('error')); assert.ok(p.events.includes('remove')); assert.ok(!p.events.includes('end'));
+});
+
+const { voiceVolume } = load('games/eco/volumen.ts', {});
+function wav(amp = 0.006) {
+  const rate = 16000, samples = 16000;
+  const b = Buffer.alloc(44 + samples * 2);
+  b.write('RIFF', 0); b.writeUInt32LE(b.length - 8, 4); b.write('WAVEfmt ', 8); b.writeUInt32LE(16, 16);
+  b.writeUInt16LE(1, 20); b.writeUInt16LE(1, 22); b.writeUInt32LE(rate, 24); b.writeUInt32LE(rate * 2, 28);
+  b.writeUInt16LE(2, 32); b.writeUInt16LE(16, 34); b.write('data', 36); b.writeUInt32LE(samples * 2, 40);
+  for (let i = 0; i < samples; i++) b.writeInt16LE(Math.round(32767 * amp * Math.sin(2 * Math.PI * 220 * i / rate)), 44 + i * 2);
+  return b;
+}
+function rms(b: Uint8Array, start = 44) {
+  const v = new DataView(b.buffer, b.byteOffset, b.byteLength); let e = 0;
+  for (let i = start; i < b.length; i += 2) e += (v.getInt16(i, true) / 32768) ** 2;
+  return Math.sqrt(e / ((b.length - start) / 2));
+}
+
+test('la copia de escucha hace audible un PCM bajo conservando duración, tono y archivo original', () => {
+  const raw = wav(), before = Buffer.from(raw); const out = Buffer.from(voiceVolume(raw));
+  assert.ok(rms(raw) < 0.005); assert.ok(Math.abs(rms(out) - 0.12) < 0.001);
+  assert.equal(out.length, raw.length); assert.deepEqual(out.subarray(0, 44), raw.subarray(0, 44));
+  assert.deepEqual(raw, before);
+  const gain = out.readInt16LE(46) / raw.readInt16LE(46);
+  for (let at = 44; at < out.length; at += 2) assert.ok(Math.abs(out.readInt16LE(at) - raw.readInt16LE(at) * gain) < 5);
+});
+
+test('los picos no se recortan y las voces que ya tienen volumen no se amplifican', () => {
+  const raw = wav(0.008); raw.writeInt16LE(10000, 400);
+  const out = Buffer.from(voiceVolume(raw));
+  for (let at = 44; at < out.length; at += 2) assert.ok(Math.abs(out.readInt16LE(at)) <= Math.ceil(32768 * 0.9));
+  assert.equal(voiceVolume(wav(0.5)), null);
+});
+
+test('no se amplifican el silencio digital, el ruido ínfimo ni un formato no soportado', () => {
+  assert.equal(voiceVolume(wav(0)), null); assert.equal(voiceVolume(wav(0.0001)), null);
+  const other = wav(); other.writeUInt16LE(3, 20); assert.equal(voiceVolume(other), null);
+  assert.equal(voiceVolume(Buffer.from('bad')), null);
+  const truncated = wav().subarray(0, 100); assert.equal(voiceVolume(truncated), null);
+});
+
+test('se respetan los chunks adicionales y las vistas con un desplazamiento en el buffer', () => {
+  const original = wav(); const junk = Buffer.from([74,85,78,75,1,0,0,0,7,0]);
+  const extra = Buffer.concat([original.subarray(0, 12), junk, original.subarray(12)]); extra.writeUInt32LE(extra.length - 8, 4);
+  const storage = Buffer.concat([Buffer.alloc(7), extra, Buffer.alloc(3)]);
+  const input = storage.subarray(7, 7 + extra.length); const out = Buffer.from(voiceVolume(input));
+  assert.deepEqual(out.subarray(0, 54), extra.subarray(0, 54)); assert.ok(Math.abs(rms(out, 54) - 0.12) < 0.001);
 });
 
 function capture(t: TestContext, stream = false) {
   t.mock.timers.enable({ apis: ['setTimeout', 'setInterval'] });
   const events: string[] = [];
-  const files = new Map<string, { exists: boolean; size: number }>();
-  const put = (uri: string) => { files.set(uri, { exists: true, size: 12000 }); return uri; };
+  const files = new Map<string, { exists: boolean; size: number; bytes?: Uint8Array }>();
+  const put = (uri: string, bytes?: Uint8Array) => { files.set(uri, { exists: true, size: bytes?.length ?? 12000, bytes }); return uri; };
   let finish = async () => {};
   let failStreamFile = false;
   let emptyStream = false;
   let active = false;
   let serial = 0;
+  let voiced = false;
+  let failListeningWrite = false;
+  let streamBuffer: ((value: any) => void) | undefined;
   const recorder = {
     uri: '',
     prepareToRecordAsync: async () => { events.push('prepare'); recorder.uri = put(`file:///take-${++serial}.m4a`); },
@@ -196,9 +192,9 @@ function capture(t: TestContext, stream = false) {
     stop: async () => { events.push('stop'); await finish(); active = false; events.push('finalized'); },
   };
   class Stream {
-    addListener() { return { remove: () => {} }; }
+    addListener(_: string, fn: (value: any) => void) { streamBuffer = fn; return { remove: () => {} }; }
     async start() { events.push('stream:start'); }
-    async startFileRecordingAsync() { if (failStreamFile) throw Error('disk'); return { uri: put('file:///stream.wav') }; }
+    async startFileRecordingAsync() { if (failStreamFile) throw Error('disk'); return { uri: put('file:///stream.wav', voiced ? wav() : undefined) }; }
     async stopFileRecordingAsync() { return { uri: 'file:///stream.wav', duration: emptyStream ? 0 : 1.5, size: emptyStream ? 44 : 12000 }; }
     stop() { events.push('stream:stop'); }
     release() { events.push('stream:release'); }
@@ -208,16 +204,46 @@ function capture(t: TestContext, stream = false) {
       AudioModule: stream ? { AudioStream: Stream } : {}, requestRecordingPermissionsAsync: async () => ({ granted: true }),
       setAudioModeAsync: async (o: any) => { events.push(o.allowsRecording ? 'mode:record' : 'mode:play'); },
     },
-    'expo-file-system': { File: class { uri: string; constructor(uri: string) { this.uri = uri; } get exists() { return files.get(this.uri)?.exists; } get size() { return files.get(this.uri)?.size ?? 0; } delete() { files.delete(this.uri); } } },
+    'expo-file-system': { File: class {
+      uri: string;
+      constructor(path: string | { uri: string }, name?: string) { const base = typeof path === 'string' ? path : path.uri; this.uri = name ? base + name : base; }
+      get exists() { return files.get(this.uri)?.exists; }
+      get size() { return files.get(this.uri)?.size ?? 0; }
+      get name() { return this.uri.split('/').at(-1); }
+      get parentDirectory() { return { uri: this.uri.slice(0, this.uri.lastIndexOf('/') + 1) }; }
+      bytesSync() { return files.get(this.uri)?.bytes; }
+      write(bytes: Uint8Array) { if (failListeningWrite) throw Error('disk full'); put(this.uri, bytes); }
+      delete() { files.delete(this.uri); }
+    } },
     'react-native': { Platform: { OS: 'ios' } },
-    './tono': { createTracker: () => ({ push: () => [] }), isVoiced: () => false },
+    './tono': { createTracker: () => ({ push: () => voiced ? Array.from({ length: 8 }, (_, i) => ({ t: i * .0125, rms: .004, f0: 220, conf: 1 })) : [] }), isVoiced: () => voiced },
+    './volumen': { voiceVolume },
   });
   const options = { recorder, onLevel: () => {} };
   const open = async () => {
     const run = mod.openMic(options); await flush(); t.mock.timers.tick(160); await flush(); return run;
   };
-  return { mod, events, recorder, files, open, options, finish: (fn: () => Promise<void>) => { finish = fn; }, failFile: () => { failStreamFile = true; }, emptyStream: () => { emptyStream = true; } };
+  return { mod, events, recorder, files, open, options, finish: (fn: () => Promise<void>) => { finish = fn; }, failFile: () => { failStreamFile = true; }, emptyStream: () => { emptyStream = true; },
+    voice: () => { voiced = true; }, failListeningWrite: () => { failListeningWrite = true; },
+    emitVoice: () => streamBuffer?.({ data: new ArrayBuffer(1600), sampleRate: 16000, channels: 1 }),
+  };
 }
+
+test('la captura conserva el PCM para analizar, devuelve una copia audible y limpia ambas al salir', async (t) => {
+  const c = capture(t, true); c.voice(); const mic = await c.open(); c.emitVoice();
+  const take = await mic.stop();
+  assert.equal(take.uri, 'file:///listen-stream.wav'); assert.equal(take.spoke, true); assert.equal(take.frames.length, 8);
+  assert.deepEqual(Buffer.from(c.files.get('file:///stream.wav')!.bytes!), wav());
+  assert.ok(Math.abs(rms(c.files.get(take.uri)!.bytes!) - .12) < .001);
+  c.mod.releaseTakes(); assert.equal(c.files.size, 0);
+});
+
+test('si falla la copia de escucha se conserva la toma original sin perder la voz ni el análisis', async (t) => {
+  const c = capture(t, true); c.voice(); c.failListeningWrite(); const mic = await c.open(); c.emitVoice();
+  const take = await mic.stop();
+  assert.equal(take.uri, 'file:///stream.wav'); assert.equal(take.spoke, true); assert.equal(take.frames.length, 8);
+  assert.deepEqual(Buffer.from(c.files.get(take.uri)!.bytes!), wav());
+});
 
 test('la grabación convencional finaliza el archivo antes de restaurar altavoz y devolver su URI', async (t) => {
   const c = capture(t); const mic = await c.open();
