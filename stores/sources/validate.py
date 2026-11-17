@@ -22,6 +22,9 @@ for f,(w,h,mode) in {'apple/creative/header.png':(3840,1646,'RGB'),'apple/creati
     checks.append({'check':'artwork','file':f,'size':im.size,'mode':im.mode,'bytes':(root/f).stat().st_size,'pass':im.size==(w,h) and im.mode==mode and ('google-512' not in f or (root/f).stat().st_size<=1024*1024)})
 textchecks=json.loads((root/'checks/text-limits.json').read_text())
 checks.extend({'check':'metadata','field':k,**v} for k,v in textchecks.items())
+for name in ['guideline-2.1-notes-en.txt','guideline-2.1-reply-en.txt']:
+    text=(root/'review'/name).read_text().strip()
+    checks.append({'check':'review-draft-length','file':'review/'+name,'length':len(text),'limit':4000,'pass':0<len(text)<=4000})
 manifest=[]
 for f in sorted((root/'sources/raw').glob('*/manifest.json')):manifest.extend(json.loads(f.read_text()))
 checks.append({'check':'capture-count','expected':48,'actual':len(manifest),'pass':len(manifest)==48})

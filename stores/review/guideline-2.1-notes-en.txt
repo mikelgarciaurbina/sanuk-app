@@ -1,0 +1,31 @@
+Sanuk 1.0 — Additional App Review information
+Contact: Mikel Garcia, sanuk@overlayon.com
+
+1. Physical device demonstration
+Recording: [RECORDING_URL]
+Device: [DEVICE_MODEL]
+Operating system: [OS_VERSION]
+Submitted app version/build: 1.0.0 / [BUILD_NUMBER]
+The video starts by launching the submitted build on the physical device and demonstrates the normal learning flow. This build has also been tested on a physical device.
+
+2. Purpose, audience and value
+Sanuk is a public educational app for Spanish-speaking people learning Thai, including beginners, travelers, and people communicating with Thai family or friends. It combines a structured course, listening, pronunciation practice, Thai writing and games with a story from Chiang Mai to Mae Hong Son. There are 180 lessons and 20 games. Lessons and explanations are in Spanish; Thai text is supported by pronunciation guides. The app is available to the general public without organization membership or an invitation.
+
+3. Setup and access to the main features
+No account, login credentials, activation code, subscription or sample file is required. Onboarding only saves local learning preferences; it does not create an account.
+For a beginner review, select "Nada de nada" during onboarding. In "Camino" (learning path), start "Hola y gracias", listen to the Thai examples, complete the activities and view the results. Continue with "Sí, no y no pasa nada".
+"Feria" (game fair) uses vocabulary already introduced in lessons. Complete the first two lessons before opening a game there; it needs at least six introduced words. Some games need further lessons or specific material. These are learning prerequisites, not payment restrictions.
+"Palabras" is the wordbook and review area. "Pasaporte" contains local progress, preferences and optional reminders. Yai's letter and the travel diary are accessible from Camino and Pasaporte.
+All content is free. There are no ads or in-app purchases. Bananas, stamps and baht shown in educational games are virtual game elements, not real payments. There are no social features or publication of user content to other users. Voice practice and the story reply stay on the device; there is no account creation or account deletion flow.
+
+4. External services, tools and platforms
+The app is built with Expo and React Native. The course and artwork are bundled with it. It has no account backend, payment processor, external data feed, proprietary analytics or remote generative AI service.
+Thai pronunciation uses iOS text-to-speech. An installed Thai voice may be necessary; the app explains what to do if it is missing. Eco uses optional microphone permission, local recording and local audio analysis, without a remote transcription or AI service. Reminders are optional local notifications. Progress is stored locally. Support/privacy links open informational website pages.
+Support: https://sanuk.overlayon.com/soporte
+Privacy: https://sanuk.overlayon.com/privacidad
+
+5. Regional differences
+The app's curriculum and features are the same across the regions where it is distributed. There are no country-specific accounts, content gates or server-controlled regional features. System voice availability depends on the device and OS.
+
+6. Regulated services and third-party material
+Sanuk is a general language-learning app and does not provide regulated medical, financial or other professional services. It does not access a paid third-party media catalog or external content feed. Third-party software and fonts are used under their respective licenses.

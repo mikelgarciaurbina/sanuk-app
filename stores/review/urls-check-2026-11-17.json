@@ -1,0 +1,9 @@
+{
+  "checkedOn": "2026-11-17",
+  "method": "HTTP GET with redirects followed, without authentication",
+  "results": [
+    { "url": "https://sanuk.overlayon.com/privacidad", "status": 404 },
+    { "url": "https://sanuk.overlayon.com/soporte", "status": 404 }
+  ],
+  "nextStep": "Publish the prepared website pages and verify both URLs again before resubmission."
+}

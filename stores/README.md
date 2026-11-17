@@ -57,6 +57,12 @@ Las imágenes de Apple son RGB sin transparencia. El icono Android es PNG de 32 
 7. Copiar los textos, subir los recursos de cada grupo y revisar las declaraciones propuestas de `review/privacy-and-content.md` contra el binario final.
 8. Elegir territorios, contestar los cuestionarios de clasificación y enviar a revisión desde las cuentas.
 
+## Responder al requerimiento de información de Apple
+
+La [guía de Guideline 2.1](review/guideline-2.1-pasos-es.md) explica cómo completar el requerimiento recibido el 17 de noviembre de 2026. Incluye el guion de la grabación en un dispositivo físico y los pasos para actualizar Notes y reenviar la versión.
+
+Los archivos `review/guideline-2.1-notes-en.txt` y `review/guideline-2.1-reply-en.txt` son borradores en inglés para cada campo de App Store Connect. Sustituir los campos entre corchetes por el vídeo y los datos reales de la build antes de usarlos. El registro `review/urls-check-2026-11-17.json` recoge la comprobación de las URLs en esa fecha; volver a comprobarlas tras publicar las páginas.
+
 ## Compilación y envío
 
 Desde la carpeta `app`, que usa npm. EAS solicitará credenciales y decisiones de cuenta cuando sean necesarias.
