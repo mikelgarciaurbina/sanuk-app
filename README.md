@@ -60,7 +60,9 @@ El código local actual conserva el PCM original para analizar los tonos y prepa
 
 Se probó el componente real de Eco con el micrófono nativo en un iPhone 16 Pro simulado con iOS 27.0. El titular grabó «khop khun» y confirmó que oía su voz después de Noi. La toma conservó sus 66.509 muestras a 48 kHz; la copia pasó de RMS 0,0374 a 0,1200 sin recortar picos. La comparación terminó sin errores. Las métricas sin audio personal están en `scripts/qa/eco-native-result-2026-11-17.json`. Sigue pendiente la validación de este código en el iPhone físico con iOS 27.2.1.
 
-Por petición del titular, esta revisión no genera builds de EAS ni envíos a TestFlight. La build 4 conserva el código anterior. No se ha reenviado la app a App Review.
+Durante la revisión local no se generaron builds de EAS ni envíos a TestFlight. Tras confirmar que oía su voz en el simulador, el titular pidió expresamente crear y enviar la build 5.
+
+[Sanuk 1.0.0 (5)](https://expo.dev/accounts/gartzia6/projects/sanuk/builds/e42e20ce-f182-4cbf-874c-e322c758c5fd) incluye el arreglo validado, del commit `3147622`. Se creó una única compilación de iOS y el [envío a TestFlight](https://expo.dev/accounts/gartzia6/projects/sanuk/submissions/dd363800-b9ef-4184-9db4-f6f379221b30) terminó correctamente. App Store Connect confirmó `VALID` e `IN_BETA_TESTING` el 17 de noviembre de 2026 a las 10:35 (Europe/Madrid). Está disponible para pruebas internas; sigue pendiente comprobar Eco en el iPhone físico. La build 4 conserva el código anterior. No se ha reenviado la app a App Review.
 
 ### Repetir la prueba local de Eco
 
