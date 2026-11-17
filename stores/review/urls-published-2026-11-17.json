@@ -1,0 +1,61 @@
+{
+  "checkedAt": "2026-11-17T07:37:07.862653+00:00",
+  "method": "Public HTTP GET without authentication; redirects followed",
+  "siteCommit": "c24e772b9ff620dd38d8c3f0a80252fcb1dd03c9",
+  "deploymentProvider": "Cloudflare Pages",
+  "deploymentId": "126617b5-7993-4c28-b8cb-6e3b04d816ad",
+  "trigger": "Push to main in mikelgarciaurbina/sanuk-site",
+  "note": "Cloudflare email obfuscation was decoded to verify the contact address; its client script also returns HTTP 200.",
+  "results": [
+    {
+      "url": "https://sanuk.overlayon.com/",
+      "status": 200,
+      "finalUrl": "https://sanuk.overlayon.com/",
+      "redirects": 0,
+      "contentType": "text/html; charset=utf-8",
+      "title": "Aprende tailandés desde el español jugando · Sanuk",
+      "footerLinksPresent": true
+    },
+    {
+      "url": "https://sanuk.overlayon.com/privacidad",
+      "status": 200,
+      "finalUrl": "https://sanuk.overlayon.com/privacidad/",
+      "redirects": 1,
+      "contentType": "text/html; charset=utf-8",
+      "supportEmailVerified": true,
+      "title": "Privacidad · Sanuk",
+      "footerLinksPresent": true
+    },
+    {
+      "url": "https://sanuk.overlayon.com/soporte",
+      "status": 200,
+      "finalUrl": "https://sanuk.overlayon.com/soporte/",
+      "redirects": 1,
+      "contentType": "text/html; charset=utf-8",
+      "supportEmailVerified": true,
+      "title": "Soporte · Sanuk",
+      "footerLinksPresent": true
+    },
+    {
+      "url": "https://sanuk.overlayon.com/_astro/Layout.DXPpJ4ut.css",
+      "status": 200,
+      "finalUrl": "https://sanuk.overlayon.com/_astro/Layout.DXPpJ4ut.css",
+      "redirects": 0,
+      "contentType": "text/css; charset=utf-8"
+    },
+    {
+      "url": "https://sanuk.overlayon.com/_astro/index.DFotILsd.css",
+      "status": 200,
+      "finalUrl": "https://sanuk.overlayon.com/_astro/index.DFotILsd.css",
+      "redirects": 0,
+      "contentType": "text/css; charset=utf-8"
+    },
+    {
+      "url": "https://sanuk.overlayon.com/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js",
+      "status": 200,
+      "finalUrl": "https://sanuk.overlayon.com/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js",
+      "redirects": 0,
+      "contentType": "application/javascript"
+    }
+  ]
+}

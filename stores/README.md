@@ -48,7 +48,7 @@ Las imágenes de Apple son RGB sin transparencia. El icono Android es PNG de 32 
 
 ## Antes del envío
 
-1. Publicar el sitio en https://sanuk.overlayon.com y comprobar desde fuera que `/privacidad` y `/soporte` responden sin contraseña. El código del sitio incluye ambas páginas, el pie de navegación y el dominio canónico. En Pasaporte se han añadido los enlaces.
+1. Completado el 17 de noviembre de 2026: sitio publicado en https://sanuk.overlayon.com. `/privacidad` y `/soporte` responden con HTTP 200 sin autenticación, tras la redirección de Cloudflare a la ruta con barra final. La publicación se activa haciendo push a `main` en `sanuk-site`. Evidencia en `review/urls-published-2026-11-17.json`. Los enlaces están en el pie de la web y en Pasaporte.
 2. Confirmar que el buzón sanuk@overlayon.com recibe correo.
 3. Completar identidad, acuerdos de cuenta, estado de comerciante para la UE y contacto privado de revisión, incluido el teléfono. Estos datos pertenecen al titular de las cuentas.
 4. Crear las fichas `app.sanuk.thai` en las cuentas correspondientes. En Apple, elegir SKU estable, por ejemplo `sanuk-ios-1`, idioma principal es-ES y disponibilidad gratuita. Añadir la localización English (U.S.), en-US, con los textos de `apple/en-US`. En Google Play, crear una app gratuita en Educación y declarar que no contiene anuncios.
@@ -61,7 +61,7 @@ Las imágenes de Apple son RGB sin transparencia. El icono Android es PNG de 32 
 
 La [guía de Guideline 2.1](review/guideline-2.1-pasos-es.md) explica cómo completar el requerimiento recibido el 17 de noviembre de 2026. Incluye el guion de la grabación en un dispositivo físico y los pasos para actualizar Notes y reenviar la versión.
 
-Los archivos `review/guideline-2.1-notes-en.txt` y `review/guideline-2.1-reply-en.txt` son borradores en inglés para cada campo de App Store Connect. Sustituir los campos entre corchetes por el vídeo y los datos reales de la build antes de usarlos. El registro `review/urls-check-2026-11-17.json` recoge la comprobación de las URLs en esa fecha; volver a comprobarlas tras publicar las páginas.
+Los archivos `review/guideline-2.1-notes-en.txt` y `review/guideline-2.1-reply-en.txt` son borradores en inglés para cada campo de App Store Connect. Sustituir los campos entre corchetes por el vídeo y los datos reales de la build antes de usarlos. El registro `review/urls-check-2026-11-17.json` conserva los 404 anteriores al despliegue. `review/urls-published-2026-11-17.json` acredita que las dos páginas ya responden con HTTP 200. La grabación del dispositivo físico sigue pendiente.
 
 ## Compilación y envío
 
@@ -91,4 +91,4 @@ Si la cuenta personal de Google Play se creó después del 13 de noviembre de 20
 
 Los recursos gráficos se derivan del sistema visual original de Sanuk y del personaje Noi. Las pantallas se capturan de la interfaz real con un progreso local de demostración. Consultar `sources/capture-manifest.json` para los dispositivos, escenas y rutas. Los originales de las pantallas se conservan en `sources/raw`. No se ha usado una pantalla de iPhone ampliada como sustituto de la interfaz del Duo, iPad o Android.
 
-Las capturas son material promocional. La validación de dimensiones del paquete no sustituye la prueba del binario firmado. Las URLs previstas deben publicarse antes del envío. Las fichas de App Store están en español e inglés; la de Google Play está en español. La descripción inglesa indica que las lecciones y explicaciones de la app están en español. Las capturas conservan el idioma de la interfaz de la app.
+Las capturas son material promocional. La validación de dimensiones del paquete no sustituye la prueba del binario firmado. Las URLs de privacidad y soporte están publicadas. Las fichas de App Store están en español e inglés; la de Google Play está en español. La descripción inglesa indica que las lecciones y explicaciones de la app están en español. Las capturas conservan el idioma de la interfaz de la app.

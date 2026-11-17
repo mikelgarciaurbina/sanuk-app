@@ -146,11 +146,11 @@ La pronunciación usa la síntesis de voz del sistema en tailandés. Se requiere
 Datos
 El progreso y las preferencias se guardan localmente. No hay servidor de cuentas ni analítica propia. Se puede restablecer el progreso desde Pasaporte. Ver la política para los detalles de las voces del sistema y los correos voluntarios a soporte.
 
-Sitio previsto
+Sitio publicado
 https://sanuk.overlayon.com
 https://sanuk.overlayon.com/privacidad
 https://sanuk.overlayon.com/soporte
-Publicar y comprobar estas páginas antes de enviar a revisión.
+Páginas publicadas y verificadas sin autenticación el 17 de noviembre de 2026.
 
 Dispositivos
 App universal para iPhone y iPad, con interfaz adaptable al iPhone Duo abierto y cerrado. Android dispone de diseños para móvil y pantallas amplias.
@@ -174,7 +174,7 @@ Progress is stored locally and can be reset from Pasaporte. There is no account 
 Website: https://sanuk.overlayon.com
 Privacy: https://sanuk.overlayon.com/privacidad
 Support: https://sanuk.overlayon.com/soporte
-Publish and verify these pages before submission.
+These pages were published and verified without authentication on November 17, 2026.
 
 Universal iPhone/iPad app with layouts for iPhone Duo open and closed. Promotional screenshots use local demonstration progress to show activities at different stages. No real user's personal data is included.''')
 
@@ -182,7 +182,7 @@ listing = {
  'version':'1.0.0', 'primaryLocale':'es-ES','developer':'Mikel Garcia','supportEmail':'sanuk@overlayon.com',
  'appName':title,'bundleIdentifier':'app.sanuk.thai','androidPackage':'app.sanuk.thai',
  'website':'https://sanuk.overlayon.com','supportUrl':'https://sanuk.overlayon.com/soporte','privacyUrl':'https://sanuk.overlayon.com/privacidad',
- 'urlsPublished':False,'price':'free','ads':False,'inAppPurchases':False,'loginRequired':False,
+ 'urlsPublished':True,'price':'free','ads':False,'inAppPurchases':False,'loginRequired':False,
  'applePrimaryCategory':'Education','appleSecondaryCategory':'Games (opcional; Educational)',
  'googleCategory':'Education','googleSuggestedTags':['Language education','Education'],
  'copyright':'2026 Mikel Garcia',
@@ -192,7 +192,7 @@ listing = {
   'en-US':apple_en
  },
  'content':{'lessons':180,'games':20,'words':1402,'sentences':810,'dialogues':23,'stories':8,'stops':27},
- 'submissionState':'Preparado localmente; requiere publicar las URLs, crear los binarios firmados y completar los datos privados de las cuentas.'
+ 'submissionState':'URLs publicadas y verificadas el 17 de noviembre de 2026; completar los requisitos de revisión y los datos de las consolas.'
 }
 put('listing.json', json.dumps(listing,ensure_ascii=False,indent=2))
 put('review/privacy-and-content.md','''# Declaraciones de contenido y privacidad
@@ -203,7 +203,7 @@ Propuesta basada en el código de Sanuk 1.0, revisada el 16 de noviembre de 2026
 
 Seleccionar que la app no recopila datos si se mantiene la implementación revisada. El progreso, las grabaciones de Eco y su análisis se procesan localmente. No hay cuentas, publicidad, identificador publicitario, tracking ni analítica propia. El permiso de micrófono no equivale por sí solo a recopilar datos fuera del dispositivo. La política explica las voces del sistema y el correo que el usuario envíe voluntariamente.
 
-URL de privacidad pública y URL de soporte necesarias. Los enlaces están añadidos a Pasaporte. Publicar el sitio antes del envío.
+Las URLs de privacidad y soporte están publicadas y se verificaron sin autenticación el 17 de noviembre de 2026. Los enlaces están añadidos a Pasaporte.
 
 ## Google Play Data safety
 
@@ -287,7 +287,7 @@ Las imágenes de Apple son RGB sin transparencia. El icono Android es PNG de 32 
 
 ## Antes del envío
 
-1. Publicar el sitio en https://sanuk.overlayon.com y comprobar desde fuera que `/privacidad` y `/soporte` responden sin contraseña. El código del sitio incluye ambas páginas, el pie de navegación y el dominio canónico. En Pasaporte se han añadido los enlaces.
+1. Completado el 17 de noviembre de 2026: sitio publicado en https://sanuk.overlayon.com. `/privacidad` y `/soporte` responden con HTTP 200 sin autenticación, tras la redirección de Cloudflare a la ruta con barra final. La publicación se activa haciendo push a `main` en `sanuk-site`. Evidencia en `review/urls-published-2026-11-17.json`. Los enlaces están en el pie de la web y en Pasaporte.
 2. Confirmar que el buzón sanuk@overlayon.com recibe correo.
 3. Completar identidad, acuerdos de cuenta, estado de comerciante para la UE y contacto privado de revisión, incluido el teléfono. Estos datos pertenecen al titular de las cuentas.
 4. Crear las fichas `app.sanuk.thai` en las cuentas correspondientes. En Apple, elegir SKU estable, por ejemplo `sanuk-ios-1`, idioma principal es-ES y disponibilidad gratuita. Añadir la localización English (U.S.), en-US, con los textos de `apple/en-US`. En Google Play, crear una app gratuita en Educación y declarar que no contiene anuncios.
@@ -300,7 +300,7 @@ Las imágenes de Apple son RGB sin transparencia. El icono Android es PNG de 32 
 
 La [guía de Guideline 2.1](review/guideline-2.1-pasos-es.md) explica cómo completar el requerimiento recibido el 17 de noviembre de 2026. Incluye el guion de la grabación en un dispositivo físico y los pasos para actualizar Notes y reenviar la versión.
 
-Los archivos `review/guideline-2.1-notes-en.txt` y `review/guideline-2.1-reply-en.txt` son borradores en inglés para cada campo de App Store Connect. Sustituir los campos entre corchetes por el vídeo y los datos reales de la build antes de usarlos. El registro `review/urls-check-2026-11-17.json` recoge la comprobación de las URLs en esa fecha; volver a comprobarlas tras publicar las páginas.
+Los archivos `review/guideline-2.1-notes-en.txt` y `review/guideline-2.1-reply-en.txt` son borradores en inglés para cada campo de App Store Connect. Sustituir los campos entre corchetes por el vídeo y los datos reales de la build antes de usarlos. El registro `review/urls-check-2026-11-17.json` conserva los 404 anteriores al despliegue. `review/urls-published-2026-11-17.json` acredita que las dos páginas ya responden con HTTP 200. La grabación del dispositivo físico sigue pendiente.
 
 ## Compilación y envío
 
@@ -330,7 +330,7 @@ Si la cuenta personal de Google Play se creó después del 13 de noviembre de 20
 
 Los recursos gráficos se derivan del sistema visual original de Sanuk y del personaje Noi. Las pantallas se capturan de la interfaz real con un progreso local de demostración. Consultar `sources/capture-manifest.json` para los dispositivos, escenas y rutas. Los originales de las pantallas se conservan en `sources/raw`. No se ha usado una pantalla de iPhone ampliada como sustituto de la interfaz del Duo, iPad o Android.
 
-Las capturas son material promocional. La validación de dimensiones del paquete no sustituye la prueba del binario firmado. Las URLs previstas deben publicarse antes del envío. Las fichas de App Store están en español e inglés; la de Google Play está en español. La descripción inglesa indica que las lecciones y explicaciones de la app están en español. Las capturas conservan el idioma de la interfaz de la app.
+Las capturas son material promocional. La validación de dimensiones del paquete no sustituye la prueba del binario firmado. Las URLs de privacidad y soporte están publicadas. Las fichas de App Store están en español e inglés; la de Google Play está en español. La descripción inglesa indica que las lecciones y explicaciones de la app están en español. Las capturas conservan el idioma de la interfaz de la app.
 ''')
 
 limits = {'appleName':(title,30),'appleSubtitle':(subtitle,30),'applePromo':(promo,170),'appleDescription':(description,4000),'playTitle':(title,30),'playShort':(short,80),'playDescription':(description,4000),'playReleaseNotes':(notes,500)}

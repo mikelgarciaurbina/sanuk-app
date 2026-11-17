@@ -9,7 +9,7 @@
   "website": "https://sanuk.overlayon.com",
   "supportUrl": "https://sanuk.overlayon.com/soporte",
   "privacyUrl": "https://sanuk.overlayon.com/privacidad",
-  "urlsPublished": false,
+  "urlsPublished": true,
   "price": "free",
   "ads": false,
   "inAppPurchases": false,
@@ -58,5 +58,5 @@
     "stories": 8,
     "stops": 27
   },
-  "submissionState": "Preparado localmente; requiere publicar las URLs, crear los binarios firmados y completar los datos privados de las cuentas."
+  "submissionState": "URLs publicadas y verificadas el 17 de noviembre de 2026; completar los requisitos de revisión y los datos de las consolas."
 }

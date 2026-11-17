@@ -4,12 +4,11 @@ Preparado el 17 de noviembre de 2026 a partir del mensaje de App Review y del c�
 
 El mensaje no identifica un fallo concreto ni permite saber cuánto ha probado el revisor. Pide una demostración y seis aclaraciones. Los apartados de cuentas, contenido compartido y pagos solo deben demostrarse cuando existen en la app. En Sanuk hay preferencias locales, progreso y monedas de juego; no son cuentas online ni compras.
 
-## Dos cosas pendientes antes del reenvío
+## Pendiente antes del reenvío
 
 1. Grabar la misma build enviada a Apple en un iPhone o iPad físico, con la versión estable actual del sistema que pide el revisor.
-2. Publicar las páginas de privacidad y soporte. El 17 de noviembre, las dos URLs configuradas devolvieron HTTP 404. Sus fuentes están preparadas en `sanuk-site/src/pages/privacidad.astro` y `sanuk-site/src/pages/soporte.astro`, y hay copias en `stores/legal/`. Comprobar las rutas exactas sin iniciar sesión después del despliegue.
 
-El vídeo y las URLs son requisitos distintos. Una grabación correcta no corrige una página inexistente.
+Las páginas de [privacidad](https://sanuk.overlayon.com/privacidad) y [soporte](https://sanuk.overlayon.com/soporte) ya están publicadas. El 17 de noviembre se hizo push a `main` en `sanuk-site` y Cloudflare Pages completó el despliegue. Ambas URLs se comprobaron sin autenticación: redirigen a su ruta con barra final y responden con HTTP 200. La evidencia está en `urls-published-2026-11-17.json`; `urls-check-2026-11-17.json` conserva los 404 anteriores al despliegue.
 
 ## Guion del vídeo
 
@@ -19,7 +18,7 @@ Duración orientativa de 5–8 minutos, ajustándola al flujo real. Apple no fij
 2. Si aparece la bienvenida, completarla y elegir «Nada de nada» para empezar desde cero. Si ya hay progreso, se puede conservar y enseñar el uso normal; no hace falta borrarlo para grabar. Mostrar qué lección se elige.
 3. En Camino, abrir una lección, reproducir la voz tailandesa, responder las actividades y terminarla para que se vean los resultados y el progreso. «Hola y gracias» incluye escucha, Eco y una conversación. Si se muestra Eco, practicar realmente la grabación y reproducción con el permiso correspondiente.
 4. Mostrar un juego disponible en Feria. Para una instalación nueva, completar «Hola y gracias» y «Sí, no y no pasa nada» antes de entrar en los juegos libres: necesitan al menos seis palabras presentadas. Si un puesto pide más progreso, su mensaje describe el requisito educativo. No se desbloquea pagando.
-5. Mostrar Palabras, la carta de Yai o el diario, y Pasaporte con el progreso y los ajustes. Enseñar el recordatorio si forma parte del recorrido grabado. Abrir privacidad y soporte después de que sus URLs funcionen.
+5. Mostrar Palabras, la carta de Yai o el diario, y Pasaporte con el progreso y los ajustes. Enseñar el recordatorio si forma parte del recorrido grabado. Abrir las páginas públicas de privacidad y soporte desde la app.
 6. Volver al inicio y abrir de nuevo Sanuk para mostrar que se conserva el progreso. Revisar la grabación completa y comprobar que se ve la interacción y se oye la pronunciación.
 
 La evidencia solicitada debe proceder de la app en un dispositivo real. Las capturas promocionales de `stores/` y los simuladores se utilizaron para los recursos de la ficha y no acreditan este requisito.

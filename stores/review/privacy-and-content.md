@@ -6,7 +6,7 @@ Propuesta basada en el código de Sanuk 1.0, revisada el 16 de noviembre de 2026
 
 Seleccionar que la app no recopila datos si se mantiene la implementación revisada. El progreso, las grabaciones de Eco y su análisis se procesan localmente. No hay cuentas, publicidad, identificador publicitario, tracking ni analítica propia. El permiso de micrófono no equivale por sí solo a recopilar datos fuera del dispositivo. La política explica las voces del sistema y el correo que el usuario envíe voluntariamente.
 
-URL de privacidad pública y URL de soporte necesarias. Los enlaces están añadidos a Pasaporte. Publicar el sitio antes del envío.
+Las URLs de privacidad y soporte están publicadas y se verificaron sin autenticación el 17 de noviembre de 2026. Los enlaces están añadidos a Pasaporte.
 
 ## Google Play Data safety
 

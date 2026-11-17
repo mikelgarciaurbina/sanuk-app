@@ -21,11 +21,11 @@ La pronunciación usa la síntesis de voz del sistema en tailandés. Se requiere
 Datos
 El progreso y las preferencias se guardan localmente. No hay servidor de cuentas ni analítica propia. Se puede restablecer el progreso desde Pasaporte. Ver la política para los detalles de las voces del sistema y los correos voluntarios a soporte.
 
-Sitio previsto
+Sitio publicado
 https://sanuk.overlayon.com
 https://sanuk.overlayon.com/privacidad
 https://sanuk.overlayon.com/soporte
-Publicar y comprobar estas páginas antes de enviar a revisión.
+Páginas publicadas y verificadas sin autenticación el 17 de noviembre de 2026.
 
 Dispositivos
 App universal para iPhone y iPad, con interfaz adaptable al iPhone Duo abierto y cerrado. Android dispone de diseños para móvil y pantallas amplias.
