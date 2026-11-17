@@ -50,7 +50,7 @@ npm run build:testflight       # genera la .ipa en EAS; incrementa el número de
 npm run submit:testflight      # selecciona y envía la build a App Store Connect
 ```
 
-La firma requiere la cuenta Apple Developer del propietario. La primera subida debe identificar la app de App Store Connect (`app.sanuk.thai`) y configurar las credenciales de firma y envío. Guarda su Apple ID numérico como `submit.production.ios.ascAppId` cuando esté confirmado; no se incluye un identificador de ejemplo. Las claves privadas permanecen en EAS o fuera del repositorio.
+La firma utiliza las credenciales del propietario en EAS. El destino de envío está configurado en `submit.production.ios`: app `6834352671` de App Store Connect (`app.sanuk.thai`), confirmado contra los tres envíos anteriores, y equipo `54RSVZ573J`, confirmado contra el perfil de firma. Las claves privadas permanecen en EAS o fuera del repositorio.
 
 La configuración incluye permiso de micrófono en español, manifiesto de privacidad con las razones declaradas por las dependencias instaladas, uso de cifrado no exento desactivado y audio de fondo desactivado. La voz grabada y el progreso permanecen en el dispositivo según el código actual. La validación de Apple, la firma y las pruebas nativas en dispositivos siguen siendo pasos separados de compilar los bundles JavaScript.
 
