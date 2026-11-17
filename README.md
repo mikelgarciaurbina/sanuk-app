@@ -78,6 +78,8 @@ Estos cambios se probaron en el iPhone 16 Pro con una compilación local de Xcod
 
 El parche se aplica con `patch-package` en `postinstall`, y `eas-build-post-install` lo repite antes de compilar en EAS con `--error-on-fail`. `npm run test:eco` falla si el parche falta, si no coincide con la versión instalada de expo-audio o si la librería instalada no lo tiene. Al actualizar expo-audio hay que rehacerlo con `npx patch-package expo-audio` y volver a oír Eco en un iPhone: el simulador no distingue los dos modos del micro.
 
+`package.json` fija `expo.autolinking.ios.buildFromSource: ["expo-audio"]` para que las builds de iOS compilen ese módulo desde las fuentes parcheadas, incluso cuando EAS dispone de módulos precompilados. Los demás módulos conservan su configuración de compilación.
+
 El corte del principio de Noi no se ha podido reproducir: en el simulador, el motor de voz arranca completo con cualquier separación entre frases. Con la sesión única el titular no lo ha vuelto a señalar durante las pruebas de Eco en el iPhone, pero no se ha comprobado de forma expresa en el resto de ejercicios. No se ha generado ninguna build de EAS con estos cambios: la validación del 17 de noviembre es de la compilación local, y el parche de expo-audio no se ha probado todavía en una build de EAS.
 
 ### Repetir la prueba local de Eco

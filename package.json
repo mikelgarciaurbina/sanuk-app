@@ -65,5 +65,14 @@
     "stores:validate": "python3 stores/sources/validate.py",
     "stores:pack": "python3 stores/sources/pack.py"
   },
+  "expo": {
+    "autolinking": {
+      "ios": {
+        "buildFromSource": [
+          "expo-audio"
+        ]
+      }
+    }
+  },
   "private": true
 }

@@ -35,7 +35,7 @@ For the Eco audio issue reported on November 17, 2026, keep debugging and valida
 
 After confirming the simulator result, the user explicitly requested build 5 and its upload to TestFlight on November 17, 2026. That specific build and submission are authorized; the earlier restriction applied to the local debugging phase.
 
-Build 5 did not fix it on the iPhone. Later on November 17 the cause was found and fixed with local cable installs (see the README and the section below): the user confirmed on the physical iPhone 16 Pro that their voice in Eco now matches Noi's. That confirmation is for the local Release build only. No EAS build has been made with those changes, and none has been requested: ask before starting build 6.
+Build 5 did not fix it on the iPhone. Later on November 17 the cause was found and fixed with local cable installs (see the README and the section below): the user confirmed on the physical iPhone 16 Pro that their voice in Eco now matches Noi's. That confirmation is for the local Release build. The user subsequently explicitly requested build 6 and its upload to TestFlight with those changes. That build and submission are authorized. iOS autolinking builds `expo-audio` from source so its native patch is included in the cloud build.
 
 Use EAS to build, sign, and submit the app in the cloud (`eas build`, `eas submit`) and to ship over-the-air updates (`eas update`) — no local Xcode or Android Studio required. Run EAS CLI as `bunx eas-cli <command>` in Bun projects, or `npx eas-cli@latest <command>` otherwise; substitute that for bare `eas` in docs examples.
 Docs: https://docs.expo.dev/eas/index.md
