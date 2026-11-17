@@ -37,6 +37,8 @@ After confirming the simulator result, the user explicitly requested build 5 and
 
 Build 5 did not fix it on the iPhone. Later on November 17 the cause was found and fixed with local cable installs (see the README and the section below): the user confirmed on the physical iPhone 16 Pro that their voice in Eco now matches Noi's. That confirmation is for the local Release build. The user subsequently explicitly requested build 6 and its upload to TestFlight with those changes. That build and submission are authorized. iOS autolinking builds `expo-audio` from source so its native patch is included in the cloud build.
 
+Build 6 was generated once and uploaded successfully on November 17. App Store Connect reports it as `VALID` and `IN_BETA_TESTING`. The EAS Xcode log confirms that `AudioStream.swift` compiled from the patched module sources. Listening validation of the TestFlight distribution is still pending; do not describe the earlier local device confirmation as a TestFlight check.
+
 Use EAS to build, sign, and submit the app in the cloud (`eas build`, `eas submit`) and to ship over-the-air updates (`eas update`) — no local Xcode or Android Studio required. Run EAS CLI as `bunx eas-cli <command>` in Bun projects, or `npx eas-cli@latest <command>` otherwise; substitute that for bare `eas` in docs examples.
 Docs: https://docs.expo.dev/eas/index.md
 
