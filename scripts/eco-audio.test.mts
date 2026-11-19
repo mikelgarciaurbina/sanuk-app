@@ -1,8 +1,12 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test, type TestContext } from 'node:test';
-import { runInNewContext } from 'node:vm';
-import ts from 'typescript';
+import { voiceVolume } from '../src/games/eco/volumen.ts';
+import { nativeModule } from './testing/native-module.mts';
+
+const createVoice = nativeModule('games/tonos/voz.ts');
+const createPlayback = nativeModule('games/eco/reproduccion.ts');
+const createCapture = nativeModule('games/eco/captura.ts');
 
 const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
 const deferred = <T,>() => {
@@ -10,26 +14,13 @@ const deferred = <T,>() => {
   const promise = new Promise<T>((done) => { resolve = done; });
   return { promise, resolve };
 };
-function load(path: string, modules: Record<string, unknown>) {
-  const source = ts.transpileModule(readFileSync(new URL(`../src/${path}`, import.meta.url), 'utf8'), {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-  }).outputText;
-  const exports: any = {};
-  runInNewContext(source, {
-    exports, require: (id: string) => {
-      assert.ok(id in modules, `Módulo sin doble: ${id}`);
-      return modules[id];
-    }, setTimeout, clearTimeout, setInterval, clearInterval, Date,
-  });
-  return exports;
-}
 
 test('Noi: una voz que tarda en empezar o acaba después de lo estimado no se corta ni lanza la comparación antes', (t) => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
   let native: any;
   const events: string[] = [];
   const stop = deferred<void>();
-  const voice = load('games/tonos/voz.ts', {
+  const voice = createVoice({
     react: { useState: () => [false, () => {}], useRef: (current: unknown) => ({ current }), useEffect: () => {} },
     '@/lib/audio': { say: (_: string, o: unknown) => { native = o; }, stopSpeech: () => stop.promise },
     '@/lib/thai': { syllables: (s: string) => s.split('·') },
@@ -57,7 +48,7 @@ function playback(t: TestContext) {
     seekTo: () => { events.push('seek'); return new Promise<void>(() => {}); },
     play: () => events.push('play'), pause: () => events.push('pause'), remove: () => events.push('remove'),
   };
-  const mod = load('games/eco/reproduccion.ts', {
+  const mod = createPlayback({
     'expo-audio': {
       createAudioPlayer: (uri: string, options: unknown) => { events.push(`create:${uri}`); config = options; return player; },
       setIsAudioActiveAsync: () => { throw Error('No cambiar la habilitación global desde una comparación'); },
@@ -73,18 +64,15 @@ function playback(t: TestContext) {
   return { restored, player, events, emit, loaded, cancel, config: () => config };
 }
 
-test('un reproductor nuevo empieza desde cero sin depender de un seek nativo que puede quedar pendiente', async (t) => {
-  const p = playback(t); await p.loaded();
-  assert.ok(p.events.includes('play')); assert.ok(!p.events.includes('seek')); assert.ok(!p.events.includes('error'));
-  assert.equal(p.config().keepAudioSessionActive, true);
-  assert.equal(p.config().allowsExternalPlayback, false, 'el archivo local no se delega a un reproductor AirPlay remoto');
-  p.cancel();
-});
-
-test('el cursor y el final siguen la reproducción real, sin dar por terminada la toma por su duración estimada', async (t) => {
+test('la toma arranca sin seek y el cursor y el final siguen la reproducción real', async (t) => {
   const p = playback(t);
   assert.deepEqual(p.events, []);
   await p.loaded();
+  assert.ok(p.events.includes('play'));
+  assert.ok(!p.events.includes('seek'));
+  assert.ok(!p.events.includes('error'));
+  assert.equal(p.config().keepAudioSessionActive, true);
+  assert.equal(p.config().allowsExternalPlayback, false);
   assert.ok(!p.events.includes('start'));
   assert.equal(p.player.volume, 1); assert.equal(p.player.muted, false);
   p.emit({ playing: true, currentTime: 1.25 });
@@ -124,19 +112,24 @@ test('una toma cargada que no arranca no deja la interfaz bloqueada treinta segu
   assert.ok(p.events.includes('error')); assert.ok(p.events.includes('remove')); assert.ok(!p.events.includes('end'));
 });
 
-const { voiceVolume } = load('games/eco/volumen.ts', {});
+const VOICE_SAMPLES = 3200; // 200 ms de voz a 16 kHz, diez ventanas de análisis.
 function wav(amp = 0.012, lead = 0, tail = 0) {
-  const rate = 16000, voice = 16000, samples = lead + voice + tail;
+  const rate = 16000, samples = lead + VOICE_SAMPLES + tail;
   const b = Buffer.alloc(44 + samples * 2);
   b.write('RIFF', 0); b.writeUInt32LE(b.length - 8, 4); b.write('WAVEfmt ', 8); b.writeUInt32LE(16, 16);
   b.writeUInt16LE(1, 20); b.writeUInt16LE(1, 22); b.writeUInt32LE(rate, 24); b.writeUInt32LE(rate * 2, 28);
   b.writeUInt16LE(2, 32); b.writeUInt16LE(16, 34); b.write('data', 36); b.writeUInt32LE(samples * 2, 40);
   // `lead` y `tail` son el silencio de antes y de después de hablar (con un ruido de fondo mínimo).
   for (let i = 0; i < samples; i++) {
-    const speaking = i >= lead && i < lead + voice;
+    const speaking = i >= lead && i < lead + VOICE_SAMPLES;
     b.writeInt16LE(Math.round(32767 * (speaking ? amp : 0.0002) * Math.sin(2 * Math.PI * 220 * i / rate)), 44 + i * 2);
   }
   return b;
+}
+function listeningCopy(raw: Uint8Array) {
+  const result = voiceVolume(raw);
+  assert.ok(result, 'se esperaba una copia de escucha');
+  return Buffer.from(result);
 }
 function rms(b: Uint8Array, start = 44, end = b.length) {
   const v = new DataView(b.buffer, b.byteOffset, b.byteLength); let e = 0;
@@ -147,30 +140,24 @@ function rms(b: Uint8Array, start = 44, end = b.length) {
 const VOICE = 0.23, CEILING = Math.round(32767 * 0.98);
 
 test('la copia de escucha hace audible un PCM bajo conservando duración, tono y archivo original', () => {
-  const raw = wav(), before = Buffer.from(raw); const out = Buffer.from(voiceVolume(raw));
-  assert.ok(rms(raw) < 0.01); assert.ok(Math.abs(rms(out) - VOICE) < 0.005, `nivel ${rms(out)}`);
+  const raw = wav(), before = Buffer.from(raw); const out = listeningCopy(raw);
+  const inputLevel = rms(raw), outputLevel = rms(out);
+  assert.ok(inputLevel < 0.01); assert.ok(Math.abs(outputLevel - VOICE) < 0.005, `nivel ${outputLevel}`);
   assert.equal(out.length, raw.length); assert.deepEqual(out.subarray(0, 44), raw.subarray(0, 44));
   assert.deepEqual(raw, before);
   // Por debajo del codo la onda solo se escala: cada muestra queda a menos de un paso de la original.
-  const gain = rms(out) / rms(raw);
+  const gain = outputLevel / inputLevel;
   for (let at = 44; at < out.length; at += 2) assert.ok(Math.abs(out.readInt16LE(at) - raw.readInt16LE(at) * gain) < gain);
 });
 
-test('el nivel se mide en la voz: el silencio de antes y de después de hablar no la deja más baja', () => {
-  // Así son las tomas reales: medio segundo en silencio, la palabra y más de un segundo esperando.
-  const lead = 8000, tail = 20000; const raw = wav(0.011, lead, tail); const out = Buffer.from(voiceVolume(raw));
-  const voiced = rms(out, 44 + lead * 2, 44 + (lead + 16000) * 2);
-  assert.ok(Math.abs(voiced - VOICE) < 0.005, `voz a ${voiced}`);
-  assert.ok(rms(out) < 0.2, 'la media del archivo entero es más baja que la voz');
-});
-
-test('un golpe suelto no cuenta como voz ni se recorta: se redondea por debajo del techo', () => {
+test('el silencio y un golpe suelto no falsean el nivel de voz y el golpe queda por debajo del techo', () => {
   const lead = 8000; const raw = wav(0.011, lead, 20000);
   // El dedo en la pantalla: 20 ms treinta veces más fuertes que la voz, en mitad del silencio.
   for (let i = 1000; i < 1320; i++) raw.writeInt16LE(Math.round(32767 * 0.33 * Math.sin(2 * Math.PI * 900 * i / 16000)), 44 + i * 2);
-  const out = Buffer.from(voiceVolume(raw));
-  const voiced = rms(out, 44 + lead * 2, 44 + (lead + 16000) * 2);
+  const out = listeningCopy(raw);
+  const voiced = rms(out, 44 + lead * 2, 44 + (lead + VOICE_SAMPLES) * 2);
   assert.ok(Math.abs(voiced - VOICE) < 0.005, `voz a ${voiced}`);
+  assert.ok(rms(out) < 0.2, 'la media del archivo entero es más baja que la voz');
   let top = 0;
   for (let at = 44; at < out.length; at += 2) {
     const value = out.readInt16LE(at); top = Math.max(top, Math.abs(value));
@@ -180,15 +167,8 @@ test('un golpe suelto no cuenta como voz ni se recorta: se redondea por debajo d
   assert.ok(top > 32767 * 0.9, 'el golpe llega arriba, pero curvado');
 });
 
-test('los picos no se recortan y las voces que ya tienen volumen no se amplifican', () => {
-  const raw = wav(0.008); raw.writeInt16LE(10000, 400);
-  const out = Buffer.from(voiceVolume(raw));
-  for (let at = 44; at < out.length; at += 2) assert.ok(Math.abs(out.readInt16LE(at)) <= CEILING);
-  assert.ok(out.readInt16LE(400) > 32767 * 0.9);
+test('solo se amplifica una toma PCM válida con voz demasiado baja', () => {
   assert.equal(voiceVolume(wav(0.5)), null);
-});
-
-test('no se amplifican el silencio digital, el ruido ínfimo ni un formato no soportado', () => {
   assert.equal(voiceVolume(wav(0)), null); assert.equal(voiceVolume(wav(0.0001)), null);
   const other = wav(); other.writeUInt16LE(3, 20); assert.equal(voiceVolume(other), null);
   assert.equal(voiceVolume(Buffer.from('bad')), null);
@@ -199,7 +179,7 @@ test('se respetan los chunks adicionales y las vistas con un desplazamiento en e
   const original = wav(); const junk = Buffer.from([74,85,78,75,1,0,0,0,7,0]);
   const extra = Buffer.concat([original.subarray(0, 12), junk, original.subarray(12)]); extra.writeUInt32LE(extra.length - 8, 4);
   const storage = Buffer.concat([Buffer.alloc(7), extra, Buffer.alloc(3)]);
-  const input = storage.subarray(7, 7 + extra.length); const out = Buffer.from(voiceVolume(input));
+  const input = storage.subarray(7, 7 + extra.length); const out = listeningCopy(input);
   assert.deepEqual(out.subarray(0, 54), extra.subarray(0, 54)); assert.ok(Math.abs(rms(out, 54) - VOICE) < 0.005);
 });
 
@@ -231,7 +211,7 @@ function capture(t: TestContext, stream = false) {
     stop() { events.push('stream:stop'); }
     release() { events.push('stream:release'); }
   }
-  const mod = load('games/eco/captura.ts', {
+  const mod = createCapture({
     'expo-audio': {
       AudioModule: stream ? { AudioStream: Stream } : {}, requestRecordingPermissionsAsync: async () => ({ granted: true }),
       setAudioModeAsync: async (o: any) => { events.push(o.allowsRecording ? 'mode:record' : 'mode:play'); },
@@ -279,7 +259,7 @@ test('el micro de iOS graba en el modo normal de voz: el parche de expo-audio es
 
 function restoring(os: string, failFirst = false) {
   const modes: any[] = [];
-  const mod = load('games/eco/captura.ts', {
+  const mod = createCapture({
     'expo-audio': {
       AudioModule: {}, requestRecordingPermissionsAsync: async () => ({ granted: true }),
       setAudioModeAsync: async (mode: any) => { modes.push(mode); if (failFirst && modes.length === 1) throw Error('session busy'); },

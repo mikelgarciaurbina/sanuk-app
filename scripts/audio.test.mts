@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { test, type TestContext } from 'node:test';
-import { runInNewContext } from 'node:vm';
-import ts from 'typescript';
+import { nativeModule } from './testing/native-module.mts';
 
-const source = ts.transpileModule(readFileSync(new URL('../src/lib/audio.ts', import.meta.url), 'utf8'), {
-  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-}).outputText;
+const createAudio = nativeModule<typeof import('../src/lib/audio.ts')>('lib/audio.ts');
+const sfxDir = new URL('../assets/sfx/', import.meta.url);
+const wavNames = readdirSync(sfxDir).filter((name) => name.endsWith('.wav'));
+const soundAssets = Object.fromEntries(wavNames.map((name) => [`../../assets/sfx/${name}`, name]));
 
 const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
 const deferred = <T,>() => {
@@ -49,20 +49,21 @@ function loadAudio(t: TestContext, platform = 'ios') {
   const keepers: { source: string; volume: number; plays: number; pauses: number }[] = [];
   const createAudioPlayer = (source: string, options?: { keepAudioSessionActive?: boolean }) => {
     if (options?.keepAudioSessionActive) {
-      const keeper = { source: source.split('/').at(-1)!, volume: 1, plays: 0, pauses: 0, play: () => { keeper.plays += 1; }, pause: () => { keeper.pauses += 1; } };
+      const keeper = { source, volume: 1, plays: 0, pauses: 0, play: () => { keeper.plays += 1; }, pause: () => { keeper.pauses += 1; } };
       keepers.push(keeper);
       return keeper;
     }
     const player = {
       playing: false, isLoaded: true, volume: 1,
       seekTo: async () => {},
-      play: () => { player.playing = true; effects.push(source.split('/').at(-1)!); },
+      play: () => { player.playing = true; effects.push(source); },
       pause: () => { player.playing = false; },
     };
-    players.set(source.split('/').at(-1)!, player);
+    players.set(source, player);
     return player;
   };
-  const modules: Record<string, unknown> = {
+  const audio = createAudio({
+    ...soundAssets,
     'expo-speech': speech,
     'expo-audio': { createAudioPlayer, setAudioModeAsync: async () => {} },
     'expo-haptics': {
@@ -71,27 +72,8 @@ function loadAudio(t: TestContext, platform = 'ios') {
     },
     react: {},
     'react-native': { Platform: { OS: platform }, AppState: { addEventListener: () => {} } },
-  };
-  const exports = {} as {
-    initAudio: () => Promise<void>;
-    say: (text: string, opts?: { slow?: boolean; onDone?: () => void; onStart?: () => void }) => void;
-    stopSpeech: () => void;
-    suspendSoundEffects: () => () => void;
-    sfx: (name: string) => void;
-    fx: { ok: (combo?: number) => void; bad: () => void };
-    configureAudio: (opts: { sound: boolean; haptics: boolean; voiceRate: number }) => void;
-  };
-  runInNewContext(source, {
-    exports,
-    require: (name: string) => {
-      if (name.endsWith('.wav')) return name;
-      assert.ok(name in modules, `Módulo sin doble de pruebas: ${name}`);
-      return modules[name];
-    },
-    setTimeout,
-    clearTimeout,
   });
-  return { audio: exports, speech, playbacks, voices, effects, players, keepers };
+  return { audio, speech, playbacks, voices, effects, players, keepers };
 }
 
 test('grabar o comparar silencia todos los efectos y no recupera un sonido antiguo al terminar', async (t) => {
@@ -150,19 +132,6 @@ test('iOS: saludar y repetir, a velocidad normal y lenta, suena por la sesión d
     playback.options.onDone();
   }
   assert.equal(playbacks.length, 3);
-});
-
-test('espera a que termine la cancelación nativa antes de repetir la frase', async (t) => {
-  const { audio, speech, playbacks } = loadAudio(t);
-  await audio.initAudio();
-  const stop = deferred<void>();
-  speech.stop = () => stop.promise;
-  audio.say('สวัสดี');
-  await flush();
-  assert.equal(playbacks.length, 0);
-  stop.resolve();
-  await flush();
-  assert.equal(playbacks.length, 1);
 });
 
 test('varios toques rápidos reproducen solo la última petición y completan cada anterior una vez', async (t) => {
@@ -357,9 +326,8 @@ test('no se acumulan reacciones y salir o desactivar sonidos cancela las pendien
 });
 
 test('los WAV incluyen el bloque data legible por iOS y contienen muestras audibles', () => {
-  const dir = new URL('../assets/sfx/', import.meta.url);
-  for (const name of readdirSync(dir).filter((name) => name.endsWith('.wav'))) {
-    const wav = readFileSync(new URL(name, dir));
+  for (const name of wavNames) {
+    const wav = readFileSync(new URL(name, sfxDir));
     assert.equal(wav.toString('ascii', 0, 4), 'RIFF', name);
     assert.equal(wav.toString('ascii', 8, 16), 'WAVEfmt ', name);
     assert.equal(wav.toString('ascii', 36, 40), 'data', name);

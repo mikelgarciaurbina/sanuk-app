@@ -41,14 +41,12 @@ El checkout está vinculado a [@gartzia6/sanuk](https://expo.dev/accounts/gartzi
 ```bash
 npm run lint
 npm run typecheck
-npm run test:layout
-npm run test:audio
-npm run test:eco
-npm run test:reminders
-npm run temario:test
+node --run test                # todas las pruebas en paralelo (también npm test)
 npm run build:testflight       # genera la .ipa en EAS; incrementa el número de build
 npm run submit:testflight      # selecciona y envía la build a App Store Connect
 ```
+
+Para probar solo Eco, ejecuta `node --run test:eco`. Con `node --run` también puedes elegir `test:audio`, `test:reminders`, `test:layout` o `temario:test`. Las pruebas de módulos nativos reutilizan la compilación en `node_modules/.cache/sanuk-tests` mientras coincidan el código, el compilador y las opciones.
 
 La firma utiliza las credenciales del propietario en EAS. El destino de envío está configurado en `submit.production.ios`: app `6834352671` de App Store Connect (`app.sanuk.thai`), confirmado contra los tres envíos anteriores, y equipo `54RSVZ573J`, confirmado contra el perfil de firma. Las claves privadas permanecen en EAS o fuera del repositorio.
 

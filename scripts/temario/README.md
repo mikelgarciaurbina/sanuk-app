@@ -48,7 +48,8 @@ Una temporada nueva va en su propio archivo (como `src/content/season2/meses-a.t
 
 | Archivo | Qué es |
 | --- | --- |
-| `revisar.mts`, `nivel.mts`, `temario.test.mts` | Las tres órdenes. |
+| `revisar.mts`, `nivel.mts` | Revisión del temario e informe de nivel. |
+| `temario.test.mts`, `feria.test.mts` | Pruebas del temario, la feria y el repaso. `npm run temario:test` ejecuta ambos archivos. |
 | `reglas.mts` | Excepciones y tamaños. |
 | `lib/cargar.mts` | Carga el temario como la app (importa `src/content/index.ts`) y lo que exporta cada archivo. |
 | `lib/tonos.mts` | Lectura de la escritura thai sílaba a sílaba. |

@@ -3,8 +3,12 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 
 import type { Word } from '../../src/content/types.ts';
+import '../register-app.mjs';
 import { comprobarTonos } from './lib/tonos.mts';
 import { Vocabulario } from './lib/vocabulario.mts';
+
+const app = await import('../../src/content/index.ts');
+const { buildLesson } = await import('../../src/lib/lesson.ts');
 
 describe('revisor de tonos', () => {
   test('acepta transcripciones correctas, también con อักษรนำ, การันต์, ๆ y lecturas irregulares', () => {
@@ -101,11 +105,7 @@ describe('vocabulario: qué se ha enseñado ya', () => {
   });
 });
 
-describe('lecciones: nada se pregunta antes de presentarse', async () => {
-  const { cargarTemario } = await import('./lib/cargar.mts');
-  const { app } = await cargarTemario();
-  const { buildLesson, introducedIds } = await import('../../src/lib/lesson.ts');
-
+describe('lecciones: nada se pregunta antes de presentarse', () => {
   test('la primera curva presenta dos expresiones, practica de oído y cierra con un saludo', () => {
     const p = { words: { sawatdii: { s: 1, intro: true } }, completed: {}, profile: { startStop: 1 } };
     const b = buildLesson(app.LESSONS[0], p);
@@ -121,22 +121,26 @@ describe('lecciones: nada se pregunta antes de presentarse', async () => {
     const words: Record<string, { s: number; intro?: boolean }> = { sawatdii: { s: 1, intro: true } };
     const completed: Record<string, { stars: number; best: number; at: string }> = {};
     const p = { words, completed, profile: { startStop: 1 } };
+    const shown = new Set(Object.keys(words));
     for (const l of app.LESSONS) {
       const b = buildLesson(l, p);
-      const shown = introducedIds(p);
+      // Varios juegos comparten la misma lista. Basta comprobarla la primera vez que aparece.
+      const checked = new Set<Word[]>();
       for (const s of b.steps) {
         if (s.kind === 'intro') {
           shown.add(s.word.id);
+          words[s.word.id] = { s: 1, intro: true };
           continue;
         }
         // el momento de la historia y la gramática en un minuto no preguntan nada
         if (s.kind !== 'game') continue;
-        const usados = [...(s.words ?? b.words), ...(s.focus ?? b.focus)];
-        const sinFicha = usados.filter((w) => !shown.has(w.id)).map((w) => w.id);
-        assert.deepEqual(sinFicha, [], `${l.id} · ${s.game}: usa palabras sin ficha`);
+        for (const pool of [s.words ?? b.words, s.focus ?? b.focus]) {
+          if (checked.has(pool)) continue;
+          const missing = pool.find((w) => !shown.has(w.id));
+          assert.ok(!missing, `${l.id} · ${s.game}: usa ${missing?.id} sin ficha`);
+          checked.add(pool);
+        }
       }
-      // al terminar la lección, sus palabras quedan presentadas
-      for (const id of l.words) words[id] = { s: 1, intro: true };
       completed[l.id] = { stars: 3, best: 1, at: '' };
     }
   });
@@ -166,7 +170,6 @@ describe('lecciones: nada se pregunta antes de presentarse', async () => {
 });
 
 describe('«Cómo se escribe»: cada letra con su sonido', async () => {
-  await import('./lib/cargar.mts');
   const { spell } = await import('../../src/lib/spell.ts');
   const labels = (th: string) => (spell(th) ?? []).map((g) => g.label).join(' ');
 
@@ -217,8 +220,7 @@ describe('«Cómo se escribe»: cada letra con su sonido', async () => {
     for (const [th, rom, esperado] of casos) assert.equal((spell(th, rom) ?? []).map((g) => g.label).join(' '), esperado, th);
   });
 
-  test('ninguna ficha del temario se contradice: cada consonante que suena está en su transcripción, en orden', async () => {
-    const { app } = await (await import('./lib/cargar.mts')).cargarTemario();
+  test('ninguna ficha del temario se contradice: cada consonante que suena está en su transcripción, en orden', () => {
     const plano = (rom: string) => rom.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^\p{L}]/gu, '');
     const mal: string[] = [];
     for (const w of Object.values(app.WORDS)) {
@@ -234,111 +236,5 @@ describe('«Cómo se escribe»: cada letra con su sonido', async () => {
       }
     }
     assert.deepEqual(mal, []);
-  });
-});
-
-describe('feria y repaso: solo palabras con ficha', async () => {
-  const { cargarTemario } = await import('./lib/cargar.mts');
-  const { app } = await cargarTemario();
-  const { buildReview, introducedIds } = await import('../../src/lib/lesson.ts');
-  const { feriaSetup } = await import('../../src/lib/feria.ts');
-  const drills = await import('../../src/content/drills.ts');
-  const mercado = await import('../../src/games/mercado/logic.ts');
-
-  const progressAfter = (n: number) => {
-    const words: Record<string, { s: number; due: number; intro?: boolean }> = { sawatdii: { s: 1, due: 0, intro: true } };
-    const completed: Record<string, { stars: number; best: number; at: string }> = {};
-    for (const l of app.LESSONS.slice(0, n)) {
-      for (const id of l.words) words[id] = { s: 1, due: 0, intro: true };
-      completed[l.id] = { stars: 3, best: 1, at: '' };
-    }
-    return { words, completed, profile: { startStop: 1 } };
-  };
-
-  test('quien solo conoce «hola» no recibe palabras futuras: la feria le pide aprender un poco más', () => {
-    const r = feriaSetup('parejas', progressAfter(0));
-    assert.ok('needMore' in r);
-  });
-
-  test('a lo largo del camino, cada juego de la feria usa solo palabras, frases y conversaciones ya vistas', () => {
-    const ids = ['parejas', 'memoria', 'monzon', 'siono', 'farolillos', 'oido', 'puente', 'hueco', 'eco', 'cena', 'cuentos', 'curvas', 'tigre', 'tonos', 'cestas', 'mercado', 'noidice', 'cueva', 'traza', 'silabas'] as const;
-    for (const n of [2, 10, 40, 100, 164]) {
-      const p = progressAfter(n);
-      const known = introducedIds(p);
-      const forms = new Set([...known].flatMap((id) => app.WORDS[id].th.split(/[\s…/()ๆ]+/).filter(Boolean)));
-      for (const id of ids) {
-        const r = feriaSetup(id, p);
-        if ('needMore' in r) continue;
-        assert.deepEqual(r.words.filter((w) => !known.has(w.id)).map((w) => w.id), [], `${id} tras ${n} lecciones`);
-        for (const s of r.sentences) assert.ok(s.th.every((t) => t.startsWith('{') || forms.has(t)), `${id}: frase ${s.id} tras ${n}`);
-        const extra = r.extra;
-        if (extra?.kind === 'dialogo')
-          assert.ok(app.LESSONS.some((l) => p.completed[l.id] && l.extra?.kind === 'dialogo' && l.extra.id === extra.id), `cena con ${extra.id} tras ${n}`);
-        if (extra?.kind === 'cuento')
-          for (const st of extra.shelf ?? [extra.id])
-            assert.ok(app.LESSONS.some((l) => p.completed[l.id] && l.extra?.kind === 'cuento' && l.extra.id === st), `cuento ${st} tras ${n}`);
-        if (extra?.kind === 'letras')
-          assert.ok(app.LESSONS.some((l) => p.completed[l.id] && l.extra?.kind === 'letras' && l.extra.set === extra.set), `letras ${extra.set} tras ${n}`);
-      }
-    }
-  });
-
-  test('los ejercicios con vocabulario propio (tonos, cestas, mercado, Noi dice) solo sacan lo presentado', () => {
-    for (const n of [2, 8, 13, 15, 20, 40, 100, 164]) {
-      const p = progressAfter(n);
-      const words = [...introducedIds(p)].map((id) => app.WORDS[id]);
-      const forms = app.knownForms(words);
-      const fuera = (xs: string[]) => xs.filter((t) => !forms.has(t));
-      for (const set of drills.minimalSetsFor(forms)) assert.deepEqual(fuera(set.items.map((w) => w.th)), [], `tigre «${set.title}» tras ${n}`);
-      assert.deepEqual(fuera(drills.toneBankFor(forms).map((w) => w.th)), [], `tonos tras ${n}`);
-      for (const it of drills.classifierItemsFor(forms)) assert.deepEqual(fuera([it.th, it.clf]), [], `cestas tras ${n}`);
-      for (const c of drills.bodyCommandsFor(forms)) assert.deepEqual(fuera(drills.bodyWordsOf(c)), [], `noi dice tras ${n}`);
-      // la vendedora solo nombra lo que se conoce: ni fruta, ni clasificador, ni บาท ni จ้ะ antes de tiempo
-      const k = mercado.knowledge(words, []);
-      for (const good of mercado.GOODS) {
-        const line = mercado.quoteLine(good, 2, 10, k).th;
-        for (const t of [good.th, good.clf, 'บาท', 'จ้ะ']) if (!forms.has(t)) assert.ok(!line.includes(t), `mercado «${line}» dice ${t} tras ${n}`);
-      }
-    }
-  });
-
-  test('cada puesto se abre cuando el camino ya ha enseñado lo suyo', () => {
-    const abierto = (id: Parameters<typeof feriaSetup>[0], n: number) => !('needMore' in feriaSetup(id, progressAfter(n)));
-    const leccion = (id: string) => app.LESSONS.findIndex((l) => l.id === id) + 1;
-    assert.equal(abierto('noidice', leccion('p3l3')), false); // aún sin «บอก»
-    assert.equal(abierto('noidice', leccion('p3l5')), true);
-    assert.equal(abierto('mercado', leccion('p2l1') - 1), false);
-    assert.equal(abierto('mercado', leccion('p2l1')), true);
-    // los puestos de letras y de cuentos se abren con la primera lección que los trae, esté donde esté
-    const primera = (es: (l: (typeof app.LESSONS)[number]) => boolean) => app.LESSONS.findIndex(es) + 1;
-    const medias = primera((l) => l.extra?.kind === 'letras' && l.extra.set === 'media');
-    assert.equal(abierto('cueva', medias - 1), false);
-    assert.equal(abierto('cueva', medias), true);
-    assert.equal(abierto('traza', medias), true);
-    const silabas = primera((l) => l.extra?.kind === 'letras' && l.extra.set === 'silabas');
-    assert.equal(abierto('silabas', silabas - 1), false);
-    assert.equal(abierto('silabas', silabas), true);
-    const cuento = primera((l) => l.extra?.kind === 'cuento');
-    const primerCuento = app.LESSONS[cuento - 1].extra;
-    assert.equal(abierto('cuentos', cuento - 1), false);
-    const shelf = feriaSetup('cuentos', progressAfter(cuento));
-    assert.ok(!('needMore' in shelf) && shelf.extra?.kind === 'cuento' && primerCuento?.kind === 'cuento' && shelf.extra.shelf?.join() === primerCuento.id);
-  });
-
-  test('el repaso solo trae palabras con ficha y no se abre con muy pocas', () => {
-    const perdon = Object.values(app.WORDS).find((w) => w.th === 'ขอโทษ')!.id;
-    // «hola» y «gracias» presentadas; «perdón» solo respondida en una partida de un guardado antiguo
-    const p = { words: { sawatdii: { s: 1, due: 0, intro: true }, khopkhun: { s: 1, due: 0, intro: true }, [perdon]: { s: 0, due: 0 } }, completed: {}, profile: { startStop: 1 } };
-    assert.deepEqual(app.dueWords(p).map((w) => w.id).sort(), ['khopkhun', 'sawatdii']);
-    assert.equal(app.canReview(p), false);
-    assert.equal(app.canReview(progressAfter(3)), true);
-  });
-
-  test('el repaso pone como distractores solo palabras ya presentadas', () => {
-    const p = progressAfter(3);
-    const known = introducedIds(p);
-    const due = [...known].slice(0, 4).map((id) => app.WORDS[id]);
-    const b = buildReview(due, p);
-    assert.deepEqual(b.words.filter((w) => !known.has(w.id)).map((w) => w.id), []);
   });
 });

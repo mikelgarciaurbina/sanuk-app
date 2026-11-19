@@ -1,34 +1,12 @@
 // Carga el temario tal como lo ve la app (src/content/index.ts) y, además, lo que exporta cada archivo,
 // para encontrar ids repetidos y archivos que no se han registrado en index.ts.
 import { readdirSync } from 'node:fs';
-import { registerHooks } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
+import '../../register-app.mjs';
 import type { Dialogue, Pattern, Sentence, Stop, Story, Word } from '../../../src/content/types.ts';
 
 export const CONTENIDO = new URL('../../../src/content/', import.meta.url);
-
-// El temario importa sin extensión ('./stops-a') y con el alias '@/' (src/), como permite Metro; Node necesita
-// la ruta exacta. Además se marca cada .ts como módulo ES para que Node no tenga que adivinarlo (y no avise).
-const SRC = new URL('../../../src/', import.meta.url);
-registerHooks({
-  resolve(especificador, contexto, siguiente) {
-    const spec = especificador.startsWith('@/') ? new URL(especificador.slice(2), SRC).href : especificador;
-    let r: ReturnType<typeof siguiente> | undefined;
-    if (/^(\.{1,2}\/|file:)/.test(spec) && !/\.[cm]?[jt]sx?$/.test(spec)) {
-      for (const ext of ['.ts', '/index.ts']) {
-        try {
-          r = siguiente(spec + ext, contexto);
-          break;
-        } catch {
-          // probamos la siguiente forma
-        }
-      }
-    }
-    r ??= siguiente(spec, contexto);
-    return r.url.endsWith('.ts') ? { ...r, format: 'module-typescript' } : r;
-  },
-});
 
 export type ConOrigen<T> = { item: T; archivo: string };
 

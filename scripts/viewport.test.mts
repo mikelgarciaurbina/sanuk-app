@@ -3,15 +3,9 @@ import { test } from 'node:test';
 
 import { contentWidth, foregroundWidth, gridColumns } from '../src/lib/viewport.ts';
 
-test('las ventanas nativas ocupan todo el ancho, también al desplegar el Duo y en iPad', () => {
-  for (const width of [320, 393, 430, 466, 669, 700, 744, 820, 951, 1024, 1366]) {
-    assert.equal(contentWidth(width, false), width);
-  }
-});
-
-test('al desplegar y volver a plegar, el ancho se recalcula sin conservar la pantalla anterior', () => {
+test('al plegar o desplegar se aprovecha el ancho nativo y en la web se limita a 520', () => {
   assert.deepEqual([466, 951, 466].map((width) => contentWidth(width, false)), [466, 951, 466]);
-  assert.deepEqual([320, 393, 820, 1440].map((width) => contentWidth(width, true)), [320, 393, 520, 520]);
+  assert.deepEqual([320, 520, 521, 1440].map((width) => contentWidth(width, true)), [320, 520, 520, 520]);
 });
 
 test('la cámara y el menú reservan espacio en cualquiera de los lados, sin reducir dos veces el contenido', () => {

@@ -1,14 +1,9 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { runInNewContext } from 'node:vm';
-import ts from 'typescript';
+import * as config from '../src/lib/reminder-config.ts';
+import { nativeModule } from './testing/native-module.mts';
 
-const compile = (name: string) => ts.transpileModule(readFileSync(new URL(`../src/lib/${name}.ts`, import.meta.url), 'utf8'), {
-  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-}).outputText;
-const config: Record<string, any> = {};
-runInNewContext(compile('reminder-config'), { exports: config });
+const createService = nativeModule<typeof import('../src/lib/reminders.ts')>('lib/reminders.ts');
 const ID = config.REMINDER_ID;
 const on = { enabled: true, hour: 19, minute: 15 };
 const off = { ...on, enabled: false };
@@ -44,22 +39,17 @@ function fixture(platform = 'ios') {
     getLastNotificationResponse: () => state.response,
     clearLastNotificationResponse: () => { state.cleared += 1; state.response = null; },
   };
-  const service: Record<string, any> = {};
-  runInNewContext(compile('reminders'), {
-    exports: service,
-    require: (name: string) => {
-      if (name === 'expo-notifications') return api;
-      if (name === 'react-native') return { Platform: { OS: platform } };
-      if (name === './reminder-config') return config;
-      throw new Error(name);
-    },
+  const service = createService({
+    'expo-notifications': api,
+    'react-native': { Platform: { OS: platform } },
+    './reminder-config': config,
   });
   return { service, api, state, pending };
 }
 
 test('los perfiles antiguos reciben el recordatorio apagado a las 19:00', () => {
-  assert.equal(JSON.stringify(config.normalizeReminder()), JSON.stringify({ enabled: false, hour: 19, minute: 0 }));
-  assert.equal(JSON.stringify(config.normalizeReminder({ enabled: true, hour: 99, minute: -1 })), JSON.stringify({ enabled: true, hour: 19, minute: 0 }));
+  assert.deepEqual(config.normalizeReminder(), { enabled: false, hour: 19, minute: 0 });
+  assert.deepEqual(config.normalizeReminder({ enabled: true, hour: 99, minute: -1 }), { enabled: true, hour: 19, minute: 0 });
   assert.equal(config.reminderTime(config.normalizeReminder({ hour: 0, minute: 5 })), '00:05');
 });
 
@@ -72,11 +62,13 @@ test('arrancar y cambiar la hora con el recordatorio apagado no solicita permiso
   assert.equal(pending.size, 0);
 });
 
-test('activar pide permiso y crea un único aviso diario de Noi con la hora elegida', async () => {
+test('activar pide permiso y programa el aviso diario una sola vez, incluso al volver a abrir la app', async () => {
   const { service, state, pending } = fixture();
   state.permission = undetermined;
   assert.equal(await service.syncDailyReminder(on, true), 'allowed');
+  await service.syncDailyReminder(on);
   assert.equal(state.requests, 1);
+  assert.equal(state.schedules, 1);
   assert.equal(pending.size, 1);
   const notification = pending.get(ID);
   assert.equal(notification.content.title, 'Noi 🐘');
@@ -102,15 +94,6 @@ test('se interpreta la autorización granular de iOS, incluida la provisional', 
   assert.equal(pending.size, 0);
   state.permission = { ...blocked, ios: { status: 3 } };
   assert.equal(await service.syncDailyReminder(on), 'allowed');
-  assert.equal(pending.size, 1);
-});
-
-test('abrir la app varias veces no duplica ni reprograma el aviso existente', async () => {
-  const { service, state, pending } = fixture();
-  await service.syncDailyReminder(on);
-  await service.syncDailyReminder(on);
-  await service.syncDailyReminder(on);
-  assert.equal(state.schedules, 1);
   assert.equal(pending.size, 1);
 });
 
